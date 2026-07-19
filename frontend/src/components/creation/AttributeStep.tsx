@@ -77,29 +77,25 @@ interface AttributeStepProps {
 export default function AttributeStep({ onValid }: AttributeStepProps) {
   const { stepData, saveStep } = useAppContext()
 
-  const [rolls, setRolls] = useState<number[]>([])
-  const [assignments, setAssignments] = useState<Partial<Record<AttributeKey, number>>>({})
+  const saved = stepData as {
+    attributes?: Record<string, number>
+    rolls?: number[]
+  } | null
+
+  const savedAttributes = saved?.attributes ?? {}
+  const savedRolls = saved?.rolls ?? []
+
+  const [rolls, setRolls] = useState<number[]>(savedRolls.length === 10 ? savedRolls : [])
+  const [assignments, setAssignments] = useState<Partial<Record<AttributeKey, number>>>(
+    Object.fromEntries(
+      ATTRIBUTES.filter((a) => savedAttributes[a] !== undefined).map((a) => [a, savedAttributes[a]])
+    ) as Partial<Record<AttributeKey, number>>
+  )
   const [manualInputs, setManualInputs] = useState<Record<string, string>>(
-    Object.fromEntries(ATTRIBUTES.map((a) => [a, '']))
+    Object.fromEntries(ATTRIBUTES.map((a) => [a, savedAttributes[a] !== undefined ? String(savedAttributes[a]) : '']))
   )
   const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null)
   const [rollsDetail, setRollsDetail] = useState<{ dice: number[]; sum: number }[]>([])
-
-  useEffect(() => {
-    const saved = stepData as {
-      attributes?: Record<string, number>
-      rolls?: number[]
-    } | null
-    if (saved?.rolls && saved.rolls.length === 10) {
-      setRolls(saved.rolls)
-    }
-    if (saved?.attributes && Object.keys(saved.attributes).length > 0) {
-      setAssignments(saved.attributes as Partial<Record<AttributeKey, number>>)
-      setManualInputs(
-        Object.fromEntries(ATTRIBUTES.map((a) => [a, saved.attributes?.[a] !== undefined ? String(saved.attributes[a]) : '']))
-      )
-    }
-  }, [stepData])
 
   const simplePool = useMemo(() => {
     const result: { value: number; originalIndex: number }[] = []
@@ -138,6 +134,22 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   useEffect(() => {
     onValid(allAssigned)
   }, [allAssigned, onValid])
+
+  useEffect(() => {
+    const saved = stepData as {
+      attributes?: Record<string, number>
+      rolls?: number[]
+    } | null
+    if (saved?.rolls && saved.rolls.length === 10 && rolls.length === 0) {
+      setRolls(saved.rolls)
+    }
+    if (saved?.attributes && Object.keys(saved.attributes).length > 0 && Object.keys(assignments).length === 0) {
+      setAssignments(saved.attributes as Partial<Record<AttributeKey, number>>)
+      setManualInputs(
+        Object.fromEntries(ATTRIBUTES.map((a) => [a, saved.attributes?.[a] !== undefined ? String(saved.attributes[a]) : '']))
+      )
+    }
+  }, [stepData])
 
   useEffect(() => {
     if (Object.keys(assignments).length > 0) {

@@ -51,7 +51,7 @@
 - Implizite Annahmen über bestehende Struktur
 
 ## Nächste Schritte
-1. **Datenverlust-Bugfix** (Navigation & Refresh) ⏳ BLOCKIERT — 2. Fix-Versuch nötig
+1. **Datenverlust-Bugfix** (Navigation & Refresh) ⏳ IN ARBEIT
 2. **Manuelle Tests** (Testcases sind erstellt, warten auf Bugfix)
 3. **Chronik-Tab** (Archiv, XP, Steigerung)
 4. **Bibliothek-Tab** (CRUD für alle Typen)

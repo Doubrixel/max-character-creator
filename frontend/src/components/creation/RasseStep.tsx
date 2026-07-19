@@ -54,20 +54,22 @@ interface RasseStepProps {
 
 export default function RasseStep({ onValid }: RasseStepProps) {
   const { stepData, saveStep } = useAppContext()
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(
+    (stepData as { race?: string } | null)?.race ?? null
+  )
   const [modalOpen, setModalOpen] = useState(false)
   const [modalRace, setModalRace] = useState<typeof races[0] | null>(null)
 
   useEffect(() => {
+    onValid(selected !== null)
+  }, [selected, onValid])
+
+  useEffect(() => {
     const race = (stepData as { race?: string } | null)?.race
-    if (race) {
+    if (race && !selected) {
       setSelected(race)
     }
   }, [stepData])
-
-  useEffect(() => {
-    onValid(selected !== null)
-  }, [selected, onValid])
 
   const handleSelect = (id: string) => {
     setSelected(id)

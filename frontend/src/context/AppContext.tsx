@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
-const CACHE_KEY = 'max-character-creator-step-cache'
 
 export interface CharacterData {
   id: string
@@ -23,25 +22,10 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null)
 
-function loadCache(): Record<number, Record<string, unknown>> {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return {}
-}
-
-function saveCache(cache: Record<number, Record<string, unknown>>) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
-  } catch {}
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const [characterId, setCharacterIdState] = useState<string | null>(null)
   const [currentStep, setCurrentStepState] = useState(1)
   const [stepData, setStepData] = useState<Record<string, unknown> | null>(null)
-  const [cache, setCache] = useState<Record<number, Record<string, unknown>>>(loadCache)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/characters`)
@@ -54,57 +38,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
   }, [])
 
-  const loadStep = useCallback(async (step: number) => {
-    if (!characterId) return
-    try {
-      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
-      if (res.ok) {
-        const data = await res.json()
-        setStepData(data)
-        setCache(prev => {
-          const next = { ...prev, [step]: data }
-          saveCache(next)
-          return next
-        })
-      } else {
-        const cached = cache[step]
-        setStepData(cached ?? null)
-      }
-    } catch {
-      const cached = cache[step]
-      setStepData(cached ?? null)
-    }
-  }, [characterId, cache])
-
   useEffect(() => {
     if (characterId) {
       loadStep(currentStep)
     }
-  }, [characterId, currentStep, loadStep])
+  }, [characterId, currentStep])
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
   }
 
-  const setCurrentStep = (step: number) => {
-    setCurrentStepState(step)
+  const setCurrentStep = async (step: number) => {
+    if (characterId && step !== currentStep) {
+      setCurrentStepState(step)
+    }
   }
 
   const saveStep = async (step: number, data: Record<string, unknown>) => {
     if (!characterId) return
-    setCache(prev => {
-      const next = { ...prev, [step]: data }
-      saveCache(next)
-      return next
+    await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     })
-    setStepData(data)
+  }
+
+  const loadStep = async (step: number) => {
+    if (!characterId) return
     try {
-      await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-    } catch {}
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
+      const data = await res.json()
+      setStepData(data)
+    } catch {
+      setStepData(null)
+    }
   }
 
   const createCharacter = async () => {
@@ -121,8 +88,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCharacterIdState(null)
     setCurrentStepState(1)
     setStepData(null)
-    setCache({})
-    saveCache({})
   }
 
   return (
