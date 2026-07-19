@@ -1,7 +1,7 @@
 # Issues — Max's Character Creator
 
 **Stand:** 2026-07-19
-**Quelle:** Manuelles Testprotokoll (TC-01 bis TC-27)
+**Quelle:** Manuelles Testprotokoll (TC-01 bis TC-38)
 
 ---
 
@@ -13,8 +13,8 @@
 
 ## BUG-02: Schritt 3 Entscheidungen — Undo-Logik fehlerhaft
 - **Betroffen:** TC-10, TC-12 (Abstammungs-Entscheidungen)
-- **Beschreibung:** Wenn man eine frühere Entscheidung rückgängig macht, bleiben spätere Entscheidungen erhalten und sind bearbeitbar. Die UI zeigt inkonsistente Zustände (z.B. ausgegraute Optionen die trotzdem aktiv sind).
-- **Schweregrad:** Hoch (Logik-Fehler)
+- **Beschreibung:** Wenn man eine frühere Entscheidung rückgängig macht, bleiben spätere Entscheidungen erhalten und sind bearbeitbar. Die UI zeigt inkonsistente Zustände.
+- **Schweregrad:** Mittel (Logik-Fehler) — *Fix versucht, Verhalten bleibt aber laut Tester nicht kritisch.*
 
 ## BUG-03: Kein Basiswert aus Abstammung in Skill-Tabelle
 - **Betroffen:** TC-16 (Skill-Tabelle mit Punkteverteilung)
@@ -40,6 +40,29 @@
 - **Betroffen:** TC-27 (Weiter-Navigation Schritt 5)
 - **Beschreibung:** Nach Browser-Refresh lassen sich verteilte Fertigkeitspunkte nicht mehr per Minus-Button zurücknehmen. Die Weiter-Logik (Button deaktiviert bis alle verteilt) funktioniert aber.
 - **Schweregrad:** Mittel (Persistenz/Interaktion)
+
+## BUG-08: Schritt 6 Würfel-Pool Manipulation
+- **Betroffen:** TC-28 (Attributswürfel)
+- **Beschreibung:** Manuelle Eingabe in die Attribut-Felder *nach* der Zuordnung manipuliert den Würfel-Pool inkonsistent.
+- **Schweregrad:** Mittel (UX/Logik)
+
+## BUG-09: Schritt 7 Meisterschaften/Spells Logik fehlt
+- **Betroffen:** TC-32, TC-33 (Meisterschaften & Spells)
+- **Beschreibung:** Es gibt keine Skills mit Wert 6 (da Schritte 4 & 5 nicht korrekt verknüpft sind) und keine Skill-spezifische Meisterschaftsliste. Magie-Schwellenwerte und Spells fehlen komplett.
+- **Schweregrad:** Hoch (Feature fehlt / Datenfluss defekt)
+
+## BUG-10: Schritt 7 Talentpunkte & UI-Verwirrung
+- **Betroffen:** TC-34, TC-35, TC-38 (Schritt 7 UI)
+- **Beschreibung:** 
+  - Talentpunkte starten bei 0, man kann sie mit 5 Punkten nicht auf 6 erhöhen.
+  - UI zeigt zwei Buttons ("Weiter" + "Fertigstellen") statt einem sich ändernden Button.
+  - 3-Punkt-Meisterschaften zwingen zur Auswahl aller 3.
+- **Schweregrad:** Mittel (UX/Logik)
+
+## BUG-11: State-Konsistenz über Creation-Schritte
+- **Betroffen:** Generelle Anmerkung im Testprotokoll
+- **Beschreibung:** Jeder Schritt tut so, als wäre Punkteverteilung etwas Neues, und "vergisst" was in vorherigen Schritten vergeben wurde. Skills/Werte aus Schritt 4/5 sollten in Schritt 7 sichtbar sein.
+- **Schweregrad:** Hoch (Architektur/State-Management)
 
 ---
 
