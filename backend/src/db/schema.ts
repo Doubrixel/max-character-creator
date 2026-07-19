@@ -101,6 +101,15 @@ export const derivedValues = sqliteTable('derived_values', {
   updatedAt: integer('updated_at'),
 });
 
+export const strengths = sqliteTable('strengths', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  config: text('config'),
+  createdAt: integer('created_at'),
+  updatedAt: integer('updated_at'),
+});
+
 export const characterSkills = sqliteTable('character_skills', {
   id: text('id').primaryKey(),
   characterId: text('character_id').notNull().references(() => characters.id),

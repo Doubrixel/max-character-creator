@@ -12,6 +12,7 @@ const TABS = [
   { id: 'statblocks', label: 'Statblöcke' },
   { id: 'derived-values', label: 'Abgeleitete Werte' },
   { id: 'skills', label: 'Fähigkeiten' },
+  { id: 'strengths', label: 'Stärken' },
 ]
 
 export default function LibraryView() {

@@ -11,6 +11,7 @@ import {
   statblocks,
   derivedValues,
   skills,
+  strengths,
   characterSteps,
 } from '../db/schema'
 import { eq } from 'drizzle-orm'
@@ -26,6 +27,7 @@ const libraryTables = [
   { path: 'statblocks', table: statblocks },
   { path: 'derived-values', table: derivedValues },
   { path: 'skills', table: skills },
+  { path: 'strengths', table: strengths },
 ]
 
 function createLibraryRoutes() {

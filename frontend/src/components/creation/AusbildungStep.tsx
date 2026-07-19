@@ -22,12 +22,12 @@ interface ResourceItem {
   config: { startwert: number; maximalwert: number; typ: string }
 }
 
-const staerkenData = [
-  { id: 'zaeh', name: 'Zäh', desc: '+1 Widerstand gegen physische Angriffe' },
-  { id: 'schnell', name: 'Schnell', desc: '+1 Initiative in der ersten Kampfrunde' },
-  { id: 'scharfsinn', name: 'Scharfsinn', desc: '+1 auf alle Wahrnehmungsproben' },
-  { id: 'charisma', name: 'Charisma', desc: '+1 auf soziale Proben' },
-]
+interface StrengthItem {
+  id: string
+  name: string
+  description: string | null
+  config: string | null
+}
 
 interface AusbildungStepProps {
   onValid: (valid: boolean) => void
@@ -42,6 +42,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
   const [ressourcenData, setRessourcenData] = useState<{ id: string; name: string; desc: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string }[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
@@ -55,12 +56,14 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     Promise.all([
       fetch(`${API_BASE}/api/library/skills`).then((r) => r.json()),
       fetch(`${API_BASE}/api/library/resources`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/library/strengths`).then((r) => r.json()),
     ])
-      .then(([skillsData, resourcesData]: [SkillItem[], ResourceItem[]]) => {
+      .then(([skillsData, resourcesData, strengthsData]: [SkillItem[], ResourceItem[], StrengthItem[]]) => {
         setTalents(skillsData.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
         setWeapons(skillsData.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setRessourcenData(resourcesData.map((r) => ({ id: r.id, name: r.name, desc: r.description })))
+        setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
       })
       .catch(() => {})
       .finally(() => setDataLoading(false))

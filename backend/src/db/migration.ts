@@ -64,9 +64,43 @@ async function makeSkillsTypeNullable() {
   console.log('Migration: skills.type is now nullable');
 }
 
+async function createStrengthsTable() {
+  const result = await client.execute({ sql: `SELECT name FROM sqlite_master WHERE type='table' AND name='strengths'`, args: [] });
+  if (result.rows && result.rows.length > 0) return;
+
+  console.log('Migration: creating strengths table');
+
+  await client.execute(`CREATE TABLE strengths (
+    id text PRIMARY KEY NOT NULL,
+    name text NOT NULL,
+    description text,
+    config text,
+    created_at integer,
+    updated_at integer
+  )`);
+
+  const now = Date.now();
+  const defaultStrengths = [
+    { id: 'staerke_zaeh', name: 'Zäh', description: '+1 Widerstand gegen physische Angriffe', config: '{}' },
+    { id: 'staerke_schnell', name: 'Schnell', description: '+1 Initiative in der ersten Kampfrunde', config: '{}' },
+    { id: 'staerke_scharfsinn', name: 'Scharfsinn', description: '+1 auf alle Wahrnehmungsproben', config: '{}' },
+    { id: 'staerke_charisma', name: 'Charisma', description: '+1 auf soziale Proben', config: '{}' },
+  ];
+
+  for (const s of defaultStrengths) {
+    await client.execute({
+      sql: `INSERT INTO strengths (id, name, description, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [s.id, s.name, s.description, s.config, now, now],
+    });
+  }
+
+  console.log('Migration: strengths table created with 4 default entries');
+}
+
 export async function runMigration() {
   await repairCharactersTable();
   await makeSkillsTypeNullable();
+  await createStrengthsTable();
 
   if ((await columnExists('character_steps', 'data')) && !(await columnExists('character_steps', 'delta'))) {
     await client.execute(`ALTER TABLE character_steps RENAME COLUMN data TO delta`);

@@ -10,18 +10,18 @@ interface SkillItem {
   config: { kategorie: 'talent' | 'waffe' | 'magie' }
 }
 
-const staerken = [
-  { id: 'zaeh', name: 'Zäh', desc: '+1 Widerstand gegen physische Angriffe' },
-  { id: 'schnell', name: 'Schnell', desc: '+1 Initiative in der ersten Kampfrunde' },
-  { id: 'scharfsinn', name: 'Scharfsinn', desc: '+1 auf alle Wahrnehmungsproben' },
-  { id: 'charisma', name: 'Charisma', desc: '+1 auf soziale Proben' },
-]
+interface StrengthItem {
+  id: string
+  name: string
+  description: string | null
+  config: string | null
+}
 
-const meisterschaften = [
-  { id: 'meister-hieb', name: 'Meisterhieb', skillId: 'nahkampf' },
-  { id: 'meisterschuss', name: 'Meisterschuss', skillId: 'distanz' },
-  { id: 'arkaner-strom', name: 'Arkaner Strom', skillId: 'elementar' },
-]
+interface MeisterschaftItem {
+  id: string
+  name: string
+  skillId: string
+}
 
 interface KulturStepProps {
   onValid: (valid: boolean) => void
@@ -35,6 +35,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string }[]>([])
+  const [meisterschaftenData, setMeisterschaftenData] = useState<MeisterschaftItem[]>([])
   const [skillsLoading, setSkillsLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerke, setStaerke] = useState<string>('')
@@ -45,12 +47,20 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL || ''
-    fetch(`${API_BASE}/api/library/skills`)
-      .then((res) => res.json())
-      .then((data: SkillItem[]) => {
-        setTalents(data.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
-        setWeapons(data.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
-        setMagicSchools(data.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+    Promise.all([
+      fetch(`${API_BASE}/api/library/skills`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/library/strengths`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/library/masteries`).then((r) => r.json()),
+    ])
+      .then(([skillsData, strengthsData, masteriesData]: [SkillItem[], StrengthItem[], any[]]) => {
+        setTalents(skillsData.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(skillsData.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
+        setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+        setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
+        setMeisterschaftenData(masteriesData.map((m) => {
+          const cfg = m.config ? JSON.parse(m.config) : {}
+          return { id: m.id, name: m.name, skillId: cfg.skillId || '' }
+        }))
       })
       .catch(() => {})
       .finally(() => setSkillsLoading(false))
@@ -164,7 +174,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       return all.find((s) => s.id === id)!
     })
 
-  const availableMeisterschaften = meisterschaften.filter(
+  const availableMeisterschaften = meisterschaftenData.filter(
     (m) => m.skillId === meisterschaftSkill
   )
 
@@ -230,7 +240,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
         <div style={styles.staerkenGrid}>
-          {staerken.map((s) => (
+          {staerkenData.map((s) => (
             <button
               key={s.id}
               style={{ ...styles.staerkeCard, ...(staerke === s.id ? styles.staerkeCardSelected : {}) }}

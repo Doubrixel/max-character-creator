@@ -117,6 +117,12 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
       { key: 'beschreibung', label: 'Beschreibung', type: 'textarea' },
     ],
   },
+  strengths: {
+    label: 'Stärken',
+    fields: [
+      { key: 'effekt', label: 'Effekt', type: 'text', placeholder: '+1 auf ...' },
+    ],
+  },
 }
 
 export const SKILL_OPTIONS = [
