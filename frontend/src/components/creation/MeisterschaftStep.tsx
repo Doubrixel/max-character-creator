@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -99,7 +99,7 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, saveStep, currentStep } = useAppContext()
+  const { characterId, saveStep } = useAppContext()
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
   const [magicThresholds, setMagicThresholds] = useState<MagicThreshold[]>([])
@@ -114,6 +114,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState(false)
+  const hasLoadedRef = useRef(false)
 
   const loadPreviousSteps = useCallback(async () => {
     if (!characterId) return
@@ -219,8 +220,10 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   }, [characterId])
 
   useEffect(() => {
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
     loadPreviousSteps()
-  }, [loadPreviousSteps, currentStep])
+  }, [loadPreviousSteps])
 
   useEffect(() => {
     if (loading) return

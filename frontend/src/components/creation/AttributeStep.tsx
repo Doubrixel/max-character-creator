@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const ATTRIBUTES = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK', 'SR', 'LE'] as const
@@ -84,9 +84,23 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   )
   const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null)
   const [rollsDetail, setRollsDetail] = useState<{ dice: number[]; sum: number }[]>([])
+  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
   const savedAttributes = (stepData as { attributes?: Record<string, number> } | null)?.attributes ?? {}
   const savedRolls = (stepData as { rolls?: number[] } | null)?.rolls ?? []
+
+  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
+    if (prev === undefined) return true
+    if (prev === null && next === null) return false
+    if (prev === null || next === null) return true
+    const prevKeys = Object.keys(prev)
+    const nextKeys = Object.keys(next)
+    if (prevKeys.length !== nextKeys.length) return true
+    for (const key of nextKeys) {
+      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
+    }
+    return false
+  }
 
   const simplePool = useMemo(() => {
     const result: { value: number; originalIndex: number }[] = []
@@ -127,6 +141,10 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   }, [allAssigned, onValid])
 
   useEffect(() => {
+    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
+    if (!hasChanged) return
+    prevStepDataRef.current = stepData
+
     if (savedRolls.length === 10) {
       setRolls(savedRolls)
     } else {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const INITIAL_POINTS = 20
@@ -47,11 +47,29 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [meisterschaftSkill, setMeisterschaftSkill] = useState<string>('')
   const [meisterschaft, setMeisterschaft] = useState<string>('')
   const [initialized, setInitialized] = useState(false)
+  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
   const usedPoints = Object.values(skills).reduce((a, b) => a + b, 0)
   const availablePoints = INITIAL_POINTS - usedPoints
 
+  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
+    if (prev === undefined) return true
+    if (prev === null && next === null) return false
+    if (prev === null || next === null) return true
+    const prevKeys = Object.keys(prev)
+    const nextKeys = Object.keys(next)
+    if (prevKeys.length !== nextKeys.length) return true
+    for (const key of nextKeys) {
+      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
+    }
+    return false
+  }
+
   useEffect(() => {
+    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
+    if (!hasChanged) return
+    prevStepDataRef.current = stepData
+
     const saved = stepData as {
       skills?: Record<string, number>
       staerke?: string

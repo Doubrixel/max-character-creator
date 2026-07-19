@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const destinies = [
@@ -39,8 +39,26 @@ interface SchicksalStepProps {
 export default function SchicksalStep({ onValid }: SchicksalStepProps) {
   const { stepData, saveStep } = useAppContext()
   const [selected, setSelected] = useState<string | null>(null)
+  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
+
+  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
+    if (prev === undefined) return true
+    if (prev === null && next === null) return false
+    if (prev === null || next === null) return true
+    const prevKeys = Object.keys(prev)
+    const nextKeys = Object.keys(next)
+    if (prevKeys.length !== nextKeys.length) return true
+    for (const key of nextKeys) {
+      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
+    }
+    return false
+  }
 
   useEffect(() => {
+    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
+    if (!hasChanged) return
+    prevStepDataRef.current = stepData
+
     const destiny = (stepData as { destiny?: string } | null)?.destiny
     setSelected(destiny ?? null)
   }, [stepData])
