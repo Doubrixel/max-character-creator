@@ -51,18 +51,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY_B64 }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
-          key_path: ~/.ssh/deploy_key
+          key: ${{ secrets.SSH_KEY }}
           port: ${{ env.SSH_PORT }}
           script: |
             cd ~/max-character-creator
