@@ -1,12 +1,14 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { serveStatic } from '@hono/node-server/serve-static'
+import characters from './routes/characters'
+import createLibraryRoutes from './routes/library'
 
 const app = new Hono()
 
 app.use('/api/*', cors())
 
-app.use('/*', serveStatic({ root: '../frontend/dist' }))
+app.route('/', characters)
+app.route('/api', createLibraryRoutes())
 
 app.get('/api/health', (c) => {
   return c.json({ message: 'Hello from backend' })
