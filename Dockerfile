@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend/package.json backend/
-RUN npm ci --workspace=backend --include-workspace-root
+RUN npm ci
 
 COPY --from=builder /app/frontend/dist frontend/dist
 COPY --from=builder /app/backend/src backend/src
