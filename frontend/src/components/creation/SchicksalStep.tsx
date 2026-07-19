@@ -38,20 +38,18 @@ interface SchicksalStepProps {
 
 export default function SchicksalStep({ onValid }: SchicksalStepProps) {
   const { stepData, saveStep } = useAppContext()
-  const [selected, setSelected] = useState<string | null>(
-    (stepData as { destiny?: string } | null)?.destiny ?? null
-  )
+  const [selected, setSelected] = useState<string | null>(null)
+
+  useEffect(() => {
+    const destiny = (stepData as { destiny?: string } | null)?.destiny
+    if (destiny) {
+      setSelected(destiny)
+    }
+  }, [stepData])
 
   useEffect(() => {
     onValid(selected !== null)
   }, [selected, onValid])
-
-  useEffect(() => {
-    const destiny = (stepData as { destiny?: string } | null)?.destiny
-    if (destiny && !selected) {
-      setSelected(destiny)
-    }
-  }, [stepData])
 
   const handleSelect = (id: string) => {
     setSelected(id)

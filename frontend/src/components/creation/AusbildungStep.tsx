@@ -47,19 +47,29 @@ interface AusbildungStepProps {
 export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const { stepData, saveStep } = useAppContext()
 
-  const saved = stepData as {
-    skills?: Record<string, number>
-    staerken?: string[]
-    ressourcen?: string[]
-  } | null
-
-  const savedSkills = saved?.skills ?? {}
-  const savedStaerken = saved?.staerken ?? []
-  const savedRessourcen = saved?.ressourcen ?? []
-
   const [skills, setSkills] = useState<Record<string, number>>({})
-  const [staerken, setStaerken] = useState<string[]>(savedStaerken)
-  const [ressourcen, setRessourcen] = useState<string[]>(savedRessourcen)
+  const [staerken, setStaerken] = useState<string[]>([])
+  const [ressourcen, setRessourcen] = useState<string[]>([])
+
+  useEffect(() => {
+    const saved = stepData as {
+      skills?: Record<string, number>
+      staerken?: string[]
+      ressourcen?: string[]
+    } | null
+    const allSkills = [...talents, ...weapons, ...magicSchools]
+    const initial: Record<string, number> = {}
+    allSkills.forEach((s) => {
+      initial[s.id] = saved?.skills?.[s.id] ?? 0
+    })
+    setSkills(initial)
+    if (saved?.staerken && saved.staerken.length > 0) {
+      setStaerken(saved.staerken)
+    }
+    if (saved?.ressourcen && saved.ressourcen.length > 0) {
+      setRessourcen(saved.ressourcen)
+    }
+  }, [stepData])
 
   const fertigkeitenUsed = Object.entries(skills)
     .filter(([id]) => !magicSchools.some((m) => m.id === id))
@@ -72,37 +82,6 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   const ressourcenUsed = ressourcen.length
   const ressourcenAvailable = RESSOURCEN_POINTS - ressourcenUsed
-
-  useEffect(() => {
-    const allSkills = [...talents, ...weapons, ...magicSchools]
-    const initial: Record<string, number> = {}
-    allSkills.forEach((s) => {
-      initial[s.id] = savedSkills[s.id] ?? 0
-    })
-    setSkills(initial)
-  }, [])
-
-  useEffect(() => {
-    const saved = stepData as {
-      skills?: Record<string, number>
-      staerken?: string[]
-      ressourcen?: string[]
-    } | null
-    if (saved?.skills && Object.keys(skills).length === 0) {
-      const allSkills = [...talents, ...weapons, ...magicSchools]
-      const updated: Record<string, number> = {}
-      allSkills.forEach((s) => {
-        updated[s.id] = saved.skills?.[s.id] ?? 0
-      })
-      setSkills(updated)
-    }
-    if (saved?.staerken && staerken.length === 0) {
-      setStaerken(saved.staerken)
-    }
-    if (saved?.ressourcen && ressourcen.length === 0) {
-      setRessourcen(saved.ressourcen)
-    }
-  }, [stepData])
 
   useEffect(() => {
     const valid =
@@ -118,7 +97,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     }
     if (magicSchools.some((m) => m.id === id)) {
       const current = skills[id] ?? 0
-      const addedThisStep = current - (savedSkills[id] ?? 0)
+      const addedThisStep = current - ((stepData as { skills?: Record<string, number> } | null)?.skills?.[id] ?? 0)
       if (addedThisStep >= MAGIC_MAX_PER_STEP) return current
       if (current >= MAGIC_MAX_TOTAL) return current
       return current + 1
@@ -133,7 +112,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
     const isMagic = magicSchools.some((m) => m.id === id)
     if (isMagic) {
-      const addedThisStep = (current + 1) - (savedSkills[id] ?? 0)
+      const addedThisStep = (current + 1) - ((stepData as { skills?: Record<string, number> } | null)?.skills?.[id] ?? 0)
       if (addedThisStep > MAGIC_MAX_PER_STEP) return
       if (current + 1 > MAGIC_MAX_TOTAL) return
     }
@@ -147,7 +126,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   const decrementSkill = (id: string) => {
     const current = skills[id] ?? 0
-    const baseValue = savedSkills[id] ?? 0
+    const baseValue = (stepData as { skills?: Record<string, number> } | null)?.skills?.[id] ?? 0
     if (current <= baseValue) return
     const next = { ...skills, [id]: current - 1 }
     setSkills(next)
@@ -199,7 +178,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
             const canInc = isMagic
               ? value < max
               : fertigkeitenAvailable > 0 && value < max
-            const canDec = value > (savedSkills[item.id] ?? 0)
+            const canDec = value > ((stepData as { skills?: Record<string, number> } | null)?.skills?.[item.id] ?? 0)
             return (
               <tr key={item.id}>
                 <td style={styles.td}>{item.name}</td>

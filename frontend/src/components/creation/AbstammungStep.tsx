@@ -50,16 +50,24 @@ interface AbstammungStepProps {
 export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   const { stepData, saveStep } = useAppContext()
 
-  const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
-  const savedDice = saved?.dice
-  const savedDecisions = saved?.decisions ?? []
+  const [dice1, setDice1] = useState<string>('')
+  const [dice2, setDice2] = useState<string>('')
+  const [heritage, setHeritage] = useState<string>('')
+  const [chosenDecisions, setChosenDecisions] = useState<Record<string, string>>({})
 
-  const [dice1, setDice1] = useState<string>(savedDice ? String(savedDice[0]) : '')
-  const [dice2, setDice2] = useState<string>(savedDice ? String(savedDice[1]) : '')
-  const [heritage, setHeritage] = useState<string>(saved?.heritage ?? '')
-  const [chosenDecisions, setChosenDecisions] = useState<Record<string, string>>(
-    Object.fromEntries(savedDecisions.map((d) => [d.id, d.choice]))
-  )
+  useEffect(() => {
+    const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
+    if (saved?.dice) {
+      setDice1(String(saved.dice[0]))
+      setDice2(String(saved.dice[1]))
+    }
+    if (saved?.heritage) {
+      setHeritage(saved.heritage)
+    }
+    if (saved?.decisions && saved.decisions.length > 0) {
+      setChosenDecisions(Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])))
+    }
+  }, [stepData])
 
   useEffect(() => {
     const d1 = parseInt(dice1, 10)
@@ -78,20 +86,6 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     const allDecided = decisions.every((d) => chosenDecisions[d.id] !== undefined)
     onValid(allDecided && heritage !== '')
   }, [chosenDecisions, heritage, onValid])
-
-  useEffect(() => {
-    const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
-    if (saved?.dice && !dice1 && !dice2) {
-      setDice1(String(saved.dice[0]))
-      setDice2(String(saved.dice[1]))
-    }
-    if (saved?.heritage && !heritage) {
-      setHeritage(saved.heritage)
-    }
-    if (saved?.decisions && Object.keys(chosenDecisions).length === 0) {
-      setChosenDecisions(Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])))
-    }
-  }, [stepData])
 
   const handleAutoRoll = () => {
     const r1 = Math.floor(Math.random() * 6) + 1

@@ -42,32 +42,10 @@ interface KulturStepProps {
 export default function KulturStep({ onValid }: KulturStepProps) {
   const { stepData, saveStep } = useAppContext()
 
-  const saved = stepData as {
-    skills?: Record<string, number>
-    staerke?: string
-    meisterschaft?: string
-  } | null
-
-  const savedSkills = saved?.skills ?? {}
-  const savedStaerke = saved?.staerke ?? ''
-  const savedMeisterschaft = saved?.meisterschaft ?? ''
-
-  const [skills, setSkills] = useState<Record<string, number>>(savedSkills)
-  const [staerke, setStaerke] = useState<string>(savedStaerke)
+  const [skills, setSkills] = useState<Record<string, number>>({})
+  const [staerke, setStaerke] = useState<string>('')
   const [meisterschaftSkill, setMeisterschaftSkill] = useState<string>('')
-  const [meisterschaft, setMeisterschaft] = useState<string>(savedMeisterschaft)
-
-  const usedPoints = Object.values(skills).reduce((a, b) => a + b, 0)
-  const availablePoints = INITIAL_POINTS - usedPoints
-
-  useEffect(() => {
-    const allSkills = [...talents, ...weapons, ...magicSchools]
-    const initial: Record<string, number> = {}
-    allSkills.forEach((s) => {
-      initial[s.id] = savedSkills[s.id] ?? 0
-    })
-    setSkills(initial)
-  }, [])
+  const [meisterschaft, setMeisterschaft] = useState<string>('')
 
   useEffect(() => {
     const saved = stepData as {
@@ -75,21 +53,24 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       staerke?: string
       meisterschaft?: string
     } | null
-    if (saved?.skills && Object.keys(skills).length === 0) {
+    if (saved?.skills && Object.keys(saved.skills).length > 0) {
       const allSkills = [...talents, ...weapons, ...magicSchools]
-      const updated: Record<string, number> = {}
+      const initial: Record<string, number> = {}
       allSkills.forEach((s) => {
-        updated[s.id] = saved.skills?.[s.id] ?? 0
+        initial[s.id] = saved.skills?.[s.id] ?? 0
       })
-      setSkills(updated)
+      setSkills(initial)
     }
-    if (saved?.staerke && !staerke) {
+    if (saved?.staerke) {
       setStaerke(saved.staerke)
     }
-    if (saved?.meisterschaft && !meisterschaft) {
+    if (saved?.meisterschaft) {
       setMeisterschaft(saved.meisterschaft)
     }
   }, [stepData])
+
+  const usedPoints = Object.values(skills).reduce((a, b) => a + b, 0)
+  const availablePoints = INITIAL_POINTS - usedPoints
 
   useEffect(() => {
     const eligible = Object.entries(skills)
@@ -115,14 +96,6 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     saveStep(4, { skills: next, staerke, meisterschaft })
   }
 
-  const decrementSkill = (id: string) => {
-    const current = skills[id] ?? 0
-    if (current <= 0) return
-    const next = { ...skills, [id]: current - 1 }
-    setSkills(next)
-    saveStep(4, { skills: next, staerke, meisterschaft })
-  }
-
   const getSkillMax = (id: string): number => {
     if (talents.some((t) => t.id === id) || weapons.some((w) => w.id === id)) return 6
     if (magicSchools.some((m) => m.id === id)) {
@@ -132,6 +105,14 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       return hasHigh ? 2 : 3
     }
     return 6
+  }
+
+  const decrementSkill = (id: string) => {
+    const current = skills[id] ?? 0
+    if (current <= 0) return
+    const next = { ...skills, [id]: current - 1 }
+    setSkills(next)
+    saveStep(4, { skills: next, staerke, meisterschaft })
   }
 
   const handleStaerke = (id: string) => {
