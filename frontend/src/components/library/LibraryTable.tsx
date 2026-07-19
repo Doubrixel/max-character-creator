@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TYPE_SCHEMAS } from './typeSchemas'
+import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, type FieldSchema } from './typeSchemas'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -14,6 +14,28 @@ interface LibraryEntry {
 
 interface LibraryTableProps {
   type: string
+}
+
+function getOptions(field: FieldSchema): { id: string; name: string }[] {
+  if (field.key.includes('Talente') || field.key.includes('Waffen')) return SKILL_OPTIONS
+  if (field.key.includes('Magie') || field.key === 'schule') return MAGIC_SCHOOL_OPTIONS
+  if (field.key.includes('Staerken')) return STRENGTH_OPTIONS
+  if (field.key.includes('meisterschaften')) return MASTERY_OPTIONS
+  if (field.key.includes('voraussetzung_id')) return [...SKILL_OPTIONS, ...MAGIC_SCHOOL_OPTIONS]
+  return SKILL_OPTIONS
+}
+
+function parseConfigArray(val: string | null | undefined): string[] {
+  if (!val) return []
+  try {
+    const parsed = JSON.parse(val)
+    if (Array.isArray(parsed)) return parsed
+  } catch {}
+  return val.split(',').map(s => s.trim()).filter(Boolean)
+}
+
+function encodeConfigArray(arr: string[]): string {
+  return JSON.stringify(arr)
 }
 
 export default function LibraryTable({ type }: LibraryTableProps) {
@@ -80,7 +102,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     setName(entry.name)
     setDescription(entry.description ?? '')
     try {
-      setConfigFields(entry.config ? JSON.parse(entry.config) : {})
+      const cfg = entry.config ? JSON.parse(entry.config) : {}
+      const flat: Record<string, string> = {}
+      for (const [k, v] of Object.entries(cfg)) {
+        if (Array.isArray(v)) flat[k] = encodeConfigArray(v)
+        else if (typeof v === 'object' && v !== null) flat[k] = JSON.stringify(v)
+        else flat[k] = String(v ?? '')
+      }
+      setConfigFields(flat)
     } catch {
       setConfigFields({})
     }
@@ -90,6 +119,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
   const setField = (key: string, value: string) => {
     setConfigFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  const toggleMultiSelect = (key: string, id: string) => {
+    setConfigFields(prev => {
+      const current = parseConfigArray(prev[key])
+      const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]
+      return { ...prev, [key]: encodeConfigArray(next) }
+    })
   }
 
   if (loading) return <div style={styles.loading}>Lade...</div>
@@ -111,23 +148,50 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
       {showForm && (
         <div style={styles.form}>
-          <input
-            style={styles.input}
-            placeholder="Name *"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
-          <textarea
-            style={styles.textarea}
-            placeholder="Beschreibung"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            rows={2}
-          />
+          <div style={styles.formRow}>
+            <label style={styles.label}>Name *</label>
+            <input
+              style={styles.input}
+              placeholder="Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </div>
+          <div style={styles.formRow}>
+            <label style={styles.label}>Beschreibung</label>
+            <textarea
+              style={styles.textarea}
+              placeholder="Beschreibung..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+
           {fields.map(field => (
-            <div key={field.key}>
+            <div key={field.key} style={styles.formRow}>
               <label style={styles.label}>{field.label}</label>
-              {field.type === 'select' ? (
+
+              {field.type === 'skillSelect' ? (
+                <div style={styles.chipContainer}>
+                  {getOptions(field).map(opt => {
+                    const selected = parseConfigArray(configFields[field.key]).includes(opt.id)
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        style={{
+                          ...styles.chip,
+                          ...(selected ? styles.chipSelected : {}),
+                        }}
+                        onClick={() => toggleMultiSelect(field.key, opt.id)}
+                      >
+                        {selected ? '✓ ' : ''}{opt.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : field.type === 'select' ? (
                 <select
                   style={styles.select}
                   value={configFields[field.key] ?? ''}
@@ -165,6 +229,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
               )}
             </div>
           ))}
+
           <div style={styles.formActions}>
             <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
               Abbrechen
@@ -181,11 +246,11 @@ export default function LibraryTable({ type }: LibraryTableProps) {
           <p style={styles.empty}>Noch keine Einträge vorhanden.</p>
         ) : (
           entries.map(entry => {
-            let configSummary = ''
+            let summary = ''
             try {
               const cfg = entry.config ? JSON.parse(entry.config) : {}
-              const vals = Object.values(cfg).filter(v => v && v !== '')
-              configSummary = vals.slice(0, 3).join(' · ')
+              const vals = Object.values(cfg).filter(v => v && v !== '' && v !== '[]')
+              summary = vals.slice(0, 3).join(' · ')
             } catch {}
             return (
               <div key={entry.id} style={styles.row}>
@@ -194,8 +259,8 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                   {entry.description && (
                     <div style={styles.rowDesc}>{entry.description}</div>
                   )}
-                  {configSummary && (
-                    <div style={styles.rowConfig}>{configSummary}</div>
+                  {summary && (
+                    <div style={styles.rowConfig}>{summary}</div>
                   )}
                 </div>
                 <div style={styles.rowActions}>
@@ -244,11 +309,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   form: {
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-    borderRadius: 8, padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10,
+    borderRadius: 8, padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12,
   },
+  formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: {
     fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
-    marginBottom: 4, display: 'block',
   },
   input: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
@@ -264,6 +329,18 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)',
     outline: 'none', resize: 'vertical', width: '100%',
+  },
+  chipContainer: {
+    display: 'flex', flexWrap: 'wrap', gap: 6,
+  },
+  chip: {
+    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+    borderRadius: 16, padding: '6px 12px', fontSize: 13, color: 'var(--text-secondary)',
+    cursor: 'pointer', transition: 'all 0.15s',
+  },
+  chipSelected: {
+    background: 'var(--accent)', borderColor: 'var(--accent)',
+    color: '#fff',
   },
   formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {
