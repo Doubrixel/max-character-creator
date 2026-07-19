@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import SchicksalStep from './creation/SchicksalStep'
+import RasseStep from './creation/RasseStep'
 
 const steps = [
   'Schicksal',
@@ -44,6 +45,9 @@ export default function CreationView() {
   const renderStepContent = () => {
     if (currentStep === 1) {
       return <SchicksalStep onValid={setCanProceed} />
+    }
+    if (currentStep === 2) {
+      return <RasseStep onValid={setCanProceed} />
     }
     return (
       <div style={styles.content}>
