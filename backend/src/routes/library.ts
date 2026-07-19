@@ -11,6 +11,7 @@ import {
   statblocks,
   derivedValues,
   skills,
+  characterSteps,
 } from '../db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -81,6 +82,22 @@ function createLibraryRoutes() {
       if (existing.length === 0) {
         return c.json({ error: 'Not found' }, 404)
       }
+
+      const allSteps = await db.select().from(characterSteps)
+      let referencedBy = 0
+      for (const step of allSteps) {
+        if (step.delta && step.delta.includes(id)) {
+          referencedBy++
+        }
+      }
+
+      if (referencedBy > 0) {
+        return c.json({
+          error: 'Referenziert',
+          message: `Wird von ${referencedBy} Charakter(en) verwendet und kann nicht gelöscht werden.`,
+        }, 409)
+      }
+
       await db.delete(table).where(eq(table.id, id))
       return c.json({ message: 'Deleted' })
     })

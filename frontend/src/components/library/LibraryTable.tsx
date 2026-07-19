@@ -44,6 +44,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [configFields, setConfigFields] = useState<Record<string, string>>({})
@@ -93,9 +94,16 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   }
 
   const handleDelete = async (id: string) => {
-    await fetch(`${API_BASE}/api/library/${type}/${id}`, { method: 'DELETE' })
-    setDeleteConfirm(null)
-    load()
+    const res = await fetch(`${API_BASE}/api/library/${type}/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setDeleteConfirm(null)
+      setDeleteError(null)
+      load()
+    } else {
+      const data = await res.json()
+      setDeleteError(data.message || 'Löschen fehlgeschlagen')
+      setDeleteConfirm(null)
+    }
   }
 
   const startEdit = (entry: LibraryEntry) => {
@@ -133,6 +141,12 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
   return (
     <div>
+      {deleteError && (
+        <div style={styles.errorBanner}>
+          {deleteError}
+          <button style={styles.errorClose} onClick={() => setDeleteError(null)}>×</button>
+        </div>
+      )}
       <div style={styles.header}>
         <span style={styles.count}>{entries.length} Einträge</span>
         <button
@@ -299,6 +313,16 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
 const styles: Record<string, React.CSSProperties> = {
   loading: { color: 'var(--text-tertiary)', padding: 40 },
+  errorBanner: {
+    background: 'var(--bg-error)', border: '1px solid var(--danger)',
+    borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    color: 'var(--danger)', fontSize: 14,
+  },
+  errorClose: {
+    background: 'transparent', border: 'none', color: 'var(--danger)',
+    cursor: 'pointer', fontSize: 18, padding: '0 4px',
+  },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
