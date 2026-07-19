@@ -6,6 +6,7 @@ import AbstammungStep from './creation/AbstammungStep'
 import KulturStep from './creation/KulturStep'
 import AusbildungStep from './creation/AusbildungStep'
 import AttributeStep from './creation/AttributeStep'
+import MeisterschaftStep from './creation/MeisterschaftStep'
 
 const steps = [
   'Schicksal',
@@ -64,6 +65,9 @@ export default function CreationView() {
     }
     if (currentStep === 6) {
       return <AttributeStep onValid={setCanProceed} />
+    }
+    if (currentStep === 7) {
+      return <MeisterschaftStep onValid={setCanProceed} />
     }
     return (
       <div style={styles.content}>
