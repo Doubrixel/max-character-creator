@@ -54,6 +54,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   const [dice2, setDice2] = useState<string>('')
   const [heritage, setHeritage] = useState<string>('')
   const [chosenDecisions, setChosenDecisions] = useState<Record<string, string>>({})
+  const chosenDecisionsRef = useRef<Record<string, string>>({})
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
   function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
@@ -83,9 +84,9 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       setDice2('')
     }
     setHeritage(saved?.heritage ?? '')
-    setChosenDecisions(
-      saved?.decisions ? Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])) : {}
-    )
+    const loaded = saved?.decisions ? Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])) : {}
+    setChosenDecisions(loaded)
+    chosenDecisionsRef.current = loaded
   }, [stepData])
 
   useEffect(() => {
@@ -95,7 +96,8 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       const sum = d1 + d2
       const result = heritageTable[sum] ?? 'Unbekannte Herkunft'
       setHeritage(result)
-      saveStep(3, { dice: [d1, d2] as [number, number], heritage: result, decisions: [] })
+      const currentDecisions = Object.entries(chosenDecisionsRef.current).map(([id, choice]) => ({ id, choice }))
+      saveStep(3, { dice: [d1, d2] as [number, number], heritage: result, decisions: currentDecisions })
     } else {
       setHeritage('')
     }
@@ -114,19 +116,22 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   }
 
   const handleDecision = (decisionId: string, choice: string) => {
-    setChosenDecisions((prev) => ({ ...prev, [decisionId]: choice }))
-    const allDecisions = Object.entries({ ...chosenDecisions, [decisionId]: choice }).map(
-      ([id, choice]) => ({ id, choice })
-    )
-    const d1 = parseInt(dice1, 10)
-    const d2 = parseInt(dice2, 10)
-    saveStep(3, { dice: [d1, d2], heritage, decisions: allDecisions })
+    setChosenDecisions((prev) => {
+      const next = { ...prev, [decisionId]: choice }
+      chosenDecisionsRef.current = next
+      const allDecisions = Object.entries(next).map(([id, choice]) => ({ id, choice }))
+      const d1 = parseInt(dice1, 10)
+      const d2 = parseInt(dice2, 10)
+      saveStep(3, { dice: [d1, d2], heritage, decisions: allDecisions })
+      return next
+    })
   }
 
   const handleUndo = (decisionId: string) => {
     setChosenDecisions((prev) => {
       const next = { ...prev }
       delete next[decisionId]
+      chosenDecisionsRef.current = next
       const allDecisions = Object.entries(next).map(([id, choice]) => ({ id, choice }))
       const d1 = parseInt(dice1, 10)
       const d2 = parseInt(dice2, 10)
