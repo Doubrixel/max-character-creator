@@ -24,52 +24,6 @@ function roll4d6DropLowest(): { dice: number[]; sum: number } {
   return { dice, sum }
 }
 
-interface DerivedFormula {
-  key: string
-  name: string
-  formula: string
-  calc: (attrs: Partial<Record<AttributeKey, number>>) => number
-}
-
-const DERIVED_FORMULAS: DerivedFormula[] = [
-  {
-    key: 'LP',
-    name: 'Lebenspunkte',
-    formula: '10 + KO × 2',
-    calc: (a) => 10 + (a.KO ?? 0) * 2,
-  },
-  {
-    key: 'AP',
-    name: 'Ausdauerpunkte',
-    formula: '5 + KK',
-    calc: (a) => 5 + (a.KK ?? 0),
-  },
-  {
-    key: 'MP',
-    name: 'Magiepunkte',
-    formula: '3 + MU',
-    calc: (a) => 3 + (a.MU ?? 0),
-  },
-  {
-    key: 'INI',
-    name: 'Initiative',
-    formula: 'GE + IN',
-    calc: (a) => (a.GE ?? 0) + (a.IN ?? 0),
-  },
-  {
-    key: 'WP',
-    name: 'Willenskraft',
-    formula: '5 + SR',
-    calc: (a) => 5 + (a.SR ?? 0),
-  },
-  {
-    key: 'AW',
-    name: 'Ausweichwert',
-    formula: '8 + GE',
-    calc: (a) => 8 + (a.GE ?? 0),
-  },
-]
-
 interface AttributeStepProps {
   onValid: (valid: boolean) => void
 }
@@ -86,7 +40,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   const [rollsDetail, setRollsDetail] = useState<{ dice: number[]; sum: number }[]>([])
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
-  const savedAttributes = (stepData as { attributes?: Record<string, number> } | null)?.attributes ?? {}
+  const savedAttributes = (stepData as { attribute?: Record<string, number> } | null)?.attribute ?? {}
   const savedRolls = (stepData as { rolls?: number[] } | null)?.rolls ?? []
 
   function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
@@ -127,13 +81,6 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
     return result
   }, [rolls, assignments])
 
-  const derivedValues = useMemo(() => {
-    return DERIVED_FORMULAS.map((f) => ({
-      ...f,
-      value: f.calc(assignments),
-    }))
-  }, [assignments])
-
   const allAssigned = ATTRIBUTES.every((a) => assignments[a] !== undefined)
 
   useEffect(() => {
@@ -164,8 +111,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   useEffect(() => {
     if (Object.keys(assignments).length > 0) {
       saveStep(6, {
-        attributes: assignments,
-        derivedValues: Object.fromEntries(derivedValues.map((d) => [d.key, d.value])),
+        attribute: assignments,
         rolls,
       })
     }
@@ -332,21 +278,6 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
             </div>
           </div>
 
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Abgeleitete Werte</h3>
-            <div style={styles.derivedGrid}>
-              {derivedValues.map((d) => (
-                <div key={d.key} style={styles.derivedItem}>
-                  <div style={styles.derivedHeader}>
-                    <span style={styles.derivedKey}>{d.key}</span>
-                    <span style={styles.derivedName}>{d.name}</span>
-                  </div>
-                  <div style={styles.derivedValue}>{d.value}</div>
-                  <div style={styles.derivedFormula}>{d.formula}</div>
-                </div>
-              ))}
-            </div>
-          </div>
         </>
       )}
     </div>
@@ -361,28 +292,28 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 300,
   },
   section: {
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 12,
     padding: 20,
   },
   sectionTitle: {
     margin: '0 0 16px 0',
     fontSize: 18,
-    color: '#eee',
+    color: 'var(--text-primary)',
   },
   autoRollButton: {
     padding: '12px 24px',
     fontSize: 16,
     fontWeight: 700,
-    background: '#e94560',
-    color: '#fff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
   },
   poolHint: {
     fontSize: 13,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
     marginBottom: 12,
   },
   poolGrid: {
@@ -395,9 +326,9 @@ const styles: Record<string, React.CSSProperties> = {
     height: 48,
     fontSize: 20,
     fontWeight: 700,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     display: 'flex',
@@ -405,8 +336,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
   },
   poolValueSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   rollsDetail: {
     marginTop: 16,
@@ -419,7 +350,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 4,
     padding: '4px 8px',
-    background: '#0f0f23',
+    background: 'var(--bg-secondary)',
     borderRadius: 6,
     fontSize: 12,
   },
@@ -433,10 +364,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 4,
     fontSize: 11,
-    color: '#eee',
+    color: 'var(--text-primary)',
   },
   rollDieDropped: {
     opacity: 0.3,
@@ -444,7 +375,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   rollSum: {
     fontWeight: 700,
-    color: '#4ade80',
+    color: 'var(--success)',
     marginLeft: 4,
   },
   attributesGrid: {
@@ -458,7 +389,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 6,
     padding: 12,
-    background: '#0f0f23',
+    background: 'var(--bg-secondary)',
     borderRadius: 8,
   },
   attributeHeader: {
@@ -470,11 +401,11 @@ const styles: Record<string, React.CSSProperties> = {
   attributeKey: {
     fontSize: 16,
     fontWeight: 700,
-    color: '#e94560',
+    color: 'var(--accent)',
   },
   attributeName: {
     fontSize: 11,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   attributeValue: {
     width: 44,
@@ -484,68 +415,30 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     fontSize: 20,
     fontWeight: 700,
-    color: '#666',
-    border: '2px dashed #333',
+    color: 'var(--text-muted)',
+    border: '2px dashed var(--border)',
     borderRadius: 8,
     cursor: 'default',
   },
   attributeValueAssigned: {
-    color: '#eee',
-    border: '2px solid #4ade80',
-    background: '#1a2e1a',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--success)',
+    background: 'var(--bg-success-subtle)',
     cursor: 'pointer',
   },
   attributeValueSelectable: {
-    border: '2px dashed #e94560',
+    border: '2px dashed var(--accent)',
     cursor: 'pointer',
-    color: '#e94560',
+    color: 'var(--accent)',
   },
   manualInput: {
     width: 60,
     padding: '4px 8px',
     fontSize: 13,
     textAlign: 'center',
-    background: '#1a1a2e',
-    color: '#eee',
-    border: '1px solid #333',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
     borderRadius: 4,
-  },
-  derivedGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-    gap: 12,
-  },
-  derivedItem: {
-    padding: 12,
-    background: '#0f0f23',
-    borderRadius: 8,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-  },
-  derivedHeader: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 2,
-  },
-  derivedKey: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: '#e94560',
-  },
-  derivedName: {
-    fontSize: 11,
-    color: '#aaa',
-  },
-  derivedValue: {
-    fontSize: 24,
-    fontWeight: 700,
-    color: '#4ade80',
-  },
-  derivedFormula: {
-    fontSize: 11,
-    color: '#888',
   },
 }

@@ -77,8 +77,8 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     if (!hasChanged) return
     prevStepDataRef.current = stepData
 
-    const race = (stepData as { race?: string } | null)?.race
-    setSelected(race ?? null)
+    const id = (stepData as { id?: string } | null)?.id
+    setSelected(id ?? null)
   }, [stepData])
 
   useEffect(() => {
@@ -87,9 +87,9 @@ export default function RasseStep({ onValid }: RasseStepProps) {
 
   const handleSelect = (id: string) => {
     setSelected(id)
-    saveStep(2, { race: id })
     const race = races.find((r) => r.id === id)
     if (race) {
+      saveStep(2, { id: race.id, name: race.name, statblock: race.statblock })
       setModalRace(race)
       setModalOpen(true)
     }
@@ -207,8 +207,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    background: '#1a1a2e',
-    color: '#eee',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
     border: '2px solid transparent',
     borderRadius: 12,
     cursor: 'pointer',
@@ -217,9 +217,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
   optionCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
-    boxShadow: '0 0 12px rgba(233, 69, 96, 0.3)',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
+    boxShadow: '0 0 12px var(--shadow-accent)',
   },
   optionIcon: {
     fontSize: 32,
@@ -231,8 +231,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   detailPanel: {
     width: '25%',
-    background: '#f8f8f8',
-    border: '1px solid #ddd',
+    background: 'var(--bg-detail)',
+    border: '1px solid var(--border-light)',
     borderRadius: 8,
     padding: 16,
     alignSelf: 'start',
@@ -240,12 +240,12 @@ const styles: Record<string, React.CSSProperties> = {
   detailTitle: {
     margin: '0 0 12px 0',
     fontSize: 18,
-    color: '#1a1a2e',
+    color: 'var(--detail-title)',
   },
   detailText: {
     fontSize: 14,
     lineHeight: 1.6,
-    color: '#444',
+    color: 'var(--detail-text)',
     margin: '0 0 16px 0',
   },
   statblock: {
@@ -254,7 +254,7 @@ const styles: Record<string, React.CSSProperties> = {
   statblockTitle: {
     margin: '8px 0 4px 0',
     fontSize: 14,
-    color: '#1a1a2e',
+    color: 'var(--detail-title)',
   },
   statList: {
     margin: '0 0 12px 0',
@@ -262,7 +262,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statItem: {
     fontSize: 13,
-    color: '#444',
+    color: 'var(--detail-text)',
     marginBottom: 4,
   },
   modalOverlay: {
@@ -271,14 +271,14 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0, 0, 0, 0.7)',
+    background: 'var(--overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
   },
   modalContent: {
-    background: '#fff',
+    background: 'var(--bg-modal)',
     borderRadius: 12,
     padding: 24,
     maxWidth: 600,
@@ -295,12 +295,12 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     fontSize: 20,
     cursor: 'pointer',
-    color: '#666',
+    color: 'var(--text-muted)',
   },
   modalTitle: {
     margin: '0 0 16px 0',
     fontSize: 22,
-    color: '#1a1a2e',
+    color: 'var(--detail-title)',
   },
   modalBody: {
     display: 'flex',
@@ -311,16 +311,16 @@ const styles: Record<string, React.CSSProperties> = {
   sectionTitle: {
     margin: '0 0 8px 0',
     fontSize: 16,
-    color: '#1a1a2e',
+    color: 'var(--detail-title)',
   },
   scrollableText: {
     fontSize: 14,
     lineHeight: 1.6,
-    color: '#444',
+    color: 'var(--detail-text)',
     maxHeight: 250,
     overflowY: 'auto',
     padding: 12,
-    background: '#f8f8f8',
+    background: 'var(--bg-detail)',
     borderRadius: 8,
   },
 }

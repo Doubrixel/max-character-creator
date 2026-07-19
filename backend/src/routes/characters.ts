@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { db } from '../db'
 import { characters, characterXpLog, characterSteps } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
+import { recalculateStats } from '../reducers'
 
 const app = new Hono()
 
@@ -41,7 +42,10 @@ app.get('/api/characters/:id', async (c) => {
     return c.json({ error: 'Character not found' }, 404)
   }
 
-  return c.json(result[0])
+  return c.json({
+    ...result[0],
+    stats: JSON.parse(result[0].stats || '{}'),
+  })
 })
 
 app.patch('/api/characters/:id', async (c) => {
@@ -118,10 +122,10 @@ app.get('/api/characters/:id/steps/:step', async (c) => {
     .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
 
   if (result.length === 0) {
-    return c.json({ data: {} })
+    return c.json({ delta: {} })
   }
 
-  return c.json({ data: result[0].data ? JSON.parse(result[0].data) : {} })
+  return c.json({ delta: result[0].delta ? JSON.parse(result[0].delta) : {} })
 })
 
 app.post('/api/characters/:id/steps/:step', async (c) => {
@@ -134,26 +138,43 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
     .from(characterSteps)
     .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
 
+  let updatedStep
   if (existing.length > 0) {
-    const updated = await db.update(characterSteps)
+    updatedStep = await db.update(characterSteps)
       .set({
-        data: JSON.stringify(body.data),
+        delta: JSON.stringify(body.delta),
         updatedAt: now,
       })
       .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
       .returning()
-    return c.json(updated[0])
+    updatedStep = updatedStep[0]
+  } else {
+    updatedStep = await db.insert(characterSteps).values({
+      id: crypto.randomUUID(),
+      characterId: id,
+      stepNumber: step,
+      delta: JSON.stringify(body.delta),
+      updatedAt: now,
+    }).returning()
+    updatedStep = updatedStep[0]
   }
 
-  const inserted = await db.insert(characterSteps).values({
-    id: crypto.randomUUID(),
-    characterId: id,
-    stepNumber: step,
-    data: JSON.stringify(body.data),
-    updatedAt: now,
-  }).returning()
+  const allSteps = await db.select()
+    .from(characterSteps)
+    .where(eq(characterSteps.characterId, id))
 
-  return c.json(inserted[0], 201)
+  const allDeltas: Record<number, Record<string, unknown>> = {}
+  for (const row of allSteps) {
+    allDeltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+  }
+
+  const newStats = recalculateStats(allDeltas)
+
+  await db.update(characters)
+    .set({ stats: JSON.stringify(newStats) })
+    .where(eq(characters.id, id))
+
+  return c.json({ step: updatedStep, stats: newStats })
 })
 
 export default app

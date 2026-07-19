@@ -7,20 +7,38 @@ export interface CharacterData {
   [key: string]: unknown
 }
 
+interface CharacterStats {
+  schicksal?: { id: string; name: string; ruleText: string }
+  rasse?: { id: string; name: string; statblock?: Record<string, unknown> }
+  abstammung?: { heritageRoll: number; heritage: string; decisions: Record<string, string> }
+  skills?: Record<string, number>
+  staerke?: string
+  staerken?: string[]
+  kulturMeisterschaft?: string
+  ressourcen?: string[]
+  magic?: Record<string, number>
+  attribute?: Record<string, number>
+  derived?: { LP: number; AP: number; MP: number; INI: number; WP: number; AW: number }
+  meisterschaften?: string[]
+  bonusMeisterschaften?: string[]
+  resources?: Record<string, number>
+  spells?: string[]
+  [key: string]: unknown
+}
+
 interface AppContextType {
   characterId: string | null
   currentStep: number
+  characterStats: CharacterStats
+  stepDeltas: Record<number, Record<string, unknown>>
+  stepData: Record<string, unknown> | null
   setCharacterId: (id: string) => void
   setCurrentStep: (step: number) => void
-  stepData: Record<string, unknown> | null
-  setStepData: (data: Record<string, unknown> | null) => void
-  characterData: Record<string, unknown>
-  saveStep: (step: number, data: Record<string, unknown>) => Promise<void>
-  loadStep: (step: number) => Promise<void>
+  saveStep: (step: number, delta: Record<string, unknown>) => Promise<void>
+  loadCharacter: (id: string) => Promise<void>
+  validateStep: (step: number) => Promise<{ valid: boolean; errors: string[] }>
   createCharacter: () => Promise<void>
   resetCharacter: () => void
-  getAggregatedSkillPoints: () => Record<string, number>
-  getAggregatedData: () => Record<string, unknown>
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -28,51 +46,10 @@ const AppContext = createContext<AppContextType | null>(null)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [characterId, setCharacterIdState] = useState<string | null>(null)
   const [currentStep, setCurrentStepState] = useState(1)
-  const [stepData, setStepData] = useState<Record<string, unknown> | null>(null)
-  const [characterData, setCharacterData] = useState<Record<string, unknown>>({})
-  const [_loadingStep, setLoadingStep] = useState(false)
+  const [characterStats, setCharacterStats] = useState<CharacterStats>({})
+  const [stepDeltas, setStepDeltas] = useState<Record<number, Record<string, unknown>>>({})
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/characters`)
-      .then(res => res.json())
-      .then((characters: CharacterData[]) => {
-        if (characters.length > 0) {
-          setCharacterIdState(characters[0].id)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const loadStep = useCallback(async (step: number) => {
-    if (!characterId) return
-    setLoadingStep(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
-      if (!res.ok) {
-        setStepData(null)
-        return
-      }
-      const json = await res.json()
-      const data = json.data ?? null
-      setStepData(data)
-      if (data) {
-        setCharacterData(prev => ({
-          ...prev,
-          [`step${step}`]: data,
-        }))
-      }
-    } catch {
-      setStepData(null)
-    } finally {
-      setLoadingStep(false)
-    }
-  }, [characterId])
-
-  useEffect(() => {
-    if (characterId) {
-      loadStep(currentStep)
-    }
-  }, [characterId, currentStep, loadStep])
+  const stepData = stepDeltas[currentStep] ?? null
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
@@ -82,20 +59,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentStepState(step)
   }
 
-  const saveStep = async (step: number, data: Record<string, unknown>) => {
+  const loadCharacter = async (characterId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}`)
+      if (!res.ok) throw new Error('Failed to load character')
+      const data = await res.json()
+      setCharacterStats(data.stats || {})
+
+      const stepPromises = Array.from({ length: 7 }, (_, i) =>
+        fetch(`${API_BASE}/api/characters/${characterId}/steps/${i + 1}`)
+          .then(r => r.json())
+          .then(d => [i + 1, d.delta || {}] as const)
+          .catch(() => [i + 1, {}] as const)
+      )
+      const stepResults = await Promise.all(stepPromises)
+      const deltas: Record<number, Record<string, unknown>> = {}
+      for (const [step, delta] of stepResults) {
+        deltas[step] = delta
+      }
+      setStepDeltas(deltas)
+    } catch (err) {
+      console.error('loadCharacter failed:', err)
+    }
+  }
+
+  const saveStep = async (step: number, delta: Record<string, unknown>) => {
     if (!characterId) return
     try {
-      await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data }),
+        body: JSON.stringify({ delta }),
       })
-      setCharacterData(prev => ({
-        ...prev,
-        [`step${step}`]: data,
-      }))
+      if (!res.ok) throw new Error('Failed to save step')
+      const result = await res.json()
+      setCharacterStats(result.stats)
+      setStepDeltas(prev => ({ ...prev, [step]: delta }))
     } catch (err) {
       console.error('saveStep failed:', err)
+    }
+  }
+
+  const validateStep = async (step: number): Promise<{ valid: boolean; errors: string[] }> => {
+    if (!characterId) return { valid: true, errors: [] }
+    try {
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}/validate`, {
+        method: 'POST',
+      })
+      if (!res.ok) return { valid: true, errors: [] }
+      return await res.json()
+    } catch (err) {
+      console.error('validateStep failed:', err)
+      return { valid: true, errors: [] }
     }
   }
 
@@ -107,64 +122,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
     const character = await res.json()
     setCharacterIdState(character.id)
-    setCharacterData({})
+    setCharacterStats({})
+    setStepDeltas({})
   }
 
   const resetCharacter = () => {
     setCharacterIdState(null)
     setCurrentStepState(1)
-    setStepData(null)
-    setCharacterData({})
+    setCharacterStats({})
+    setStepDeltas({})
   }
 
-  const getAggregatedSkillPoints = useCallback((): Record<string, number> => {
-    const skillPoints: Record<string, number> = {}
-    for (let step = 1; step <= 7; step++) {
-      const stepKey = `step${step}`
-      const data = characterData[stepKey]
-      if (data && typeof data === 'object') {
-        const record = data as Record<string, unknown>
-        for (const [key, value] of Object.entries(record)) {
-          if (key.endsWith('Points') || key.endsWith('SkillPoints') || key === 'points') {
-            if (typeof value === 'number') {
-              const skillName = key.replace(/Points?$/, '').replace(/Skill$/, '')
-              skillPoints[skillName || key] = (skillPoints[skillName || key] || 0) + value
-            }
-          }
-          if (typeof value === 'object' && value !== null) {
-            const nested = value as Record<string, unknown>
-            for (const [nestedKey, nestedValue] of Object.entries(nested)) {
-              if (typeof nestedValue === 'number') {
-                skillPoints[nestedKey] = (skillPoints[nestedKey] || 0) + nestedValue
-              }
-            }
-          }
+  useEffect(() => {
+    fetch(`${API_BASE}/api/characters`)
+      .then(res => res.json())
+      .then((characters: CharacterData[]) => {
+        if (characters.length > 0) {
+          const id = characters[0].id
+          setCharacterIdState(id)
+          loadCharacter(id)
         }
-      }
-    }
-    return skillPoints
-  }, [characterData])
-
-  const getAggregatedData = useCallback((): Record<string, unknown> => {
-    return characterData
-  }, [characterData])
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <AppContext.Provider
       value={{
         characterId,
         currentStep,
+        characterStats,
+        stepDeltas,
+        stepData,
         setCharacterId,
         setCurrentStep,
-        stepData,
-        setStepData,
-        characterData,
         saveStep,
-        loadStep,
+        loadCharacter,
+        validateStep,
         createCharacter,
         resetCharacter,
-        getAggregatedSkillPoints,
-        getAggregatedData,
       }}
     >
       {children}

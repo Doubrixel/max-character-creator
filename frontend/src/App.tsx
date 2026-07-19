@@ -33,7 +33,7 @@ function App() {
 const styles: Record<string, React.CSSProperties> = {
   container: { display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' },
   main: { flex: 1, marginLeft: 200, padding: 24 },
-  placeholder: { fontSize: 18, color: '#666', marginTop: 40 },
+  placeholder: { fontSize: 18, color: 'var(--text-tertiary)', marginTop: 40 },
 }
 
 export default App

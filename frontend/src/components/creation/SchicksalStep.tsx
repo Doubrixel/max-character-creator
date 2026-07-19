@@ -59,8 +59,8 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
     if (!hasChanged) return
     prevStepDataRef.current = stepData
 
-    const destiny = (stepData as { destiny?: string } | null)?.destiny
-    setSelected(destiny ?? null)
+    const id = (stepData as { id?: string } | null)?.id
+    setSelected(id ?? null)
   }, [stepData])
 
   useEffect(() => {
@@ -69,7 +69,10 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
 
   const handleSelect = (id: string) => {
     setSelected(id)
-    saveStep(1, { destiny: id })
+    const destiny = destinies.find((d) => d.id === id)
+    if (destiny) {
+      saveStep(1, { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
+    }
   }
 
   const selectedDestiny = destinies.find((d) => d.id === selected)
@@ -120,8 +123,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    background: '#1a1a2e',
-    color: '#eee',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
     border: '2px solid transparent',
     borderRadius: 12,
     cursor: 'pointer',
@@ -130,9 +133,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
   },
   optionCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
-    boxShadow: '0 0 12px rgba(233, 69, 96, 0.3)',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
+    boxShadow: '0 0 12px var(--shadow-accent)',
   },
   optionIcon: {
     fontSize: 32,
@@ -144,21 +147,22 @@ const styles: Record<string, React.CSSProperties> = {
   },
   detailPanel: {
     width: '25%',
-    background: '#f8f8f8',
-    border: '1px solid #ddd',
+    background: 'var(--bg-detail)',
+    border: '1px solid var(--border-light)',
     borderRadius: 8,
     padding: 16,
     alignSelf: 'start',
+    transition: 'background 0.2s',
   },
   detailTitle: {
     margin: '0 0 12px 0',
     fontSize: 18,
-    color: '#1a1a2e',
+    color: 'var(--detail-title)',
   },
   detailText: {
     fontSize: 14,
     lineHeight: 1.6,
-    color: '#444',
+    color: 'var(--detail-text)',
     margin: 0,
   },
 }

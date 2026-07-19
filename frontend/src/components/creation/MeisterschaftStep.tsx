@@ -95,11 +95,11 @@ interface MagicThreshold {
 }
 
 interface Step7Data {
-  skill6Meisterschaften?: Record<string, string>
-  magicSpells?: Record<string, string>
+  meisterschaften?: string[]
   bonusMeisterschaften?: string[]
-  bonusTalents?: Record<string, number>
-  bonusResource?: string | null
+  talents?: Record<string, number>
+  resources?: Record<string, number>
+  spells?: string[]
 }
 
 interface MeisterschaftStepProps {
@@ -213,18 +213,20 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
 
     const saved = stepData as Step7Data | null
 
-    const savedSkill6 = saved?.skill6Meisterschaften ?? {}
-    setSkill6Entries(prev => prev.map(e => ({
-      ...e,
-      selectedMeisterschaft: savedSkill6[e.skillId] ?? null,
-    })))
+    const savedMeisterschaften = saved?.meisterschaften ?? []
+    setSkill6Entries(prev => prev.map(e => {
+      const skillMasteryIds = (MEISTERSCHAFTEN_PER_SKILL[e.skillId] ?? []).map(m => m.id)
+      const match = savedMeisterschaften.find(m => skillMasteryIds.includes(m))
+      return { ...e, selectedMeisterschaft: match ?? null }
+    }))
 
-    const savedMagic = saved?.magicSpells ?? {}
+    const savedSpells = saved?.spells ?? []
     setMagicThresholds(prev => prev.map(mt => ({
       ...mt,
       thresholds: mt.thresholds.map(th => {
-        const key = `${mt.schoolId}_${th.level}`
-        return { ...th, selectedSpell: savedMagic[key] ?? null }
+        const availableSpells = SPELLS[mt.schoolId]?.filter(s => s.level === th.level) ?? []
+        const match = availableSpells.find(s => savedSpells.includes(s.id))
+        return { ...th, selectedSpell: match?.id ?? null }
       }),
     })))
 
@@ -236,18 +238,19 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
       setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS)
     }
 
-    if (saved?.bonusTalents) {
-      setBonusTalents(saved.bonusTalents)
-      const used = Object.values(saved.bonusTalents).reduce((s: number, v: number) => s + v, 0)
+    if (saved?.talents) {
+      setBonusTalents(saved.talents)
+      const used = Object.values(saved.talents).reduce((s: number, v: number) => s + v, 0)
       setBonusTalentPoints(BONUS_TALENT_POINTS - used)
     } else {
       setBonusTalents({})
       setBonusTalentPoints(BONUS_TALENT_POINTS)
     }
 
-    if (saved?.bonusResource) {
-      setSelectedBonusResource(saved.bonusResource)
-      setBonusResourcePoints(0)
+    if (saved?.resources) {
+      const resourceEntry = Object.entries(saved.resources).find(([, v]) => v > 0)
+      setSelectedBonusResource(resourceEntry ? resourceEntry[0] : null)
+      setBonusResourcePoints(resourceEntry ? 0 : BONUS_RESOURCE_POINTS)
     } else {
       setSelectedBonusResource(null)
       setBonusResourcePoints(BONUS_RESOURCE_POINTS)
@@ -376,11 +379,11 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     }
 
     const data = {
-      skill6Meisterschaften: Object.fromEntries(s6.filter(e => e.selectedMeisterschaft).map(e => [e.skillId, e.selectedMeisterschaft])),
-      magicSpells: magicSpellsObj,
+      meisterschaften: s6.filter(e => e.selectedMeisterschaft).map(e => e.selectedMeisterschaft!),
       bonusMeisterschaften: bm,
-      bonusTalents: bt,
-      bonusResource: br,
+      talents: bt,
+      resources: br ? { [br]: 1 } : {},
+      spells: Object.values(magicSpellsObj).filter(Boolean),
     }
     saveStep(7, data)
   }
@@ -615,7 +618,7 @@ const styles: Record<string, React.CSSProperties> = {
   loading: {
     padding: 40,
     textAlign: 'center',
-    color: '#aaa',
+    color: 'var(--text-secondary)',
     fontSize: 16,
   },
   completed: {
@@ -628,41 +631,41 @@ const styles: Record<string, React.CSSProperties> = {
   },
   completedTitle: {
     fontSize: 24,
-    color: '#4ade80',
+    color: 'var(--success)',
     margin: 0,
   },
   completedText: {
     fontSize: 16,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
     margin: 0,
   },
   error: {
     padding: '12px 16px',
-    background: '#2e1a1a',
-    color: '#e94560',
+    background: 'var(--bg-error)',
+    color: 'var(--accent)',
     borderRadius: 8,
     fontSize: 14,
   },
   section: {
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 12,
     padding: 20,
   },
   sectionTitle: {
     margin: '0 0 8px 0',
     fontSize: 18,
-    color: '#eee',
+    color: 'var(--text-primary)',
   },
   sectionHint: {
     fontSize: 13,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
     marginTop: 0,
     marginBottom: 16,
   },
   pflichtItem: {
     marginBottom: 16,
     paddingBottom: 16,
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid var(--border)',
   },
   pflichtHeader: {
     display: 'flex',
@@ -673,11 +676,11 @@ const styles: Record<string, React.CSSProperties> = {
   pflichtSkillName: {
     fontSize: 16,
     fontWeight: 700,
-    color: '#e94560',
+    color: 'var(--accent)',
   },
   pflichtStatus: {
     fontSize: 13,
-    color: '#4ade80',
+    color: 'var(--success)',
   },
   meisterGrid: {
     display: 'grid',
@@ -686,9 +689,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   meisterCard: {
     padding: 12,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -697,8 +700,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   meisterCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   meisterName: {
     fontSize: 14,
@@ -706,17 +709,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   meisterDesc: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   magicSection: {
     marginBottom: 16,
     paddingBottom: 16,
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid var(--border)',
   },
   magicSchoolName: {
     fontSize: 15,
     fontWeight: 600,
-    color: '#c084fc',
+    color: 'var(--purple)',
     marginBottom: 12,
   },
   spellLevelGroup: {
@@ -724,7 +727,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   spellLevelLabel: {
     fontSize: 13,
-    color: '#888',
+    color: 'var(--text-tertiary)',
     marginBottom: 8,
     display: 'block',
   },
@@ -735,9 +738,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   spellCard: {
     padding: 12,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -746,8 +749,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   spellCardSelected: {
-    border: '2px solid #c084fc',
-    background: '#1a1a2e',
+    border: '2px solid var(--purple)',
+    background: 'var(--bg-primary)',
   },
   spellName: {
     fontSize: 14,
@@ -755,11 +758,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   spellCost: {
     fontSize: 12,
-    color: '#4ade80',
+    color: 'var(--success)',
   },
   spellEffect: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   bonusSubSection: {
     marginTop: 16,
@@ -767,15 +770,15 @@ const styles: Record<string, React.CSSProperties> = {
   counter: {
     fontSize: 16,
     fontWeight: 700,
-    color: '#4ade80',
+    color: 'var(--success)',
     padding: '10px 16px',
-    background: '#0f0f23',
+    background: 'var(--bg-secondary)',
     borderRadius: 8,
     textAlign: 'center',
     marginBottom: 12,
   },
   counterZero: {
-    color: '#e94560',
+    color: 'var(--accent)',
   },
   bonusGrid: {
     display: 'grid',
@@ -784,9 +787,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   bonusCard: {
     padding: 12,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -795,8 +798,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   bonusCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   bonusCardDisabled: {
     opacity: 0.4,
@@ -808,7 +811,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   bonusCardDesc: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   bonusTalentTable: {
     display: 'flex',
@@ -820,18 +823,18 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '8px 12px',
-    background: '#0f0f23',
+    background: 'var(--bg-secondary)',
     borderRadius: 6,
   },
   bonusTalentName: {
     fontSize: 14,
-    color: '#eee',
+    color: 'var(--text-primary)',
     flex: 1,
   },
   bonusTalentValue: {
     fontSize: 16,
     fontWeight: 700,
-    color: '#4ade80',
+    color: 'var(--success)',
     width: 40,
     textAlign: 'center',
   },
@@ -844,9 +847,9 @@ const styles: Record<string, React.CSSProperties> = {
     height: 32,
     fontSize: 18,
     fontWeight: 700,
-    background: '#1a1a2e',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 6,
     cursor: 'pointer',
     display: 'flex',
@@ -866,8 +869,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '14px 32px',
     fontSize: 16,
     fontWeight: 700,
-    background: '#4ade80',
-    color: '#0f0f23',
+    background: 'var(--success)',
+    color: 'var(--text-on-success)',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',

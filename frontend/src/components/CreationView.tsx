@@ -25,7 +25,7 @@ export default function CreationView() {
   if (!characterId) {
     return (
       <div style={styles.emptyState}>
-        <h2 style={{ marginBottom: 16 }}>Noch kein Charakter vorhanden</h2>
+        <h2 style={{ marginBottom: 16, color: 'var(--text-primary)' }}>Noch kein Charakter vorhanden</h2>
         <button style={styles.createButton} onClick={createCharacter}>
           Neuen Charakter erstellen
         </button>
@@ -69,8 +69,8 @@ export default function CreationView() {
     }
     return (
       <div style={styles.content}>
-        <h3>{steps[currentStep - 1]}</h3>
-        <p style={{ color: '#888' }}>Schritt {currentStep} von {steps.length}</p>
+        <h3 style={{ color: 'var(--text-primary)' }}>{steps[currentStep - 1]}</h3>
+        <p style={{ color: 'var(--text-tertiary)' }}>Schritt {currentStep} von {steps.length}</p>
       </div>
     )
   }
@@ -130,33 +130,36 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     background: 'transparent',
-    color: '#e94560',
-    border: '1px solid #e94560',
+    color: 'var(--accent)',
+    border: '1px solid var(--accent)',
     borderRadius: 6,
     cursor: 'pointer',
+    transition: 'all 0.2s',
   },
   stepBar: {
     display: 'flex',
     gap: 8,
     padding: '12px 16px',
-    background: '#f0f0f0',
+    background: 'var(--bg-stepbar)',
     borderRadius: 8,
     marginBottom: 24,
     flexWrap: 'wrap',
+    transition: 'background 0.2s',
   },
-  step: { fontSize: 13, fontWeight: 500, color: '#333' },
-  stepActive: { color: '#e94560', fontWeight: 700 },
-  content: { padding: 16, border: '1px dashed #ccc', borderRadius: 8, minHeight: 300 },
+  step: { fontSize: 13, fontWeight: 500, color: 'var(--stepbar-text)' },
+  stepActive: { color: 'var(--stepbar-text-active)', fontWeight: 700 },
+  content: { padding: 16, border: '1px dashed var(--border-lighter)', borderRadius: 8, minHeight: 300 },
   navButtons: { display: 'flex', gap: 12, marginTop: 24, justifyContent: 'space-between' },
   navButton: {
     padding: '10px 24px',
     fontSize: 14,
     fontWeight: 600,
-    background: '#1a1a2e',
-    color: '#eee',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
     border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
+    transition: 'all 0.2s',
   },
   navButtonDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   emptyState: {
@@ -170,10 +173,11 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 32px',
     fontSize: 16,
     fontWeight: 600,
-    background: '#e94560',
-    color: '#fff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
+    transition: 'all 0.2s',
   },
 }

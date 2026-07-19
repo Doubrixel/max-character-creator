@@ -8,6 +8,7 @@ export const characters = sqliteTable('characters', {
   status: text('status').default('draft'),
   xp: integer('xp').default(15),
   totalXp: integer('total_xp').default(15),
+  stats: text('stats').default('{}'),
 });
 
 export const characterSteps = sqliteTable('character_steps', {
@@ -16,7 +17,7 @@ export const characterSteps = sqliteTable('character_steps', {
     .notNull()
     .references(() => characters.id),
   stepNumber: integer('step_number'),
-  data: text('data'),
+  delta: text('delta'),
   updatedAt: integer('updated_at'),
 });
 

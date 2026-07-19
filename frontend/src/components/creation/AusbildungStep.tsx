@@ -54,6 +54,17 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
   const savedSkills = (stepData as { skills?: Record<string, number> } | null)?.skills ?? {}
+  const savedMagic = (stepData as { magic?: Record<string, number> } | null)?.magic ?? {}
+
+  function buildMagicValues(s: Record<string, number>): Record<string, number> {
+    const magicValues: Record<string, number> = {}
+    for (const [skillId, value] of Object.entries(s)) {
+      if (magicSchools.some(m => m.id === skillId)) {
+        magicValues[skillId] = value
+      }
+    }
+    return magicValues
+  }
 
   function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
     if (prev === undefined) return true
@@ -77,12 +88,18 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       skills?: Record<string, number>
       staerken?: string[]
       ressourcen?: string[]
+      magic?: Record<string, number>
     } | null
 
     const allSkills = [...talents, ...weapons, ...magicSchools]
     const initialSkills: Record<string, number> = {}
     allSkills.forEach((s) => {
-      initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+      const isMagic = magicSchools.some(m => m.id === s.id)
+      if (isMagic) {
+        initialSkills[s.id] = saved?.magic?.[s.id] ?? saved?.skills?.[s.id] ?? 0
+      } else {
+        initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+      }
     })
 
     setSkills(initialSkills)
@@ -108,12 +125,18 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       skills?: Record<string, number>
       staerken?: string[]
       ressourcen?: string[]
+      magic?: Record<string, number>
     } | null
 
     const allSkills = [...talents, ...weapons, ...magicSchools]
     const initialSkills: Record<string, number> = {}
     allSkills.forEach((s) => {
-      initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+      const isMagic = magicSchools.some(m => m.id === s.id)
+      if (isMagic) {
+        initialSkills[s.id] = saved?.magic?.[s.id] ?? saved?.skills?.[s.id] ?? 0
+      } else {
+        initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+      }
     })
 
     setSkills(initialSkills)
@@ -161,7 +184,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
     const next = { ...skills, [id]: current + 1 }
     setSkills(next)
-    saveStep(5, { skills: next, staerken, ressourcen })
+    saveStep(5, { skills: next, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const decrementSkill = (id: string) => {
@@ -170,19 +193,19 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     if (current <= baseValue) return
     const next = { ...skills, [id]: current - 1 }
     setSkills(next)
-    saveStep(5, { skills: next, staerken, ressourcen })
+    saveStep(5, { skills: next, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const handleStaerke = (id: string) => {
     if (staerken.includes(id)) {
       const next = staerken.filter((s) => s !== id)
       setStaerken(next)
-      saveStep(5, { skills, staerken: next, ressourcen })
+      saveStep(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
     } else {
       if (staerkenAvailable <= 0) return
       const next = [...staerken, id]
       setStaerken(next)
-      saveStep(5, { skills, staerken: next, ressourcen })
+      saveStep(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
     }
   }
 
@@ -190,12 +213,12 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     if (ressourcen.includes(id)) {
       const next = ressourcen.filter((r) => r !== id)
       setRessourcen(next)
-      saveStep(5, { skills, staerken, ressourcen: next })
+      saveStep(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
     } else {
       if (ressourcenAvailable <= 0) return
       const next = [...ressourcen, id]
       setRessourcen(next)
-      saveStep(5, { skills, staerken, ressourcen: next })
+      saveStep(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
     }
   }
 
@@ -337,24 +360,24 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 150,
     fontSize: 16,
     fontWeight: 700,
-    color: '#4ade80',
+    color: 'var(--success)',
     padding: '12px 16px',
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 8,
     textAlign: 'center',
   },
   counterZero: {
-    color: '#e94560',
+    color: 'var(--accent)',
   },
   section: {
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 12,
     padding: 20,
   },
   sectionTitle: {
     margin: '0 0 16px 0',
     fontSize: 18,
-    color: '#eee',
+    color: 'var(--text-primary)',
   },
   table: {
     width: '100%',
@@ -364,14 +387,14 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'left',
     padding: '8px 12px',
     fontSize: 13,
-    color: '#aaa',
-    borderBottom: '1px solid #333',
+    color: 'var(--text-secondary)',
+    borderBottom: '1px solid var(--border)',
   },
   td: {
     padding: '8px 12px',
     fontSize: 14,
-    color: '#eee',
-    borderBottom: '1px solid #222',
+    color: 'var(--text-primary)',
+    borderBottom: '1px solid var(--border-dark)',
   },
   valueCell: {
     textAlign: 'center',
@@ -387,9 +410,9 @@ const styles: Record<string, React.CSSProperties> = {
     height: 32,
     fontSize: 18,
     fontWeight: 700,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 6,
     cursor: 'pointer',
     display: 'flex',
@@ -407,9 +430,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   staerkeCard: {
     padding: 14,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -418,8 +441,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   staerkeCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   staerkeCardDisabled: {
     opacity: 0.4,
@@ -431,7 +454,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   staerkeDesc: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   ressourcenGrid: {
     display: 'grid',
@@ -440,9 +463,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   ressourceCard: {
     padding: 14,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -451,8 +474,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 4,
   },
   ressourceCardSelected: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   ressourceCardDisabled: {
     opacity: 0.4,
@@ -464,6 +487,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   ressourceDesc: {
     fontSize: 12,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
 }

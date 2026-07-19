@@ -75,18 +75,24 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     if (!hasChanged) return
     prevStepDataRef.current = stepData
 
-    const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
-    if (saved?.dice) {
-      setDice1(String(saved.dice[0]))
-      setDice2(String(saved.dice[1]))
+    const saved = stepData as { heritageRoll?: number; heritage?: string; decisions?: Record<string, string> } | null
+    if (saved?.heritageRoll) {
+      const d1 = Math.min(6, Math.max(1, Math.floor(Math.random() * 6) + 1))
+      const d2 = saved.heritageRoll - d1
+      if (d2 >= 1 && d2 <= 6) {
+        setDice1(String(d1))
+        setDice2(String(d2))
+      } else {
+        setDice1('')
+        setDice2('')
+      }
     } else {
       setDice1('')
       setDice2('')
     }
     setHeritage(saved?.heritage ?? '')
-    const loaded = saved?.decisions ? Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])) : {}
-    setChosenDecisions(loaded)
-    chosenDecisionsRef.current = loaded
+    setChosenDecisions(saved?.decisions ?? {})
+    chosenDecisionsRef.current = saved?.decisions ?? {}
   }, [stepData])
 
   useEffect(() => {
@@ -96,8 +102,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       const sum = d1 + d2
       const result = heritageTable[sum] ?? 'Unbekannte Herkunft'
       setHeritage(result)
-      const currentDecisions = Object.entries(chosenDecisionsRef.current).map(([id, choice]) => ({ id, choice }))
-      saveStep(3, { dice: [d1, d2] as [number, number], heritage: result, decisions: currentDecisions })
+      saveStep(3, { heritageRoll: d1 + d2, heritage: result, decisions: chosenDecisionsRef.current })
     } else {
       setHeritage('')
     }
@@ -119,10 +124,9 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     setChosenDecisions((prev) => {
       const next = { ...prev, [decisionId]: choice }
       chosenDecisionsRef.current = next
-      const allDecisions = Object.entries(next).map(([id, choice]) => ({ id, choice }))
       const d1 = parseInt(dice1, 10)
       const d2 = parseInt(dice2, 10)
-      saveStep(3, { dice: [d1, d2], heritage, decisions: allDecisions })
+      saveStep(3, { heritageRoll: d1 + d2, heritage, decisions: next })
       return next
     })
   }
@@ -135,10 +139,9 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
         delete next[decisions[i].id]
       }
       chosenDecisionsRef.current = next
-      const allDecisions = Object.entries(next).map(([id, choice]) => ({ id, choice }))
       const d1 = parseInt(dice1, 10)
       const d2 = parseInt(dice2, 10)
-      saveStep(3, { dice: [d1, d2], heritage, decisions: allDecisions })
+      saveStep(3, { heritageRoll: d1 + d2, heritage, decisions: next })
       return next
     })
   }
@@ -257,14 +260,14 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 300,
   },
   section: {
-    background: '#1a1a2e',
+    background: 'var(--bg-primary)',
     borderRadius: 12,
     padding: 20,
   },
   sectionTitle: {
     margin: '0 0 16px 0',
     fontSize: 18,
-    color: '#eee',
+    color: 'var(--text-primary)',
   },
   diceRow: {
     display: 'flex',
@@ -278,7 +281,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   label: {
     fontSize: 13,
-    color: '#aaa',
+    color: 'var(--text-secondary)',
   },
   diceInput: {
     width: 60,
@@ -286,17 +289,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 18,
     fontWeight: 600,
     textAlign: 'center',
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
   },
   autoRollButton: {
     padding: '10px 20px',
     fontSize: 14,
     fontWeight: 600,
-    background: '#e94560',
-    color: '#fff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
@@ -304,7 +307,7 @@ const styles: Record<string, React.CSSProperties> = {
   heritageText: {
     fontSize: 15,
     lineHeight: 1.6,
-    color: '#ccc',
+    color: 'var(--text-secondary)',
     margin: 0,
   },
   decisionBlock: {
@@ -313,7 +316,7 @@ const styles: Record<string, React.CSSProperties> = {
   decisionLabel: {
     fontSize: 14,
     fontWeight: 600,
-    color: '#eee',
+    color: 'var(--text-primary)',
     margin: '0 0 8px 0',
   },
   decisionOptions: {
@@ -324,9 +327,9 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     padding: 14,
     fontSize: 14,
-    background: '#0f0f23',
-    color: '#eee',
-    border: '2px solid #333',
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
     textAlign: 'left',
@@ -334,8 +337,8 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
   },
   decisionOptionChosen: {
-    border: '2px solid #e94560',
-    background: '#2a1a2e',
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
   },
   decisionOptionGrayed: {
     opacity: 0.4,
@@ -351,8 +354,8 @@ const styles: Record<string, React.CSSProperties> = {
     right: 8,
     padding: '4px 8px',
     fontSize: 11,
-    background: '#e94560',
-    color: '#fff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 4,
     cursor: 'pointer',
