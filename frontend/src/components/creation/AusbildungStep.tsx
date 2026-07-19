@@ -54,7 +54,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
   const savedSkills = (stepData as { skills?: Record<string, number> } | null)?.skills ?? {}
-  const savedMagic = (stepData as { magic?: Record<string, number> } | null)?.magic ?? {}
+
 
   function buildMagicValues(s: Record<string, number>): Record<string, number> {
     const magicValues: Record<string, number> = {}
