@@ -60,6 +60,8 @@ jobs:
           port: ${{ env.SSH_PORT }}
           script: |
             cd ~/max-character-creator
+            git fetch origin main
+            git reset --hard origin/main
             echo "REGISTRY=${{ env.REGISTRY }}" > .env
             echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> .env
             docker compose pull
