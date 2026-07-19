@@ -123,14 +123,10 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState(false)
-  const [initialized, setInitialized] = useState(false)
   const initializedRef = useRef(false)
 
   useEffect(() => {
     const skills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
-
-    const skill6: Skill6Entry[] = []
-    const magicThresh: MagicThreshold[] = []
 
     const talentWeaponIds = ['akrobatik', 'schleichen', 'wahrnehmung', 'wissen', 'ueberleben', 'nahkampf', 'distanz', 'schild']
     const magicSchoolIds = ['elementar', 'heilung']
@@ -141,9 +137,18 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
       distanz: 'Distanz', schild: 'Schild', elementar: 'Elementarmagie', heilung: 'Heilungsmagie',
     }
 
+    const saved = stepData as Step7Data | null
+    const savedMeisterschaften = saved?.meisterschaften ?? []
+    const savedSpells = saved?.spells ?? []
+
+    const skill6: Skill6Entry[] = []
+    const magicThresh: MagicThreshold[] = []
+
     for (const [id, val] of Object.entries(skills)) {
       if (val >= 6 && talentWeaponIds.includes(id)) {
-        skill6.push({ skillId: id, skillName: skillNames[id] ?? id, selectedMeisterschaft: null })
+        const skillMasteryIds = (MEISTERSCHAFTEN_PER_SKILL[id] ?? []).map(m => m.id)
+        const match = savedMeisterschaften.find(m => skillMasteryIds.includes(m))
+        skill6.push({ skillId: id, skillName: skillNames[id] ?? id, selectedMeisterschaft: match ?? null })
       }
       if (magicSchoolIds.includes(id)) {
         const thresholds: { level: number; selectedSpell: string | null }[] = []
@@ -151,74 +156,54 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
         if (val >= 3) thresholds.push({ level: 1, selectedSpell: null })
         if (val >= 6) thresholds.push({ level: 2, selectedSpell: null })
         if (thresholds.length > 0) {
-          magicThresh.push({ schoolId: id, schoolName: skillNames[id] ?? id, value: val, thresholds })
+          const resolvedThresholds = thresholds.map(th => {
+            const availableSpells = SPELLS[id]?.filter(s => s.level === th.level) ?? []
+            const match = availableSpells.find(s => savedSpells.includes(s.id))
+            return { ...th, selectedSpell: match?.id ?? null }
+          })
+          magicThresh.push({ schoolId: id, schoolName: skillNames[id] ?? id, value: val, thresholds: resolvedThresholds })
         }
       }
     }
 
     setSkill6Entries(skill6)
     setMagicThresholds(magicThresh)
+
+    if (!initializedRef.current) {
+      initializedRef.current = true
+
+      if (saved?.bonusMeisterschaften) {
+        setSelectedBonusMeisterschaften(saved.bonusMeisterschaften)
+        setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - saved.bonusMeisterschaften.length)
+      } else {
+        setSelectedBonusMeisterschaften([])
+        setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS)
+      }
+
+      if (saved?.talents) {
+        setBonusTalents(saved.talents)
+        const used = Object.values(saved.talents).reduce((s: number, v: number) => s + v, 0)
+        setBonusTalentPoints(BONUS_TALENT_POINTS - used)
+      } else {
+        setBonusTalents({})
+        setBonusTalentPoints(BONUS_TALENT_POINTS)
+      }
+
+      if (saved?.resources) {
+        const resourceEntry = Object.entries(saved.resources).find(([, v]) => v > 0)
+        setSelectedBonusResource(resourceEntry ? resourceEntry[0] : null)
+        setBonusResourcePoints(resourceEntry ? 0 : BONUS_RESOURCE_POINTS)
+      } else {
+        setSelectedBonusResource(null)
+        setBonusResourcePoints(BONUS_RESOURCE_POINTS)
+      }
+    }
+
     setLoading(false)
   }, [computeBaseStats, currentStep, stepDeltas])
 
   useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-
-    const saved = stepData as Step7Data | null
-
-    const savedMeisterschaften = saved?.meisterschaften ?? []
-    setSkill6Entries(prev => prev.map(e => {
-      const skillMasteryIds = (MEISTERSCHAFTEN_PER_SKILL[e.skillId] ?? []).map(m => m.id)
-      const match = savedMeisterschaften.find(m => skillMasteryIds.includes(m))
-      return { ...e, selectedMeisterschaft: match ?? null }
-    }))
-
-    const savedSpells = saved?.spells ?? []
-    setMagicThresholds(prev => prev.map(mt => ({
-      ...mt,
-      thresholds: mt.thresholds.map(th => {
-        const availableSpells = SPELLS[mt.schoolId]?.filter(s => s.level === th.level) ?? []
-        const match = availableSpells.find(s => savedSpells.includes(s.id))
-        return { ...th, selectedSpell: match?.id ?? null }
-      }),
-    })))
-
-    if (saved?.bonusMeisterschaften) {
-      setSelectedBonusMeisterschaften(saved.bonusMeisterschaften)
-      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - saved.bonusMeisterschaften.length)
-    } else {
-      setSelectedBonusMeisterschaften([])
-      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS)
-    }
-
-    if (saved?.talents) {
-      setBonusTalents(saved.talents)
-      const used = Object.values(saved.talents).reduce((s: number, v: number) => s + v, 0)
-      setBonusTalentPoints(BONUS_TALENT_POINTS - used)
-    } else {
-      setBonusTalents({})
-      setBonusTalentPoints(BONUS_TALENT_POINTS)
-    }
-
-    if (saved?.resources) {
-      const resourceEntry = Object.entries(saved.resources).find(([, v]) => v > 0)
-      setSelectedBonusResource(resourceEntry ? resourceEntry[0] : null)
-      setBonusResourcePoints(resourceEntry ? 0 : BONUS_RESOURCE_POINTS)
-    } else {
-      setSelectedBonusResource(null)
-      setBonusResourcePoints(BONUS_RESOURCE_POINTS)
-    }
-
-    setInitialized(true)
-  }, [stepData])
-
-  useEffect(() => {
-    return () => { initializedRef.current = false }
-  }, [])
-
-  useEffect(() => {
-    if (loading || !initialized) return
+    if (loading || !initializedRef.current) return
 
     const allSkill6Selected = skill6Entries.every(e => e.selectedMeisterschaft !== null)
     const allMagicSelected = magicThresholds.every(mt =>
@@ -231,7 +216,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     const valid = allSkill6Selected && allMagicSelected && allBonusMeisterschaftUsed && allBonusTalentsUsed && allBonusResourceUsed
     setIsValid(valid)
     onValid(valid)
-  }, [skill6Entries, magicThresholds, bonusMeisterschaftPoints, bonusTalentPoints, bonusResourcePoints, onValid, loading, initialized])
+  }, [skill6Entries, magicThresholds, bonusMeisterschaftPoints, bonusTalentPoints, bonusResourcePoints, onValid, loading])
 
   const handleSkill6Meisterschaft = (skillId: string, meisterId: string) => {
     setSkill6Entries(prev => {
