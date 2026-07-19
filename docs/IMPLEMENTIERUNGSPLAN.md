@@ -2,20 +2,18 @@
 
 ## Reihenfolge
 1. **DB-Schema** — Drizzle ORM + SQLite, alle Entitäten aus User Stories ✅ ABGESCHLOSSEN
-   - 1a. Infrastruktur (drizzle.config.ts, db/index.ts, Scripts) ✅
-   - 1b. Character-Tabellen (characters, character_steps) ✅
-   - 1c. Library-Tabellen (9 Tabellen) ✅
-   - 1d. Character-Mappings (5 Tabellen) ✅
-   - 1e. Schema-Update (skills, character_xp_log, DATABASE_URL, Migration on Startup) ✅
-   - Migrationen generiert ✅ (18 Tabellen)
-2. **Seed-Script** — Initiale Beispieldaten zum Testen ⏳ IN ARBEIT
-3. **API-Grundgerüst** — CRUD Endpoints (Characters, Library, Derived Values)
-4. **UI-Shell** — React Layout, 3 Tabs, Navigation, State Management
-5. **Creation Schritt 1-3** — Schicksal, Rasse, Abstammung
-6. **Creation Schritt 4-5** — Kultur & Kindheit, Ausbildung
-7. **Creation Schritt 6-7** — Attribute, Meisterschaften & Spells
-8. **Chronik** — Archiv, XP, Steigerung, Items/Ressourcen
-9. **Bibliothek** — CRUD pro Typ (iterativ)
+   - 1a-1e: Infrastruktur, Tabellen, Migrationen, Env Var, Migration on Startup ✅
+2. **Seed-Script** — Initiale Beispieldaten zum Testen ⏳ FEHLT
+3. **API-Grundgerüst**
+   - 3a. Character CRUD (GET/POST/PATCH/DELETE, Steps, XP-Log) ✅
+   - 3b. Library CRUD (10 Tabellen, generische Factory) ✅
+   - 3c. Derived Values (Formel-Parser + Berechnung) ⏳ FEHLT
+4. **UI-Shell** — React Layout, 3 Tabs, Navigation, State Management ⏳ FEHLT
+5. **Creation Schritt 1-3** — Schicksal, Rasse, Abstammung ⏳ FEHLT
+6. **Creation Schritt 4-5** — Kultur & Kindheit, Ausbildung ⏳ FEHLT
+7. **Creation Schritt 6-7** — Attribute, Meisterschaften & Spells ⏳ FEHLT
+8. **Chronik** — Archiv, XP, Steigerung, Items/Ressourcen ⏳ FEHLT
+9. **Bibliothek** — CRUD pro Typ (iterativ) ⏳ FEHLT
 
 ## Offene Design-Entscheidungen
 - ~~**Skills als Library-Tabelle?**~~ ✅ Erledigt — `skills` Tabelle angelegt

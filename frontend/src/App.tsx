@@ -1,21 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { AppProvider } from './context/AppContext'
+import Sidebar from './components/Sidebar'
+import CreationView from './components/CreationView'
+
+type Tab = 'creation' | 'chronik' | 'bibliothek'
+
+function AppContent({ activeTab }: { activeTab: Tab }) {
+  return (
+    <>
+      {activeTab === 'creation' && <CreationView />}
+      {activeTab === 'chronik' && <p style={styles.placeholder}>In Entwicklung</p>}
+      {activeTab === 'bibliothek' && <p style={styles.placeholder}>In Entwicklung</p>}
+    </>
+  )
+}
 
 function App() {
-  const [message, setMessage] = useState<string>('')
-
-  useEffect(() => {
-    fetch('http://localhost:3001/api/health')
-      .then((res) => res.json())
-      .then((data) => setMessage(data.message))
-      .catch((err) => console.error('Failed to fetch:', err))
-  }, [])
+  const [activeTab, setActiveTab] = useState<Tab>('creation')
 
   return (
-    <div>
-      <h1>Hello World</h1>
-      <p>{message || 'Loading...'}</p>
-    </div>
+    <AppProvider>
+      <div style={styles.container}>
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <main style={styles.main}>
+          <AppContent activeTab={activeTab} />
+        </main>
+      </div>
+    </AppProvider>
   )
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  container: { display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' },
+  main: { flex: 1, marginLeft: 200, padding: 24 },
+  placeholder: { fontSize: 18, color: '#666', marginTop: 40 },
 }
 
 export default App
