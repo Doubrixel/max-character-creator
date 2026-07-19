@@ -3,9 +3,14 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import app from './index'
 import { db } from './db'
 import { migrate } from 'drizzle-orm/libsql/migrator'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 async function startServer() {
-  await migrate(db, { migrationsFolder: './drizzle' })
+  await migrate(db, { migrationsFolder: path.join(__dirname, '..', 'drizzle') })
   console.log('Database migrations applied')
 
   app.use('/*', serveStatic({ root: './frontend/dist' }))
@@ -16,6 +21,7 @@ async function startServer() {
   serve({
     fetch: app.fetch,
     port,
+    hostname: '0.0.0.0',
   })
 
   console.log(`Server running on http://localhost:${port}`)

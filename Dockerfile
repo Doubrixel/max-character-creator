@@ -26,7 +26,7 @@ RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV DATABASE_URL=file:/app/data/sqlite.db
+ENV DATABASE_URL=file:///app/data/sqlite.db
 
 EXPOSE 3000
 
