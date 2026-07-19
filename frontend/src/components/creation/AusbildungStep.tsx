@@ -8,36 +8,25 @@ const MAGIC_MAX_PER_STEP = 3
 const MAGIC_MAX_TOTAL = 4
 const TALENT_WAFFEN_MAX = 6
 
-const talents = [
-  { id: 'akrobatik', name: 'Akrobatik' },
-  { id: 'schleichen', name: 'Schleichen' },
-  { id: 'wahrnehmung', name: 'Wahrnehmung' },
-  { id: 'ueberleben', name: 'Überleben' },
-  { id: 'wissen', name: 'Wissen' },
-]
+interface SkillItem {
+  id: string
+  name: string
+  description: string
+  config: { kategorie: 'talent' | 'waffe' | 'magie' }
+}
 
-const weapons = [
-  { id: 'nahkampf', name: 'Nahkampf' },
-  { id: 'distanz', name: 'Distanz' },
-  { id: 'schild', name: 'Schild' },
-]
-
-const magicSchools = [
-  { id: 'elementar', name: 'Elementarmagie' },
-  { id: 'heilung', name: 'Heilungsmagie' },
-]
+interface ResourceItem {
+  id: string
+  name: string
+  description: string
+  config: { startwert: number; maximalwert: number; typ: string }
+}
 
 const staerkenData = [
   { id: 'zaeh', name: 'Zäh', desc: '+1 Widerstand gegen physische Angriffe' },
   { id: 'schnell', name: 'Schnell', desc: '+1 Initiative in der ersten Kampfrunde' },
   { id: 'scharfsinn', name: 'Scharfsinn', desc: '+1 auf alle Wahrnehmungsproben' },
   { id: 'charisma', name: 'Charisma', desc: '+1 auf soziale Proben' },
-]
-
-const ressourcenData = [
-  { id: 'lp', name: 'Lebenspunkte', desc: '+5 maximale Lebenspunkte' },
-  { id: 'mp', name: 'Magiepunkte', desc: '+3 maximale Magiepunkte' },
-  { id: 'ap', name: 'Ausdauerpunkte', desc: '+5 maximale Ausdauerpunkte' },
 ]
 
 interface AusbildungStepProps {
@@ -49,12 +38,33 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
+  const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
+  const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
+  const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
+  const [ressourcenData, setRessourcenData] = useState<{ id: string; name: string; desc: string }[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
   const [ressourcen, setRessourcen] = useState<string[]>([])
   const [initialized, setInitialized] = useState(false)
   const initializedRef = useRef(false)
 
+
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_URL || ''
+    Promise.all([
+      fetch(`${API_BASE}/api/library/skills`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/library/resources`).then((r) => r.json()),
+    ])
+      .then(([skillsData, resourcesData]: [SkillItem[], ResourceItem[]]) => {
+        setTalents(skillsData.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(skillsData.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
+        setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+        setRessourcenData(resourcesData.map((r) => ({ id: r.id, name: r.name, desc: r.description })))
+      })
+      .catch(() => {})
+      .finally(() => setDataLoading(false))
+  }, [])
 
   function buildMagicValues(s: Record<string, number>): Record<string, number> {
     const magicValues: Record<string, number> = {}
@@ -68,6 +78,8 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   useEffect(() => {
     if (initializedRef.current) return
+    if (dataLoading) return
+    if (talents.length === 0) return
     initializedRef.current = true
 
     const saved = stepData as {
@@ -89,7 +101,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     setStaerken(saved?.staerken ?? [])
     setRessourcen(saved?.ressourcen ?? [])
     setInitialized(true)
-  }, [stepData])
+  }, [stepData, dataLoading, talents, weapons, magicSchools])
 
   useEffect(() => {
     return () => { initializedRef.current = false }
@@ -245,6 +257,8 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   return (
     <div style={styles.container}>
+      {dataLoading && <div style={styles.loading}>Lade Daten...</div>}
+
       <div style={styles.counters}>
         <div style={{ ...styles.counter, ...(staerkenAvailable === 0 ? styles.counterZero : {}) }}>
           Stärken-Punkte: {staerkenAvailable}
@@ -320,6 +334,12 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 20,
     minHeight: 300,
+  },
+  loading: {
+    fontSize: 16,
+    color: 'var(--text-secondary)',
+    textAlign: 'center',
+    padding: 24,
   },
   counters: {
     display: 'flex',

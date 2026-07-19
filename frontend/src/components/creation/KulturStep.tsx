@@ -3,24 +3,12 @@ import { useAppContext } from '../../context/AppContext'
 
 const INITIAL_POINTS = 20
 
-const talents = [
-  { id: 'akrobatik', name: 'Akrobatik' },
-  { id: 'schleichen', name: 'Schleichen' },
-  { id: 'wahrnehmung', name: 'Wahrnehmung' },
-  { id: 'ueberleben', name: 'Überleben' },
-  { id: 'wissen', name: 'Wissen' },
-]
-
-const weapons = [
-  { id: 'nahkampf', name: 'Nahkampf' },
-  { id: 'distanz', name: 'Distanz' },
-  { id: 'schild', name: 'Schild' },
-]
-
-const magicSchools = [
-  { id: 'elementar', name: 'Elementarmagie' },
-  { id: 'heilung', name: 'Heilungsmagie' },
-]
+interface SkillItem {
+  id: string
+  name: string
+  description: string
+  config: { kategorie: 'talent' | 'waffe' | 'magie' }
+}
 
 const staerken = [
   { id: 'zaeh', name: 'Zäh', desc: '+1 Widerstand gegen physische Angriffe' },
@@ -44,6 +32,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
+  const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
+  const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
+  const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
+  const [skillsLoading, setSkillsLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerke, setStaerke] = useState<string>('')
   const [meisterschaftSkill, setMeisterschaftSkill] = useState<string>('')
@@ -51,11 +43,26 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [initialized, setInitialized] = useState(false)
   const initializedRef = useRef(false)
 
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_API_URL || ''
+    fetch(`${API_BASE}/api/library/skills`)
+      .then((res) => res.json())
+      .then((data: SkillItem[]) => {
+        setTalents(data.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(data.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
+        setMagicSchools(data.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+      })
+      .catch(() => {})
+      .finally(() => setSkillsLoading(false))
+  }, [])
+
   const usedPoints = Object.values(skills).reduce((a, b) => a + b, 0)
   const availablePoints = INITIAL_POINTS - usedPoints
 
   useEffect(() => {
     if (initializedRef.current) return
+    if (skillsLoading) return
+    if (talents.length === 0) return
     initializedRef.current = true
 
     const saved = stepData as {
@@ -74,7 +81,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     setStaerke(saved?.staerke ?? '')
     setMeisterschaft(saved?.meisterschaft ?? '')
     setInitialized(true)
-  }, [stepData])
+  }, [stepData, skillsLoading, talents, weapons, magicSchools])
 
   useEffect(() => {
     return () => { initializedRef.current = false }
@@ -210,6 +217,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   return (
     <div style={styles.container}>
+      {skillsLoading && <div style={styles.loading}>Lade Skills...</div>}
+
       <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
         Verfügbare Punkte: {availablePoints}
       </div>
@@ -275,6 +284,12 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 20,
     minHeight: 300,
+  },
+  loading: {
+    fontSize: 16,
+    color: 'var(--text-secondary)',
+    textAlign: 'center',
+    padding: 24,
   },
   counter: {
     fontSize: 18,
