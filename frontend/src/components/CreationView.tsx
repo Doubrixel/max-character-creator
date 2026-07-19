@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 
 const steps = [
@@ -12,8 +11,7 @@ const steps = [
 ]
 
 export default function CreationView() {
-  const { characterId, currentStep, setCurrentStep, stepData, saveStep, createCharacter } = useAppContext()
-  const [localData, setLocalData] = useState<Record<string, unknown>>(stepData || {})
+  const { characterId, currentStep, setCurrentStep, saveStep, createCharacter } = useAppContext()
 
   if (!characterId) {
     return (
@@ -28,14 +26,14 @@ export default function CreationView() {
 
   const handleNext = async () => {
     if (currentStep < steps.length) {
-      await saveStep(currentStep, localData)
+      await saveStep(currentStep, {})
       setCurrentStep(currentStep + 1)
     }
   }
 
   const handleBack = async () => {
     if (currentStep > 1) {
-      await saveStep(currentStep, localData)
+      await saveStep(currentStep, {})
       setCurrentStep(currentStep - 1)
     }
   }
