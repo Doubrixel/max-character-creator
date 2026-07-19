@@ -153,8 +153,35 @@ Als Spieler möchte ich in der Bibliothek vorerstellte Statblöcke (DSA-artig) a
 
 ### US-17: Bibliothek-Hauptnavigation (P1)
 Als Spielleiter möchte ich in der Bibliothek zwischen den verschiedenen Eintragstypen navigieren können.
-- [ ] AC1: Die Bibliothek hat Tabs oder eine Seitenleiste für Rassen, Kulturen, Ausbildungen, Meisterschaften, Spells und Statblöcke
+- [ ] AC1: Die Bibliothek hat Tabs oder eine Seitenleiste für Rassen, Kulturen, Ausbildungen, Meisterschaften, Spells, Statblöcke, Ressourcen, Items und Abgeleitete Werte
 - [ ] AC2: Jeder Tab zeigt die entsprechende Liste mit CRUD-Operationen
 - [ ] AC3: Eine Suchfunktion filtert Einträge im aktuellen Tab
 - Frontend: `LibraryView` mit Tab-Navigation und Suchleiste
 - Backend: Keine zusätzlichen Endpoints, nutzt bestehende `GET /api/library/*`
+
+### US-18: Ressourcen CRUD (P0)
+Als Spielleiter möchte ich Ressourcen erstellen, bearbeiten und löschen können.
+- [ ] AC1: Neue Ressource mit Name, Beschreibung, Startwert und Maximalwert erstellen
+- [ ] AC2: Bestehende Ressourcen bearbeiten
+- [ ] AC3: Ressourcen löschen (mit Warnung wenn in Charakteren verwendet)
+- [ ] AC4: Alle Ressourcen in einer Liste anzeigen
+- Frontend: `LibraryResourceManager` mit Formular und Listenansicht
+- Backend: `GET /api/library/resources`, `POST /api/library/resources`, `PATCH /api/library/resources/:id`, `DELETE /api/library/resources/:id`
+
+### US-19: Items CRUD (P0)
+Als Spielleiter möchte ich Items erstellen, bearbeiten und löschen können.
+- [ ] AC1: Neues Item mit Name, Beschreibung, Typ, Gewicht, Kosten und Effekt erstellen
+- [ ] AC2: Bestehende Items bearbeiten
+- [ ] AC3: Items löschen (mit Warnung wenn in Charakteren verwendet)
+- [ ] AC4: Alle Items in einer durchsuchbaren/filterbaren Liste anzeigen
+- Frontend: `LibraryItemManager` mit Formular, Listenansicht und Filtern
+- Backend: `GET /api/library/items`, `POST /api/library/items`, `PATCH /api/library/items/:id`, `DELETE /api/library/items/:id`
+
+### US-20: Abgeleitete Werte konfigurieren (P0)
+Als Spielleiter möchte ich abgeleitete Werte und deren Berechnungsformeln definieren können.
+- [ ] AC1: Neue abgeleitete Werte mit Name, Formel und Beschreibung erstellen
+- [ ] AC2: Formeln nutzen Attribute als Variablen (z.B. `Lebenspunkte = 10 + MU * 2`)
+- [ ] AC3: Bestehende Formeln bearbeiten
+- [ ] AC4: Formeln werden im Creation-Schritt 6 und im Charaktersheet live berechnet
+- Frontend: `LibraryDerivedValueManager` mit Formel-Editor
+- Backend: `GET /api/library/derived-values`, `POST /api/library/derived-values`, `PATCH /api/library/derived-values/:id`, `DELETE /api/library/derived-values/:id`
