@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${REGISTRY}/${IMAGE_NAME}:main
+    image: ghcr.io/doubrixel/max-character-creator:main
     build: .
     ports:
       - "3000:3000"
