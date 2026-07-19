@@ -48,6 +48,10 @@ const MEISTERSCHAFTEN_PER_SKILL: Record<string, { id: string; name: string; desc
     { id: 'm_wah_1', name: 'Adlerauge', desc: 'Erkennt versteckte Fallen automatisch' },
     { id: 'm_wah_2', name: 'Gefahrensinn', desc: 'Initiative +2 bei Überraschung' },
   ],
+  ueberleben: [
+    { id: 'm_ueb_1', name: 'Wegweiser', desc: 'Keine Verlangsamung in Wildnis' },
+    { id: 'm_ueb_2', name: 'Jäger', desc: '+2 auf Beutetieren und Nahrungsbeschaffung' },
+  ],
   wissen: [
     { id: 'm_wis_1', name: 'Gelehrter', desc: 'Zugang zu verbotenen Archiven' },
     { id: 'm_wis_2', name: 'Analytiker', desc: 'Erkennt Schwächen nach 1 Runde' },
