@@ -48,7 +48,7 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
 
   useEffect(() => {
     const destiny = (stepData as { destiny?: string } | null)?.destiny
-    if (destiny) {
+    if (destiny && !selected) {
       setSelected(destiny)
     }
   }, [stepData])

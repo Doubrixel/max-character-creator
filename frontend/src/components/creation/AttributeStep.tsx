@@ -140,10 +140,10 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
       attributes?: Record<string, number>
       rolls?: number[]
     } | null
-    if (saved?.rolls && saved.rolls.length === 10) {
+    if (saved?.rolls && saved.rolls.length === 10 && rolls.length === 0) {
       setRolls(saved.rolls)
     }
-    if (saved?.attributes && Object.keys(saved.attributes).length > 0) {
+    if (saved?.attributes && Object.keys(saved.attributes).length > 0 && Object.keys(assignments).length === 0) {
       setAssignments(saved.attributes as Partial<Record<AttributeKey, number>>)
       setManualInputs(
         Object.fromEntries(ATTRIBUTES.map((a) => [a, saved.attributes?.[a] !== undefined ? String(saved.attributes[a]) : '']))

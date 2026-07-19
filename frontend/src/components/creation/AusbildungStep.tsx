@@ -88,7 +88,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       staerken?: string[]
       ressourcen?: string[]
     } | null
-    if (saved?.skills) {
+    if (saved?.skills && Object.keys(skills).length === 0) {
       const allSkills = [...talents, ...weapons, ...magicSchools]
       const updated: Record<string, number> = {}
       allSkills.forEach((s) => {
@@ -96,10 +96,10 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       })
       setSkills(updated)
     }
-    if (saved?.staerken) {
+    if (saved?.staerken && staerken.length === 0) {
       setStaerken(saved.staerken)
     }
-    if (saved?.ressourcen) {
+    if (saved?.ressourcen && ressourcen.length === 0) {
       setRessourcen(saved.ressourcen)
     }
   }, [stepData])

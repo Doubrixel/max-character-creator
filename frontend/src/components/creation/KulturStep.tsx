@@ -75,7 +75,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       staerke?: string
       meisterschaft?: string
     } | null
-    if (saved?.skills) {
+    if (saved?.skills && Object.keys(skills).length === 0) {
       const allSkills = [...talents, ...weapons, ...magicSchools]
       const updated: Record<string, number> = {}
       allSkills.forEach((s) => {
@@ -83,10 +83,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       })
       setSkills(updated)
     }
-    if (saved?.staerke) {
+    if (saved?.staerke && !staerke) {
       setStaerke(saved.staerke)
     }
-    if (saved?.meisterschaft) {
+    if (saved?.meisterschaft && !meisterschaft) {
       setMeisterschaft(saved.meisterschaft)
     }
   }, [stepData])

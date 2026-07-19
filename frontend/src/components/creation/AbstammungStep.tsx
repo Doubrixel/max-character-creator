@@ -81,14 +81,14 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
 
   useEffect(() => {
     const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
-    if (saved?.dice) {
+    if (saved?.dice && !dice1 && !dice2) {
       setDice1(String(saved.dice[0]))
       setDice2(String(saved.dice[1]))
     }
-    if (saved?.heritage) {
+    if (saved?.heritage && !heritage) {
       setHeritage(saved.heritage)
     }
-    if (saved?.decisions) {
+    if (saved?.decisions && Object.keys(chosenDecisions).length === 0) {
       setChosenDecisions(Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])))
     }
   }, [stepData])

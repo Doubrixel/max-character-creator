@@ -66,7 +66,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
 
   useEffect(() => {
     const race = (stepData as { race?: string } | null)?.race
-    if (race) {
+    if (race && !selected) {
       setSelected(race)
     }
   }, [stepData])
