@@ -1,5 +1,6 @@
 services:
   app:
+    image: ${REGISTRY}/${IMAGE_NAME}:main
     build: .
     ports:
       - "3000:3000"

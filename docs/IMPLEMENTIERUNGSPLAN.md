@@ -3,12 +3,14 @@
 ## Reihenfolge
 1. **DB-Schema** — Drizzle ORM + SQLite, alle Entitäten aus User Stories ✅ ABGESCHLOSSEN
    - 1a-1e: Infrastruktur, Tabellen, Migrationen, Env Var, Migration on Startup ✅
-2. **Seed-Script** — Initiale Beispieldaten zum Testen ⏳ FEHLT
-3. **API-Grundgerüst**
+2. **Seed-Script** — Initiale Beispieldaten zum Testen ✅ ABGESCHLOSSEN
+3. **API-Grundgerüst** ✅ ABGESCHLOSSEN
    - 3a. Character CRUD (GET/POST/PATCH/DELETE, Steps, XP-Log) ✅
    - 3b. Library CRUD (10 Tabellen, generische Factory) ✅
    - 3c. Derived Values (Formel-Parser + Berechnung) ⏳ FEHLT
-4. **UI-Shell** — React Layout, 3 Tabs, Navigation, State Management ⏳ FEHLT
+4. **UI-Shell** ✅ ABGESCHLOSSEN
+   - 4a. Layout + Navigation (Sidebar, 3 Tabs, Zeitschritt-Leiste) ✅
+   - 4b. API Integration (Character erstellen, Step Navigation, Save/Load) ✅
 5. **Creation Schritt 1-3** — Schicksal, Rasse, Abstammung ⏳ FEHLT
 6. **Creation Schritt 4-5** — Kultur & Kindheit, Ausbildung ⏳ FEHLT
 7. **Creation Schritt 6-7** — Attribute, Meisterschaften & Spells ⏳ FEHLT
