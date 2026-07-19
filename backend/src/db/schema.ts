@@ -132,7 +132,7 @@ export const characterSpells = sqliteTable('character_spells', {
 export const skills = sqliteTable('skills', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  type: text('type').notNull(),
+  type: text('type'),
   description: text('description'),
   config: text('config'),
   createdAt: integer('created_at'),
