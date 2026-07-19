@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { db } from '../db'
-import { characters, characterXpLog, characterSteps } from '../db/schema'
+import { characters, characterXpLog, characterSteps, spells } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
 import { recalculateStats } from '../reducers'
 
@@ -42,10 +42,26 @@ app.get('/api/characters/:id', async (c) => {
     return c.json({ error: 'Character not found' }, 404)
   }
 
-  return c.json({
-    ...result[0],
-    stats: JSON.parse(result[0].stats || '{}'),
-  })
+  return c.json(result[0])
+})
+
+app.get('/api/characters/:id/state', async (c) => {
+  const id = c.req.param('id')
+  const upTo = parseInt(c.req.query('upTo') ?? '7', 10)
+
+  const allSteps = await db.select()
+    .from(characterSteps)
+    .where(eq(characterSteps.characterId, id))
+
+  const deltas: Record<number, Record<string, unknown>> = {}
+  for (const row of allSteps) {
+    if (row.stepNumber! <= upTo) {
+      deltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+    }
+  }
+
+  const state = recalculateStats(deltas)
+  return c.json({ state, deltas })
 })
 
 app.patch('/api/characters/:id', async (c) => {
@@ -168,13 +184,97 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
     allDeltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
   }
 
-  const newStats = recalculateStats(allDeltas)
+  const newState = recalculateStats(allDeltas)
 
-  await db.update(characters)
-    .set({ stats: JSON.stringify(newStats) })
-    .where(eq(characters.id, id))
+  return c.json({ step: updatedStep, state: newState })
+})
 
-  return c.json({ step: updatedStep, stats: newStats })
+app.post('/api/characters/:id/steps/:step/validate', async (c) => {
+  const id = c.req.param('id')
+  const step = parseInt(c.req.param('step'), 10)
+
+  const allSteps = await db.select()
+    .from(characterSteps)
+    .where(eq(characterSteps.characterId, id))
+
+  const allDeltas: Record<number, Record<string, unknown>> = {}
+  for (const row of allSteps) {
+    allDeltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+  }
+
+  const VALID_SKILLS = [
+    'nahkampf', 'distanz', 'schild', 'akrobatik', 'schleichen',
+    'wahrnehmung', 'ueberleben', 'wissen', 'elementar', 'heilung',
+  ]
+
+  const MEISTERSCHAFT_SKILL_MAP: Record<string, string> = {
+    'm_nah_1': 'nahkampf', 'm_nah_2': 'nahkampf',
+    'm_dis_1': 'distanz', 'm_dis_2': 'distanz',
+    'm_akr_1': 'akrobatik', 'm_akr_2': 'akrobatik',
+    'm_sch_1': 'schleichen', 'm_sch_2': 'schleichen',
+    'm_wah_1': 'wahrnehmung', 'm_wah_2': 'wahrnehmung',
+    'm_wis_1': 'wissen', 'm_wis_2': 'wissen',
+    'm_ele_1': 'elementar', 'm_ele_2': 'elementar',
+    'm_hei_1': 'heilung', 'm_hei_2': 'heilung',
+  }
+
+  const warnings: Array<{ step: number, errors: string[] }> = []
+
+  for (let s = step + 1; s <= 7; s++) {
+    const delta = allDeltas[s]
+    if (!delta) continue
+
+    const deltasBefore: Record<number, Record<string, unknown>> = {}
+    for (let i = 1; i < s; i++) {
+      if (allDeltas[i]) deltasBefore[i] = allDeltas[i]
+    }
+    const stateBefore = recalculateStats(deltasBefore)
+    const errors: string[] = []
+
+    if (s === 4 || s === 5) {
+      const deltaSkills = (delta.skills ?? {}) as Record<string, number>
+      for (const key of Object.keys(deltaSkills)) {
+        if (!VALID_SKILLS.includes(key)) {
+          errors.push(`${key} ist kein gültiger Skill`)
+        }
+      }
+    }
+
+    if (s === 7) {
+      const meisterschaften = (delta.meisterschaften ?? []) as string[]
+      const stateSkills = (stateBefore.skills ?? {}) as Record<string, number>
+      for (const mId of meisterschaften) {
+        const skill = MEISTERSCHAFT_SKILL_MAP[mId]
+        if (skill) {
+          const wert = stateSkills[skill] ?? 0
+          if (wert < 6) {
+            errors.push(`Meisterschaft ${mId} erfordert Skill ${skill} mit Wert 6, aktuell ${wert}`)
+          }
+        }
+      }
+
+      const spellIds = (delta.spells ?? []) as string[]
+      for (const spellId of spellIds) {
+        const spellRows = await db.select().from(spells).where(eq(spells.id, spellId))
+        if (spellRows.length > 0) {
+          const config = spellRows[0].config ? JSON.parse(spellRows[0].config) : {}
+          const school = config.school as string | undefined
+          if (school) {
+            const schoolValue = (stateBefore.skills as Record<string, number> | undefined)?.[school] ?? 0
+            if (schoolValue <= 0) {
+              errors.push(`Spell ${spellId} erfordert Magie-Schule mit Wert > 0`)
+            }
+          }
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      warnings.push({ step: s, errors })
+    }
+  }
+
+  return c.json({ valid: warnings.length === 0, warnings })
 })
 
 export default app

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
+import { recalculateStats } from '../shared/reducers'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -31,7 +32,6 @@ interface AppContextType {
   currentStep: number
   characterStats: CharacterStats
   stepDeltas: Record<number, Record<string, unknown>>
-  stepData: Record<string, unknown> | null
   setCharacterId: (id: string) => void
   setCurrentStep: (step: number) => void
   saveStep: (step: number, delta: Record<string, unknown>) => Promise<void>
@@ -46,10 +46,11 @@ const AppContext = createContext<AppContextType | null>(null)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [characterId, setCharacterIdState] = useState<string | null>(null)
   const [currentStep, setCurrentStepState] = useState(1)
-  const [characterStats, setCharacterStats] = useState<CharacterStats>({})
   const [stepDeltas, setStepDeltas] = useState<Record<number, Record<string, unknown>>>({})
 
-  const stepData = stepDeltas[currentStep] ?? null
+  const characterStats = useMemo(() => {
+    return recalculateStats(stepDeltas) as CharacterStats
+  }, [stepDeltas])
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
@@ -61,11 +62,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadCharacter = async (characterId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/characters/${characterId}`)
-      if (!res.ok) throw new Error('Failed to load character')
-      const data = await res.json()
-      setCharacterStats(data.stats || {})
-
       const stepPromises = Array.from({ length: 7 }, (_, i) =>
         fetch(`${API_BASE}/api/characters/${characterId}/steps/${i + 1}`)
           .then(r => r.json())
@@ -92,8 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ delta }),
       })
       if (!res.ok) throw new Error('Failed to save step')
-      const result = await res.json()
-      setCharacterStats(result.stats)
+      await res.json()
       setStepDeltas(prev => ({ ...prev, [step]: delta }))
     } catch (err) {
       console.error('saveStep failed:', err)
@@ -122,14 +117,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
     const character = await res.json()
     setCharacterIdState(character.id)
-    setCharacterStats({})
     setStepDeltas({})
   }
 
   const resetCharacter = () => {
     setCharacterIdState(null)
     setCurrentStepState(1)
-    setCharacterStats({})
     setStepDeltas({})
   }
 
@@ -153,7 +146,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentStep,
         characterStats,
         stepDeltas,
-        stepData,
         setCharacterId,
         setCurrentStep,
         saveStep,

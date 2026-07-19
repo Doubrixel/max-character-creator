@@ -29,7 +29,8 @@ interface AttributeStepProps {
 }
 
 export default function AttributeStep({ onValid }: AttributeStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
 
   const [rolls, setRolls] = useState<number[]>([])
   const [assignments, setAssignments] = useState<Partial<Record<AttributeKey, number>>>({})

@@ -37,7 +37,8 @@ interface SchicksalStepProps {
 }
 
 export default function SchicksalStep({ onValid }: SchicksalStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
   const [selected, setSelected] = useState<string | null>(null)
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 

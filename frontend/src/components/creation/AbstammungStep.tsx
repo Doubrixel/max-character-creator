@@ -48,7 +48,8 @@ interface AbstammungStepProps {
 }
 
 export default function AbstammungStep({ onValid }: AbstammungStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
 
   const [dice1, setDice1] = useState<string>('')
   const [dice2, setDice2] = useState<string>('')

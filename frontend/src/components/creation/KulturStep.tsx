@@ -40,7 +40,9 @@ interface KulturStepProps {
 }
 
 export default function KulturStep({ onValid }: KulturStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { characterStats, stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
+  const baseSkills = (characterStats.skills ?? {}) as Record<string, number>
 
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerke, setStaerke] = useState<string>('')
@@ -79,7 +81,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     const allSkills = [...talents, ...weapons, ...magicSchools]
     const initialSkills: Record<string, number> = {}
     allSkills.forEach((s) => {
-      initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+      initialSkills[s.id] = baseSkills[s.id] ?? saved?.skills?.[s.id] ?? 0
     })
 
     setSkills(initialSkills)
@@ -111,15 +113,25 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     if (availablePoints <= 0 || current >= max) return
     const next = { ...skills, [id]: current + 1 }
     setSkills(next)
-    saveStep(4, { skills: next, staerke, meisterschaft })
+    const myOnly: Record<string, number> = {}
+    for (const [sid, val] of Object.entries(next)) {
+      const base = baseSkills[sid] ?? 0
+      if (val > base) myOnly[sid] = val - base
+    }
+    saveStep(4, { skills: myOnly, staerke, meisterschaft })
   }
 
   const decrementSkill = (id: string) => {
     const current = skills[id] ?? 0
-    if (current <= 0) return
+    if (current <= (baseSkills[id] ?? 0)) return
     const next = { ...skills, [id]: current - 1 }
     setSkills(next)
-    saveStep(4, { skills: next, staerke, meisterschaft })
+    const myOnly: Record<string, number> = {}
+    for (const [sid, val] of Object.entries(next)) {
+      const base = baseSkills[sid] ?? 0
+      if (val > base) myOnly[sid] = val - base
+    }
+    saveStep(4, { skills: myOnly, staerke, meisterschaft })
   }
 
   const getSkillMax = (id: string): number => {
@@ -175,7 +187,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
             const value = skills[item.id] ?? 0
             const max = getSkillMax(item.id)
             const canInc = availablePoints > 0 && value < max
-            const canDec = value > 0
+            const canDec = value > (baseSkills[item.id] ?? 0)
             return (
               <tr key={item.id}>
                 <td style={styles.td}>{item.name}</td>

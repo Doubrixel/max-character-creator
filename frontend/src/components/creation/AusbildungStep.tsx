@@ -45,15 +45,15 @@ interface AusbildungStepProps {
 }
 
 export default function AusbildungStep({ onValid }: AusbildungStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { characterStats, stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
+  const baseSkills = (characterStats.skills ?? {}) as Record<string, number>
 
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
   const [ressourcen, setRessourcen] = useState<string[]>([])
   const [initialized, setInitialized] = useState(false)
   const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
-
-  const savedSkills = (stepData as { skills?: Record<string, number> } | null)?.skills ?? {}
 
 
   function buildMagicValues(s: Record<string, number>): Record<string, number> {
@@ -94,12 +94,9 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     const allSkills = [...talents, ...weapons, ...magicSchools]
     const initialSkills: Record<string, number> = {}
     allSkills.forEach((s) => {
-      const isMagic = magicSchools.some(m => m.id === s.id)
-      if (isMagic) {
-        initialSkills[s.id] = saved?.magic?.[s.id] ?? saved?.skills?.[s.id] ?? 0
-      } else {
-        initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
-      }
+      const base = baseSkills[s.id] ?? 0
+      const mine = saved?.skills?.[s.id] ?? 0
+      initialSkills[s.id] = base + mine
     })
 
     setSkills(initialSkills)
@@ -110,7 +107,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   const fertigkeitenUsed = Object.entries(skills)
     .filter(([id]) => !magicSchools.some((m) => m.id === id))
-    .reduce((sum, [, v]) => sum + v, 0)
+    .reduce((sum, [id, v]) => sum + Math.max(0, v - (baseSkills[id] ?? 0)), 0)
 
   const fertigkeitenAvailable = FERTIGKEITEN_POINTS - fertigkeitenUsed
 
@@ -119,31 +116,6 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   const ressourcenUsed = ressourcen.length
   const ressourcenAvailable = RESSOURCEN_POINTS - ressourcenUsed
-
-  useEffect(() => {
-    const saved = stepData as {
-      skills?: Record<string, number>
-      staerken?: string[]
-      ressourcen?: string[]
-      magic?: Record<string, number>
-    } | null
-
-    const allSkills = [...talents, ...weapons, ...magicSchools]
-    const initialSkills: Record<string, number> = {}
-    allSkills.forEach((s) => {
-      const isMagic = magicSchools.some(m => m.id === s.id)
-      if (isMagic) {
-        initialSkills[s.id] = saved?.magic?.[s.id] ?? saved?.skills?.[s.id] ?? 0
-      } else {
-        initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
-      }
-    })
-
-    setSkills(initialSkills)
-    setStaerken(saved?.staerken ?? [])
-    setRessourcen(saved?.ressourcen ?? [])
-    setInitialized(true)
-  }, [stepData])
 
   useEffect(() => {
     if (!initialized) return
@@ -160,7 +132,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     }
     if (magicSchools.some((m) => m.id === id)) {
       const current = skills[id] ?? 0
-      const addedThisStep = current - (savedSkills[id] ?? 0)
+      const addedThisStep = current - (baseSkills[id] ?? 0)
       if (addedThisStep >= MAGIC_MAX_PER_STEP) return current
       if (current >= MAGIC_MAX_TOTAL) return current
       return current + 1
@@ -175,7 +147,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
     const isMagic = magicSchools.some((m) => m.id === id)
     if (isMagic) {
-      const addedThisStep = (current + 1) - (savedSkills[id] ?? 0)
+      const addedThisStep = (current + 1) - (baseSkills[id] ?? 0)
       if (addedThisStep > MAGIC_MAX_PER_STEP) return
       if (current + 1 > MAGIC_MAX_TOTAL) return
     }
@@ -184,16 +156,25 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
     const next = { ...skills, [id]: current + 1 }
     setSkills(next)
-    saveStep(5, { skills: next, staerken, ressourcen, magic: buildMagicValues(next) })
+    const step5Only: Record<string, number> = {}
+    for (const [sid, val] of Object.entries(next)) {
+      const base = baseSkills[sid] ?? 0
+      if (val > base) step5Only[sid] = val - base
+    }
+    saveStep(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const decrementSkill = (id: string) => {
     const current = skills[id] ?? 0
-    const baseValue = savedSkills[id] ?? 0
-    if (current <= baseValue) return
+    if (current <= (baseSkills[id] ?? 0)) return
     const next = { ...skills, [id]: current - 1 }
     setSkills(next)
-    saveStep(5, { skills: next, staerken, ressourcen, magic: buildMagicValues(next) })
+    const step5Only: Record<string, number> = {}
+    for (const [sid, val] of Object.entries(next)) {
+      const base = baseSkills[sid] ?? 0
+      if (val > base) step5Only[sid] = val - base
+    }
+    saveStep(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const handleStaerke = (id: string) => {
@@ -241,7 +222,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
             const canInc = isMagic
               ? value < max
               : fertigkeitenAvailable > 0 && value < max
-            const canDec = value > (savedSkills[item.id] ?? 0)
+            const canDec = value > (baseSkills[item.id] ?? 0)
             return (
               <tr key={item.id}>
                 <td style={styles.td}>{item.name}</td>

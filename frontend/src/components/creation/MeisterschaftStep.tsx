@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -107,7 +107,8 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, stepData, saveStep } = useAppContext()
+  const { characterId, stepDeltas, currentStep, saveStep, characterStats } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
   const [magicThresholds, setMagicThresholds] = useState<MagicThreshold[]>([])
@@ -138,73 +139,40 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     return false
   }
 
-  const loadPrerequisites = useCallback(async () => {
-    if (!characterId) return
-    setLoading(true)
-    try {
-      const [step4Res, step5Res] = await Promise.all([
-        fetch(`${API_BASE}/api/characters/${characterId}/steps/4`),
-        fetch(`${API_BASE}/api/characters/${characterId}/steps/5`),
-      ])
-
-      const step4Data = step4Res.ok ? await step4Res.json() : null
-      const step5Data = step5Res.ok ? await step5Res.json() : null
-
-      const mergedSkills: Record<string, number> = {}
-      for (const [id, val] of Object.entries(step4Data?.skills ?? {})) {
-        mergedSkills[id] = (mergedSkills[id] ?? 0) + (val as number)
-      }
-      for (const [id, val] of Object.entries(step5Data?.skills ?? {})) {
-        mergedSkills[id] = (mergedSkills[id] ?? 0) + (val as number)
-      }
-
-      const skill6: Skill6Entry[] = []
-      const magicThresh: MagicThreshold[] = []
-
-      const talentWeaponIds = ['akrobatik', 'schleichen', 'wahrnehmung', 'wissen', 'ueberleben', 'nahkampf', 'distanz', 'schild']
-      const magicSchoolIds = ['elementar', 'heilung']
-
-      const skillNames: Record<string, string> = {
-        akrobatik: 'Akrobatik',
-        schleichen: 'Schleichen',
-        wahrnehmung: 'Wahrnehmung',
-        wissen: 'Wissen',
-        ueberleben: 'Überleben',
-        nahkampf: 'Nahkampf',
-        distanz: 'Distanz',
-        schild: 'Schild',
-        elementar: 'Elementarmagie',
-        heilung: 'Heilungsmagie',
-      }
-
-      for (const [id, val] of Object.entries(mergedSkills)) {
-        const numVal = val as number
-        if (numVal >= 6 && talentWeaponIds.includes(id)) {
-          skill6.push({ skillId: id, skillName: skillNames[id] ?? id, selectedMeisterschaft: null })
-        }
-        if (magicSchoolIds.includes(id)) {
-          const thresholds: { level: number; selectedSpell: string | null }[] = []
-          if (numVal >= 1) thresholds.push({ level: 0, selectedSpell: null })
-          if (numVal >= 3) thresholds.push({ level: 1, selectedSpell: null })
-          if (numVal >= 6) thresholds.push({ level: 2, selectedSpell: null })
-          if (thresholds.length > 0) {
-            magicThresh.push({ schoolId: id, schoolName: skillNames[id] ?? id, value: numVal, thresholds })
-          }
-        }
-      }
-
-      setSkill6Entries(skill6)
-      setMagicThresholds(magicThresh)
-    } catch {
-      setError('Fehler beim Laden der vorherigen Schritte')
-    } finally {
-      setLoading(false)
-    }
-  }, [characterId])
-
   useEffect(() => {
-    loadPrerequisites()
-  }, [loadPrerequisites])
+    const skills = (characterStats.skills ?? {}) as Record<string, number>
+
+    const skill6: Skill6Entry[] = []
+    const magicThresh: MagicThreshold[] = []
+
+    const talentWeaponIds = ['akrobatik', 'schleichen', 'wahrnehmung', 'wissen', 'ueberleben', 'nahkampf', 'distanz', 'schild']
+    const magicSchoolIds = ['elementar', 'heilung']
+
+    const skillNames: Record<string, string> = {
+      akrobatik: 'Akrobatik', schleichen: 'Schleichen', wahrnehmung: 'Wahrnehmung',
+      wissen: 'Wissen', ueberleben: 'Überleben', nahkampf: 'Nahkampf',
+      distanz: 'Distanz', schild: 'Schild', elementar: 'Elementarmagie', heilung: 'Heilungsmagie',
+    }
+
+    for (const [id, val] of Object.entries(skills)) {
+      if (val >= 6 && talentWeaponIds.includes(id)) {
+        skill6.push({ skillId: id, skillName: skillNames[id] ?? id, selectedMeisterschaft: null })
+      }
+      if (magicSchoolIds.includes(id)) {
+        const thresholds: { level: number; selectedSpell: string | null }[] = []
+        if (val >= 1) thresholds.push({ level: 0, selectedSpell: null })
+        if (val >= 3) thresholds.push({ level: 1, selectedSpell: null })
+        if (val >= 6) thresholds.push({ level: 2, selectedSpell: null })
+        if (thresholds.length > 0) {
+          magicThresh.push({ schoolId: id, schoolName: skillNames[id] ?? id, value: val, thresholds })
+        }
+      }
+    }
+
+    setSkill6Entries(skill6)
+    setMagicThresholds(magicThresh)
+    setLoading(false)
+  }, [characterStats])
 
   useEffect(() => {
     const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)

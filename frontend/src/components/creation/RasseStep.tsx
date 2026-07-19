@@ -53,7 +53,8 @@ interface RasseStepProps {
 }
 
 export default function RasseStep({ onValid }: RasseStepProps) {
-  const { stepData, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const stepData = stepDeltas[currentStep] ?? null
   const [selected, setSelected] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalRace, setModalRace] = useState<typeof races[0] | null>(null)
