@@ -94,12 +94,20 @@ interface MagicThreshold {
   thresholds: { level: number; selectedSpell: string | null }[]
 }
 
+interface Step7Data {
+  skill6Meisterschaften?: Record<string, string>
+  magicSpells?: Record<string, string>
+  bonusMeisterschaften?: string[]
+  bonusTalents?: Record<string, number>
+  bonusResource?: string | null
+}
+
 interface MeisterschaftStepProps {
   onValid: (valid: boolean) => void
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, saveStep } = useAppContext()
+  const { characterId, stepData, saveStep } = useAppContext()
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
   const [magicThresholds, setMagicThresholds] = useState<MagicThreshold[]>([])
@@ -114,21 +122,33 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState(false)
-  const hasLoadedRef = useRef(false)
+  const [initialized, setInitialized] = useState(false)
+  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
 
-  const loadPreviousSteps = useCallback(async () => {
+  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
+    if (prev === undefined) return true
+    if (prev === null && next === null) return false
+    if (prev === null || next === null) return true
+    const prevKeys = Object.keys(prev)
+    const nextKeys = Object.keys(next)
+    if (prevKeys.length !== nextKeys.length) return true
+    for (const key of nextKeys) {
+      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
+    }
+    return false
+  }
+
+  const loadPrerequisites = useCallback(async () => {
     if (!characterId) return
     setLoading(true)
     try {
-      const [step4Res, step5Res, step7Res] = await Promise.all([
+      const [step4Res, step5Res] = await Promise.all([
         fetch(`${API_BASE}/api/characters/${characterId}/steps/4`),
         fetch(`${API_BASE}/api/characters/${characterId}/steps/5`),
-        fetch(`${API_BASE}/api/characters/${characterId}/steps/7`),
       ])
 
       const step4Data = step4Res.ok ? await step4Res.json() : null
       const step5Data = step5Res.ok ? await step5Res.json() : null
-      const savedStep7 = step7Res.ok ? await step7Res.json() : null
 
       const mergedSkills: Record<string, number> = {}
       for (const [id, val] of Object.entries(step4Data?.skills ?? {})) {
@@ -175,43 +195,6 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
 
       setSkill6Entries(skill6)
       setMagicThresholds(magicThresh)
-
-      if (savedStep7) {
-        if (savedStep7.bonusMeisterschaften) {
-          setSelectedBonusMeisterschaften(savedStep7.bonusMeisterschaften)
-          setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - savedStep7.bonusMeisterschaften.length)
-        }
-        if (savedStep7.bonusTalents) {
-          setBonusTalents(savedStep7.bonusTalents)
-          const used = Object.values(savedStep7.bonusTalents as Record<string, number>).reduce((s: number, v: number) => s + v, 0)
-          setBonusTalentPoints(BONUS_TALENT_POINTS - used)
-        }
-        if (savedStep7.bonusResource) {
-          setSelectedBonusResource(savedStep7.bonusResource)
-          setBonusResourcePoints(0)
-        }
-        if (savedStep7.skill6Meisterschaften) {
-          const updatedSkill6 = [...skill6]
-          for (const entry of updatedSkill6) {
-            if (savedStep7.skill6Meisterschaften[entry.skillId]) {
-              entry.selectedMeisterschaft = savedStep7.skill6Meisterschaften[entry.skillId]
-            }
-          }
-          setSkill6Entries(updatedSkill6)
-        }
-        if (savedStep7.magicSpells) {
-          const updatedMagic = [...magicThresh]
-          for (const mt of updatedMagic) {
-            for (const th of mt.thresholds) {
-              const key = `${mt.schoolId}_${th.level}`
-              if (savedStep7.magicSpells[key]) {
-                th.selectedSpell = savedStep7.magicSpells[key]
-              }
-            }
-          }
-          setMagicThresholds(updatedMagic)
-        }
-      }
     } catch {
       setError('Fehler beim Laden der vorherigen Schritte')
     } finally {
@@ -220,13 +203,61 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   }, [characterId])
 
   useEffect(() => {
-    if (hasLoadedRef.current) return
-    hasLoadedRef.current = true
-    loadPreviousSteps()
-  }, [loadPreviousSteps])
+    loadPrerequisites()
+  }, [loadPrerequisites])
 
   useEffect(() => {
-    if (loading) return
+    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
+    if (!hasChanged) return
+    prevStepDataRef.current = stepData
+
+    const saved = stepData as Step7Data | null
+
+    const savedSkill6 = saved?.skill6Meisterschaften ?? {}
+    setSkill6Entries(prev => prev.map(e => ({
+      ...e,
+      selectedMeisterschaft: savedSkill6[e.skillId] ?? null,
+    })))
+
+    const savedMagic = saved?.magicSpells ?? {}
+    setMagicThresholds(prev => prev.map(mt => ({
+      ...mt,
+      thresholds: mt.thresholds.map(th => {
+        const key = `${mt.schoolId}_${th.level}`
+        return { ...th, selectedSpell: savedMagic[key] ?? null }
+      }),
+    })))
+
+    if (saved?.bonusMeisterschaften) {
+      setSelectedBonusMeisterschaften(saved.bonusMeisterschaften)
+      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - saved.bonusMeisterschaften.length)
+    } else {
+      setSelectedBonusMeisterschaften([])
+      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS)
+    }
+
+    if (saved?.bonusTalents) {
+      setBonusTalents(saved.bonusTalents)
+      const used = Object.values(saved.bonusTalents).reduce((s: number, v: number) => s + v, 0)
+      setBonusTalentPoints(BONUS_TALENT_POINTS - used)
+    } else {
+      setBonusTalents({})
+      setBonusTalentPoints(BONUS_TALENT_POINTS)
+    }
+
+    if (saved?.bonusResource) {
+      setSelectedBonusResource(saved.bonusResource)
+      setBonusResourcePoints(0)
+    } else {
+      setSelectedBonusResource(null)
+      setBonusResourcePoints(BONUS_RESOURCE_POINTS)
+    }
+
+    setInitialized(true)
+  }, [stepData])
+
+  useEffect(() => {
+    if (loading || !initialized) return
 
     const allSkill6Selected = skill6Entries.every(e => e.selectedMeisterschaft !== null)
     const allMagicSelected = magicThresholds.every(mt =>
@@ -239,80 +270,117 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     const valid = allSkill6Selected && allMagicSelected && allBonusMeisterschaftUsed && allBonusTalentsUsed && allBonusResourceUsed
     setIsValid(valid)
     onValid(valid)
-  }, [skill6Entries, magicThresholds, bonusMeisterschaftPoints, bonusTalentPoints, bonusResourcePoints, onValid, loading])
+  }, [skill6Entries, magicThresholds, bonusMeisterschaftPoints, bonusTalentPoints, bonusResourcePoints, onValid, loading, initialized])
 
   const handleSkill6Meisterschaft = (skillId: string, meisterId: string) => {
-    setSkill6Entries(prev => prev.map(e =>
-      e.skillId === skillId ? { ...e, selectedMeisterschaft: e.selectedMeisterschaft === meisterId ? null : meisterId } : e
-    ))
-    persistState()
+    setSkill6Entries(prev => {
+      const next = prev.map(e =>
+        e.skillId === skillId ? { ...e, selectedMeisterschaft: e.selectedMeisterschaft === meisterId ? null : meisterId } : e
+      )
+      persistState(next)
+      return next
+    })
   }
 
   const handleMagicSpell = (schoolId: string, level: number, spellId: string) => {
-    setMagicThresholds(prev => prev.map(mt =>
-      mt.schoolId === schoolId
-        ? {
-            ...mt,
-            thresholds: mt.thresholds.map(th =>
-              th.level === level ? { ...th, selectedSpell: th.selectedSpell === spellId ? null : spellId } : th
-            ),
-          }
-        : mt
-    ))
-    persistState()
+    setMagicThresholds(prev => {
+      const next = prev.map(mt =>
+        mt.schoolId === schoolId
+          ? {
+              ...mt,
+              thresholds: mt.thresholds.map(th =>
+                th.level === level ? { ...th, selectedSpell: th.selectedSpell === spellId ? null : spellId } : th
+              ),
+            }
+          : mt
+      )
+      persistState(undefined, next)
+      return next
+    })
   }
 
   const handleBonusMeisterschaft = (id: string) => {
-    if (selectedBonusMeisterschaften.includes(id)) {
-      const next = selectedBonusMeisterschaften.filter(m => m !== id)
-      setSelectedBonusMeisterschaften(next)
-      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - next.length)
-    } else {
-      if (bonusMeisterschaftPoints <= 0) return
-      const next = [...selectedBonusMeisterschaften, id]
-      setSelectedBonusMeisterschaften(next)
-      setBonusMeisterschaftPoints(BONUS_MEISTERSCHAFT_POINTS - next.length)
-    }
-    persistState()
+    setSelectedBonusMeisterschaften(prev => {
+      let next: string[]
+      let pts: number
+      if (prev.includes(id)) {
+        next = prev.filter(m => m !== id)
+        pts = BONUS_MEISTERSCHAFT_POINTS - next.length
+      } else {
+        if (bonusMeisterschaftPoints <= 0) return prev
+        next = [...prev, id]
+        pts = BONUS_MEISTERSCHAFT_POINTS - next.length
+      }
+      setBonusMeisterschaftPoints(pts)
+      persistState(undefined, undefined, next)
+      return next
+    })
   }
 
   const handleBonusTalent = (id: string, delta: number) => {
-    const current = bonusTalents[id] ?? 0
-    const newVal = current + delta
-    if (newVal < 0) return
-    if (newVal > 6) return
+    setBonusTalents(prev => {
+      const current = prev[id] ?? 0
+      const newVal = current + delta
+      if (newVal < 0) return prev
+      if (newVal > 6) return prev
 
-    const used = Object.entries({ ...bonusTalents, [id]: newVal }).reduce((s, [, v]) => s + v, 0)
-    if (used > BONUS_TALENT_POINTS) return
+      const next = { ...prev, [id]: newVal }
+      const used = Object.values(next).reduce((s, v) => s + v, 0)
+      if (used > BONUS_TALENT_POINTS) return prev
 
-    const next = { ...bonusTalents, [id]: newVal }
-    setBonusTalents(next)
-    setBonusTalentPoints(BONUS_TALENT_POINTS - used)
-    persistState()
+      setBonusTalentPoints(BONUS_TALENT_POINTS - used)
+      persistState(undefined, undefined, undefined, next)
+      return next
+    })
   }
 
   const handleBonusResource = (id: string) => {
-    if (selectedBonusResource === id) {
-      setSelectedBonusResource(null)
-      setBonusResourcePoints(BONUS_RESOURCE_POINTS)
-    } else {
-      if (bonusResourcePoints <= 0) return
-      setSelectedBonusResource(id)
-      setBonusResourcePoints(0)
-    }
-    persistState()
+    setSelectedBonusResource(prev => {
+      let next: string | null
+      let pts: number
+      if (prev === id) {
+        next = null
+        pts = BONUS_RESOURCE_POINTS
+      } else {
+        if (bonusResourcePoints <= 0) return prev
+        next = id
+        pts = 0
+      }
+      setBonusResourcePoints(pts)
+      persistState(undefined, undefined, undefined, undefined, next)
+      return next
+    })
   }
 
-  const persistState = () => {
+  const persistState = (
+    overrideSkill6?: Skill6Entry[],
+    overrideMagic?: MagicThreshold[],
+    overrideBonusM?: string[],
+    overrideBonusT?: Record<string, number>,
+    overrideBonusR?: string | null,
+  ) => {
     if (!characterId) return
+    const s6 = overrideSkill6 ?? skill6Entries
+    const mg = overrideMagic ?? magicThresholds
+    const bm = overrideBonusM ?? selectedBonusMeisterschaften
+    const bt = overrideBonusT ?? bonusTalents
+    const br = overrideBonusR ?? selectedBonusResource
+
+    const magicSpellsObj: Record<string, string> = {}
+    for (const mt of mg) {
+      for (const th of mt.thresholds) {
+        if (th.selectedSpell) {
+          magicSpellsObj[`${mt.schoolId}_${th.level}`] = th.selectedSpell
+        }
+      }
+    }
+
     const data = {
-      skill6Meisterschaften: Object.fromEntries(skill6Entries.filter(e => e.selectedMeisterschaft).map(e => [e.skillId, e.selectedMeisterschaft])),
-      magicSpells: magicThresholds.flatMap(mt =>
-        mt.thresholds.filter(th => th.selectedSpell).map(th => [`${mt.schoolId}_${th.level}`, th.selectedSpell])
-      ).filter(Boolean),
-      bonusMeisterschaften: selectedBonusMeisterschaften,
-      bonusTalents: bonusTalents,
-      bonusResource: selectedBonusResource,
+      skill6Meisterschaften: Object.fromEntries(s6.filter(e => e.selectedMeisterschaft).map(e => [e.skillId, e.selectedMeisterschaft])),
+      magicSpells: magicSpellsObj,
+      bonusMeisterschaften: bm,
+      bonusTalents: bt,
+      bonusResource: br,
     }
     saveStep(7, data)
   }
