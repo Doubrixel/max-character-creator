@@ -1,52 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
-const races = [
-  {
-    id: 'mensch',
-    name: 'Mensch',
-    icon: '🧑',
-    speciesLaw:
-      'Menschen sind die vielseitigste Spezies in den Reichen. Ihre Anpassungsfähigkeit und ihr Ehrgeiz machen sie zu natürlichen Führern und Überlebenskünstlern. Menschen können in jeder Umgebung gedeihen und lernen schneller als andere Spezies. Ihre Lebensspanne ist kurz im Vergleich zu Elfen oder Zwergen, aber diese Vergänglichkeit treibt sie zu großen Taten an. Ein Mensch kann in einem einzigen Leben mehr erreichen als manche andere Spezies in drei. Ihre Kultur ist geprägt von Innovation, Handel und diplomatischem Geschick. In Konflikten sind Menschen oft die Vermittler, aber auch die Eroberer. Ihre Göttervielfalt spiegelt ihre innere Zerrissenheit wider – sie suchen ständig nach Bedeutung und Zweck. Speziesvorteil: Menschlicher Ehrgeiz – Einmal pro Abenteuer kann ein Mensch eine Fähigkeit wählen, die er noch nicht besitzt, und sie für eine Szene auf Basiswert nutzen.',
-    statblock: {
-      vorteile: ['+1 auf alle Attribute nach Wahl', 'Menschlicher Ehrgeiz (einmal pro Abenteuer)', 'Schnelle Anpassung'],
-      nachteile: ['Geringere Lebensspanne', 'Keine speziesgebundenen Sonderfähigkeiten'],
-    },
-  },
-  {
-    id: 'elf',
-    name: 'Elf',
-    icon: '🧝',
-    speciesLaw:
-      'Elfen sind Kinder des Waldes und der alten Magie. Mit ihrer jahrhundertelangen Lebensspanne betrachten sie die Welt mit einer Gelassenheit, die andere Spezies als Arroganz missverstehen können. Ihre Verbindung zur Natur ist tief und spirituell. Elfen kommunizieren mit Pflanzen, Tieren und den Geistern des Waldes. Ihre Städte sind keine Ansammlungen von Gebäuden, sondern lebende Strukturen aus gewachsenem Holz und geformtem Stein. Elfische Magie ist intuitiv und fließend, weniger akademisch als die menschliche. Sie singen ihre Zauber, tanzen ihre Rituale und träumen ihre Prophezeiungen. Ein Elf vergisst nie eine Beleidigung, aber auch nie eine Freundlichkeit. Ihre Kunst ist unübertroffen, ihre Musik bringt selbst die härtesten Krieger zum Weinen. Speziesvorteil: Waldläufer – Elfen ignorieren schwieriges Gelände in natürlichen Umgebungen und können sich einmal pro Tag unsichtbar machen, solange sie still stehen.',
-    statblock: {
-      vorteile: ['+2 auf Wahrnehmung in Natur', 'Waldläufer-Fähigkeit', 'Resistenz gegen Charme'],
-      nachteile: ['Verwundbar gegen Eisen', 'Langsame Fortpflanzung', 'Arroganz-Modifikator in sozialen Situationen mit Kurzlebenden'],
-    },
-  },
-  {
-    id: 'zwerg',
-    name: 'Zwerg',
-    icon: '⛏️',
-    speciesLaw:
-      'Zwerge sind die Meister der unterirdischen Künste. In ihren gewaltigen Bergfestungen schmieden sie Waffen von legendärer Qualität und hüten Geheimnisse, die älter sind als die meisten Zivilisationen an der Oberfläche. Ein Zwerg misst seinen Wert nicht an Worten, sondern an Taten – an der Qualität seiner Arbeit, der Tiefe seiner Minen und der Stärke seines Clans. Zwergische Gesellschaft ist streng hierarchisch, aber loyal bis ins Mark. Sie verraten niemals einen Clangehörigen und brechen niemals einen Eid. Ihre Handwerkskunst ist legendär: Jede zwergische Waffe ist ein Meisterwerk, jeder Panzer ein Kunstwerk. Zwerge haben ein angeborenes Verständnis für Metall, Stein und die verborgenen Kräfte der Erde. Sie können Erschütterungen im Gestein spüren, Adern wertvoller Metalle riechen und die Integrität einer Struktur mit einem Blick beurteilen. Speziesvorteil: Stein Sinn – Zwerge können verborgene Türen und Fallen in unterirdischen Umgebungen automatisch erkennen und erhalten +2 auf alle Widerstandswürfe gegen Gift.',
-    statblock: {
-      vorteile: ['+2 Widerstand gegen Gift', 'Stein Sinn (verborgene Türen/Fallen)', '+1 auf Handwerk mit Metall/Stein'],
-      nachteile: ['-1 auf Schwimmen', 'Verwundbar gegen Blitzmagie', 'Sturheit (Nachteil bei diplomatischen Verhandlungen)'],
-    },
-  },
-  {
-    id: 'ork',
-    name: 'Ork',
-    icon: '👹',
-    speciesLaw:
-      'Orks sind die Krieger der öden Lande. In einer Welt, die sie ablehnt, haben sie gelernt, stärker, härter und entschlossener zu sein als alle anderen. Ihre Kultur ist geprägt von Stammesloyalität, Kampfesmut und einem tiefen Respekt vor Stärke – nicht nur physischer, sondern auch der Stärke des Charakters. Ein Ork, der seine Wut kontrollieren kann, ist gefährlicher als hundert, die ihr freien Lauf lassen. Orks sind nicht die Barbaren, als die sie oft dargestellt werden. Ihre Schamanen kommunizieren mit den Geistern der Ahnen, ihre Runenmeister binden uralte Kräfte in Waffen und Amulette, und ihre Strategen haben Armeen besiegt, die ihnen zahlenweit überlegen waren. Die Haut eines Orks ist zäh wie Leder, seine Knochen dick und widerstandsfähig. In der Schlacht sind Orks unerschütterlich – sie kennen keinen Schmerz, solange der Kampf tobt, und ihre Wut gibt ihnen Kraft über das normale Maß hinaus. Speziesvorteil: Kampfrausch – Einmal pro Kampf kann ein Ork, wenn er unter die Hälfte seiner Lebenspunkte fällt, für eine Runde +3 auf alle Angriffswürfe erhalten und temporäre Lebenspunkte gewinnen.',
-    statblock: {
-      vorteile: ['+2 auf Nahkampfangriffe', 'Kampfrausch (einmal pro Kampf)', 'Natürliche Rüstung (+1 Rüstungswert)'],
-      nachteile: ['-2 auf soziale Proben in zivilisierten Gebieten', 'Verwundbar gegen Feuer', 'Weniger magiebegabt'],
-    },
-  },
-]
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
+type Race = { id: string, name: string, icon: string, speciesLaw: string, statblock: { vorteile: string[], nachteile: string[] } }
 
 interface RasseStepProps {
   onValid: (valid: boolean) => void
@@ -55,9 +12,11 @@ interface RasseStepProps {
 export default function RasseStep({ onValid }: RasseStepProps) {
   const { stepDeltas, currentStep, saveStep } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
+  const [races, setRaces] = useState<Race[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [modalRace, setModalRace] = useState<typeof races[0] | null>(null)
+  const [modalRace, setModalRace] = useState<Race | null>(null)
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -70,6 +29,29 @@ export default function RasseStep({ onValid }: RasseStepProps) {
 
   useEffect(() => {
     return () => { initializedRef.current = false }
+  }, [])
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/library/races`)
+      .then(r => r.json())
+      .then((data: any[]) => {
+        const loaded = data.map(r => {
+          const cfg = JSON.parse(r.config || '{}')
+          return {
+            id: r.id,
+            name: r.name,
+            icon: cfg.bildUrl ? '🖼️' : '🧑',
+            speciesLaw: cfg.spezieslaw || r.description || '',
+            statblock: {
+              vorteile: cfg.vorteile ? (typeof cfg.vorteile === 'string' ? JSON.parse(cfg.vorteile) : cfg.vorteile) : [],
+              nachteile: cfg.nachteile ? (typeof cfg.nachteile === 'string' ? JSON.parse(cfg.nachteile) : cfg.nachteile) : [],
+            },
+          }
+        })
+        setRaces(loaded)
+        setDataLoading(false)
+      })
+      .catch(() => setDataLoading(false))
   }, [])
 
   useEffect(() => {
@@ -92,6 +74,10 @@ export default function RasseStep({ onValid }: RasseStepProps) {
   }
 
   const selectedRace = races.find((r) => r.id === selected)
+
+  if (dataLoading) {
+    return <div style={styles.loading}>Lade Rassen...</div>
+  }
 
   return (
     <div style={styles.container}>
@@ -180,6 +166,14 @@ export default function RasseStep({ onValid }: RasseStepProps) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+    fontSize: 16,
+    color: 'var(--text-muted)',
+  },
   container: {
     display: 'flex',
     gap: 16,
