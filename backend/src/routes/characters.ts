@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { db } from '../db'
-import { characters, characterXpLog } from '../db/schema'
-import { eq } from 'drizzle-orm'
+import { characters, characterXpLog, characterSteps } from '../db/schema'
+import { eq, and } from 'drizzle-orm'
 
 const app = new Hono()
 
@@ -107,6 +107,53 @@ app.post('/api/characters/:id/xp', async (c) => {
     .returning()
 
   return c.json(updated[0])
+})
+
+app.get('/api/characters/:id/steps/:step', async (c) => {
+  const id = c.req.param('id')
+  const step = parseInt(c.req.param('step'), 10)
+
+  const result = await db.select()
+    .from(characterSteps)
+    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+
+  if (result.length === 0) {
+    return c.json({ data: {} })
+  }
+
+  return c.json({ data: result[0].data ? JSON.parse(result[0].data) : {} })
+})
+
+app.post('/api/characters/:id/steps/:step', async (c) => {
+  const id = c.req.param('id')
+  const step = parseInt(c.req.param('step'), 10)
+  const body = await c.req.json()
+  const now = Date.now()
+
+  const existing = await db.select()
+    .from(characterSteps)
+    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+
+  if (existing.length > 0) {
+    const updated = await db.update(characterSteps)
+      .set({
+        data: JSON.stringify(body.data),
+        updatedAt: now,
+      })
+      .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+      .returning()
+    return c.json(updated[0])
+  }
+
+  const inserted = await db.insert(characterSteps).values({
+    id: crypto.randomUUID(),
+    characterId: id,
+    stepNumber: step,
+    data: JSON.stringify(body.data),
+    updatedAt: now,
+  }).returning()
+
+  return c.json(inserted[0], 201)
 })
 
 export default app

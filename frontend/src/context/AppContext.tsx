@@ -59,7 +59,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ data }),
     })
   }
 
@@ -67,8 +67,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!characterId) return
     try {
       const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
-      const data = await res.json()
-      setStepData(data)
+      const json = await res.json()
+      setStepData(json.data)
     } catch {
       setStepData(null)
     }

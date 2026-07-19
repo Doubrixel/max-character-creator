@@ -4,10 +4,11 @@
 1. **DB-Schema** — Drizzle ORM + SQLite, alle Entitäten aus User Stories ✅ ABGESCHLOSSEN
    - 1a-1e: Infrastruktur, Tabellen, Migrationen, Env Var, Migration on Startup ✅
 2. **Seed-Script** — Initiale Beispieldaten zum Testen ✅ ABGESCHLOSSEN
-3. **API-Grundgerüst** ✅ ABGESCHLOSSEN
-   - 3a. Character CRUD (GET/POST/PATCH/DELETE, Steps, XP-Log) ✅
+3. **API-Grundgerüst**
+   - 3a. Character CRUD (GET/POST/PATCH/DELETE, XP-Log) ✅
    - 3b. Library CRUD (10 Tabellen, generische Factory) ✅
-   - 3c. Derived Values (Formel-Parser + Berechnung) ⏳ FEHLT
+   - 3c. **Step-Endpoints** (`GET/POST /api/characters/:id/steps/:step`) ⏳ **FEHLT** — war nie implementiert
+   - 3d. Derived Values (Formel-Parser + Berechnung) ⏳ FEHLT
 4. **UI-Shell** ✅ ABGESCHLOSSEN
    - 4a. Layout + Navigation (Sidebar, 3 Tabs, Zeitschritt-Leiste) ✅
    - 4b. API Integration (Character erstellen, Step Navigation, Save/Load) ✅
@@ -30,29 +31,17 @@
 - ~~**DB-Pfad**~~ ✅ Erledigt — `DATABASE_URL` Umgebungsvariable
 
 ## Wichtige Informationen in jedem Sub-Agent-Prompt
-
-### Muss enthalten sein
 - **Welche User Stories** referenziert werden (Dateiname + US-Nummer)
 - **Tech-Stack** (React/Vite/TS Frontend, Hono Backend, SQLite/Drizzle ORM)
 - **Verzeichnisstruktur** (frontend/, backend/, docs/)
 - **Bestehende Dateien** die gelesen/angepasst werden dürfen
 - **Format-Vorgabe** (Nur Code, keine Erklärungen)
 - **Schreibrecht-Hinweis** ("Du darfst Dateien schreiben/überschreiben")
-
-### Optional je nach Task
-- **Seed-Daten** falls Testdaten nötig
-- **API-Endpoints** die bereits existieren
-- **UI-Komponenten** die wiederverwendet werden sollen
-- **Validierungsregeln** aus den User Stories
-
-### Vermeiden
-- Zu viel Kontext auf einmal (Token-Limit)
-- Unklare Dateipfade
-- Implizite Annahmen über bestehende Struktur
+- **Lösung offen lassen** — Problem und Constraints definieren, aber Lösung dem Agenten überlassen
 
 ## Nächste Schritte
-1. **Datenverlust-Bugfix** (Navigation & Refresh) ⏳ IN ARBEIT
-2. **Manuelle Tests** (Testcases sind erstellt, warten auf Bugfix)
+1. **Step-Endpoints implementieren** (`GET/POST /api/characters/:id/steps/:step`) — Persistenz war nie implementiert
+2. **Manuelle Tests** (38 Testfälle in `docs/TESTPROTOKOLL.md`)
 3. **Chronik-Tab** (Archiv, XP, Steigerung)
 4. **Bibliothek-Tab** (CRUD für alle Typen)
 
