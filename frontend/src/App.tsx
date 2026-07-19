@@ -3,6 +3,7 @@ import { AppProvider } from './context/AppContext'
 import Sidebar from './components/Sidebar'
 import CreationView from './components/CreationView'
 import ChronicleView from './components/chronicle/ChronicleView'
+import LibraryView from './components/library/LibraryView'
 
 type Tab = 'creation' | 'chronik' | 'bibliothek'
 
@@ -11,7 +12,7 @@ function AppContent({ activeTab }: { activeTab: Tab }) {
     <>
       {activeTab === 'creation' && <CreationView />}
       {activeTab === 'chronik' && <ChronicleView />}
-      {activeTab === 'bibliothek' && <p style={styles.placeholder}>In Entwicklung</p>}
+      {activeTab === 'bibliothek' && <LibraryView />}
     </>
   )
 }
