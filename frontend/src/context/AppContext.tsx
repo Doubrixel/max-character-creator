@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
-import { recalculateStats } from '../shared/reducers'
+import { recalculateStats, recalculateStatsUpTo } from '../shared/reducers'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -32,6 +32,7 @@ interface AppContextType {
   currentStep: number
   characterStats: CharacterStats
   stepDeltas: Record<number, Record<string, unknown>>
+  computeBaseStats: (upToStep: number) => CharacterStats
   setCharacterId: (id: string) => void
   setCurrentStep: (step: number) => void
   saveStep: (step: number, delta: Record<string, unknown>) => Promise<void>
@@ -51,6 +52,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const characterStats = useMemo(() => {
     return recalculateStats(stepDeltas) as CharacterStats
   }, [stepDeltas])
+
+  const computeBaseStats = (upToStep: number): CharacterStats => {
+    return recalculateStatsUpTo(stepDeltas, upToStep) as CharacterStats
+  }
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
@@ -146,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentStep,
         characterStats,
         stepDeltas,
+        computeBaseStats,
         setCharacterId,
         setCurrentStep,
         saveStep,

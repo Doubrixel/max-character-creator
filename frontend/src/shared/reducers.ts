@@ -121,3 +121,20 @@ export function recalculateStats(
   }
   return stats;
 }
+
+export function recalculateStatsUpTo(
+  deltas: Record<number, Record<string, unknown>>,
+  upToStep: number,
+): Record<string, unknown> {
+  let stats: Record<string, unknown> = {};
+  for (let step = 1; step < upToStep; step++) {
+    const delta = deltas[step];
+    if (delta) {
+      const reducer = reducers.get(step);
+      if (reducer) {
+        stats = reducer(stats, delta);
+      }
+    }
+  }
+  return stats;
+}

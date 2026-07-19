@@ -107,7 +107,7 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, stepDeltas, currentStep, saveStep, characterStats } = useAppContext()
+  const { characterId, stepDeltas, currentStep, saveStep, computeBaseStats } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
@@ -127,7 +127,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   const initializedRef = useRef(false)
 
   useEffect(() => {
-    const skills = (characterStats.skills ?? {}) as Record<string, number>
+    const skills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
     const skill6: Skill6Entry[] = []
     const magicThresh: MagicThreshold[] = []
@@ -159,7 +159,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     setSkill6Entries(skill6)
     setMagicThresholds(magicThresh)
     setLoading(false)
-  }, [characterStats])
+  }, [computeBaseStats, currentStep, stepDeltas])
 
   useEffect(() => {
     if (initializedRef.current) return

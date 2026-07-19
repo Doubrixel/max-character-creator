@@ -40,9 +40,9 @@ interface KulturStepProps {
 }
 
 export default function KulturStep({ onValid }: KulturStepProps) {
-  const { characterStats, stepDeltas, currentStep, saveStep } = useAppContext()
+  const { computeBaseStats, stepDeltas, currentStep, saveStep } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
-  const baseSkills = (characterStats.skills ?? {}) as Record<string, number>
+  const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerke, setStaerke] = useState<string>('')
