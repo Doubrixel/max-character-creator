@@ -7,84 +7,6 @@ const BONUS_MEISTERSCHAFT_POINTS = 3
 const BONUS_TALENT_POINTS = 5
 const BONUS_RESOURCE_POINTS = 1
 
-const BONUS_MEISTERSCHAFTEN = [
-  { id: 'bm1', name: 'Meister der Klingen', desc: '+2 auf Nahkampf-Proben mit Einhandwaffen' },
-  { id: 'bm2', name: 'Eiserner Wille', desc: '+2 auf Willenskraft-Proben' },
-  { id: 'bm3', name: 'Schattenwanderer', desc: '+2 auf Schleichen-Proben bei Dunkelheit' },
-]
-
-const BONUS_TALENTE = [
-  { id: 'akrobatik', name: 'Akrobatik' },
-  { id: 'schleichen', name: 'Schleichen' },
-  { id: 'wahrnehmung', name: 'Wahrnehmung' },
-  { id: 'wissen', name: 'Wissen' },
-  { id: 'ueberleben', name: 'Überleben' },
-]
-
-const BONUS_RESSOURCEN = [
-  { id: 'lp', name: 'Lebenspunkte', desc: '+5 maximale Lebenspunkte' },
-  { id: 'mp', name: 'Magiepunkte', desc: '+3 maximale Magiepunkte' },
-  { id: 'ap', name: 'Ausdauerpunkte', desc: '+5 maximale Ausdauerpunkte' },
-]
-
-const MEISTERSCHAFTEN_PER_SKILL: Record<string, { id: string; name: string; desc: string }[]> = {
-  nahkampf: [
-    { id: 'm_nah_1', name: 'Klingensturm', desc: 'Ein Angriff gegen alle adjacenten Gegner' },
-    { id: 'm_nah_2', name: 'Meisterparade', desc: 'Parade-Wurf wird um 2 erhöht' },
-  ],
-  distanz: [
-    { id: 'm_dis_1', name: 'Scharfschütze', desc: '+2 auf Distanz-Angriffe über 10m' },
-    { id: 'm_dis_2', name: 'Schnellfeuer', desc: 'Ein zusätzlicher Angriff pro Runde' },
-  ],
-  akrobatik: [
-    { id: 'm_akr_1', name: 'Luftsprung', desc: 'Doppelte Sprungweite' },
-    { id: 'm_akr_2', name: 'Fallmeister', desc: 'Kein Fallschaden bis 5m' },
-  ],
-  schleichen: [
-    { id: 'm_sch_1', name: 'Unsichtbar', desc: '-3 auf gegnerische Wahrnehmung' },
-    { id: 'm_sch_2', name: 'Schattenritt', desc: 'Bewegung im Schatten ohne Probe' },
-  ],
-  wahrnehmung: [
-    { id: 'm_wah_1', name: 'Adlerauge', desc: 'Erkennt versteckte Fallen automatisch' },
-    { id: 'm_wah_2', name: 'Gefahrensinn', desc: 'Initiative +2 bei Überraschung' },
-  ],
-  ueberleben: [
-    { id: 'm_ueb_1', name: 'Wegweiser', desc: 'Keine Verlangsamung in Wildnis' },
-    { id: 'm_ueb_2', name: 'Jäger', desc: '+2 auf Beutetieren und Nahrungsbeschaffung' },
-  ],
-  wissen: [
-    { id: 'm_wis_1', name: 'Gelehrter', desc: 'Zugang zu verbotenen Archiven' },
-    { id: 'm_wis_2', name: 'Analytiker', desc: 'Erkennt Schwächen nach 1 Runde' },
-  ],
-  elementar: [
-    { id: 'm_ele_1', name: 'Elementarbeherrschung', desc: 'Spell-Kosten -1 MP' },
-    { id: 'm_ele_2', name: 'Sturmrufer', desc: 'Elementarspells +2 Schaden' },
-  ],
-  heilung: [
-    { id: 'm_hei_1', name: 'Wundheiler', desc: 'Heilungsspells heilen +5 LP' },
-    { id: 'm_hei_2', name: 'Reinigung', desc: 'Entfernt alle negativen Status' },
-  ],
-}
-
-const SPELLS: Record<string, { id: string; name: string; level: number; cost: string; effect: string }[]> = {
-  elementar: [
-    { id: 'sp_el_0_1', name: 'Funken', level: 0, cost: '0 MP', effect: 'Kleiner Brandschaden (1W3)' },
-    { id: 'sp_el_0_2', name: 'Eisblitz', level: 0, cost: '0 MP', effect: 'Kleiner Frostschaden (1W3)' },
-    { id: 'sp_el_1_1', name: 'Feuerball', level: 1, cost: '2 MP', effect: 'Feuerschaden in Radius (2W6)' },
-    { id: 'sp_el_1_2', name: 'Eiswand', level: 1, cost: '3 MP', effect: 'Erschafft eine Eisbarriere' },
-    { id: 'sp_el_2_1', name: 'Meteor', level: 2, cost: '5 MP', effect: 'Gewaltiger Feuerschaden (4W6)' },
-    { id: 'sp_el_2_2', name: 'Blitzschlag', level: 2, cost: '6 MP', effect: 'Elektrizität trifft Ziel (3W6)' },
-  ],
-  heilung: [
-    { id: 'sp_he_0_1', name: 'Leichtes Heilen', level: 0, cost: '0 MP', effect: 'Heilt 1W3 LP' },
-    { id: 'sp_he_0_2', name: 'Reinigen', level: 0, cost: '0 MP', effect: 'Entfernt leichte Vergiftung' },
-    { id: 'sp_he_1_1', name: 'Wunden schließen', level: 1, cost: '3 MP', effect: 'Heilt 2W6 LP' },
-    { id: 'sp_he_1_2', name: 'Schutzschild', level: 1, cost: '2 MP', effect: '+3 Widerstand für 3 Runden' },
-    { id: 'sp_he_2_1', name: 'Massenheilung', level: 2, cost: '6 MP', effect: 'Heilt alle in Radius (2W6)' },
-    { id: 'sp_he_2_2', name: 'Wiederbelebung', level: 2, cost: '8 MP', effect: 'Belebt Ohnmächtige' },
-  ],
-}
-
 interface Skill6Entry {
   skillId: string
   skillName: string
@@ -123,7 +45,13 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   const [bonusResourcePoints, setBonusResourcePoints] = useState(BONUS_RESOURCE_POINTS)
   const [selectedBonusResource, setSelectedBonusResource] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
   const [finalizing, setFinalizing] = useState(false)
+  const [bonusMeisterschaften, setBonusMeisterschaften] = useState<{id: string, name: string, desc: string}[]>([])
+  const [bonusTalente, setBonusTalente] = useState<{id: string, name: string}[]>([])
+  const [bonusRessourcen, setBonusRessourcen] = useState<{id: string, name: string, desc: string}[]>([])
+  const [meisterschaftenPerSkill, setMeisterschaftenPerSkill] = useState<Record<string, {id: string, name: string, desc: string}[]>>({})
+  const [spells, setSpells] = useState<Record<string, {id: string, name: string, level: number, cost: string, effect: string}[]>>({})
   const [completed, setCompleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState(false)
@@ -142,7 +70,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     }
 
     const saved = stepData as Step7Data | null
-    const savedMeisterschaften = saved?.meisterschaften ?? []
+        const savedMeisterschaften = saved?.meisterschaften ?? []
     const savedSpells = saved?.spells ?? []
 
     const skill6: Skill6Entry[] = []
@@ -150,7 +78,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
 
     for (const [id, val] of Object.entries(skills)) {
       if (val >= 6 && talentWeaponIds.includes(id)) {
-        const skillMasteryIds = (MEISTERSCHAFTEN_PER_SKILL[id] ?? []).map(m => m.id)
+        const skillMasteryIds = (meisterschaftenPerSkill[id] ?? []).map(m => m.id)
         const match = savedMeisterschaften.find(m => skillMasteryIds.includes(m))
         skill6.push({ skillId: id, skillName: skillNames[id] ?? id, selectedMeisterschaft: match ?? null })
       }
@@ -161,7 +89,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
         if (val >= 6) thresholds.push({ level: 2, selectedSpell: null })
         if (thresholds.length > 0) {
           const resolvedThresholds = thresholds.map(th => {
-            const availableSpells = SPELLS[id]?.filter(s => s.level === th.level) ?? []
+            const availableSpells = spells[id]?.filter(s => s.level === th.level) ?? []
             const match = availableSpells.find(s => savedSpells.includes(s.id))
             return { ...th, selectedSpell: match?.id ?? null }
           })
@@ -205,6 +133,68 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
 
     setLoading(false)
   }, [computeBaseStats, currentStep, stepDeltas])
+
+  useEffect(() => {
+    const loadLibraryData = async () => {
+      try {
+        const [masteriesRes, skillsRes, resourcesRes, spellsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/library/masteries`).then(r => r.json()),
+          fetch(`${API_BASE}/api/library/skills`).then(r => r.json()),
+          fetch(`${API_BASE}/api/library/resources`).then(r => r.json()),
+          fetch(`${API_BASE}/api/library/spells`).then(r => r.json()),
+        ])
+
+        const talentSkills = skillsRes.filter((s: any) => {
+          try { return JSON.parse(s.config)?.kategorie === 'talent' } catch { return false }
+        })
+
+        const pflichtMeisterschaften = masteriesRes.filter((m: any) => {
+          try { return JSON.parse(m.config)?.kategorie === 'pflicht' } catch { return false }
+        })
+        const bonusMeisterschaftenList = masteriesRes.filter((m: any) => {
+          try { return JSON.parse(m.config)?.kategorie === 'bonus' } catch { return false }
+        })
+
+        const grouped: Record<string, {id: string, name: string, desc: string}[]> = {}
+        for (const m of pflichtMeisterschaften) {
+          const cfg = JSON.parse(m.config || '{}')
+          const skillId = cfg.voraussetzung_id || 'unknown'
+          if (!grouped[skillId]) grouped[skillId] = []
+          grouped[skillId].push({ id: m.id, name: m.name, desc: cfg.effekt || '' })
+        }
+
+        const spellsGrouped: Record<string, {id: string, name: string, level: number, cost: string, effect: string}[]> = {}
+        for (const sp of spellsRes) {
+          const cfg = JSON.parse(sp.config || '{}')
+          const school = cfg.schule || 'unknown'
+          if (!spellsGrouped[school]) spellsGrouped[school] = []
+          spellsGrouped[school].push({
+            id: sp.id, name: sp.name,
+            level: parseInt(cfg.level) || 0,
+            cost: cfg.kosten || '0 MP',
+            effect: cfg.effekt || '',
+          })
+        }
+
+        setBonusMeisterschaften(bonusMeisterschaftenList.map((m: any) => {
+          const cfg = JSON.parse(m.config || '{}')
+          return { id: m.id, name: m.name, desc: cfg.effekt || '' }
+        }))
+        setBonusTalente(talentSkills.map((s: any) => ({ id: s.id, name: s.name })))
+        setBonusRessourcen(resourcesRes.map((r: any) => {
+          const cfg = JSON.parse(r.config || '{}')
+          return { id: r.id, name: r.name, desc: cfg.typ || '' }
+        }))
+        setMeisterschaftenPerSkill(grouped)
+        setSpells(spellsGrouped)
+      } catch (err) {
+        console.error('Failed to load library data:', err)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+    loadLibraryData()
+  }, [])
 
   useEffect(() => {
     if (loading || !initializedRef.current) return
@@ -354,6 +344,10 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     }
   }
 
+  if (dataLoading) {
+    return <div style={styles.loading}>Lade Bibliotheksdaten...</div>
+  }
+
   if (loading) {
     return <div style={styles.loading}>Lade Charakterdaten...</div>
   }
@@ -380,7 +374,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
           <h3 style={styles.sectionTitle}>Pflicht-Meisterschaften (Skill-Wert 6)</h3>
           <p style={styles.sectionHint}>Wähle für jede Fähigkeit mit Wert 6 eine Meisterschaft.</p>
           {skill6Entries.map(entry => {
-            const meisterList = MEISTERSCHAFTEN_PER_SKILL[entry.skillId] ?? []
+            const meisterList = meisterschaftenPerSkill[entry.skillId] ?? []
             return (
               <div key={entry.skillId} style={styles.pflichtItem}>
                 <div style={styles.pflichtHeader}>
@@ -418,7 +412,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
             <div key={mt.schoolId} style={styles.magicSection}>
               <h4 style={styles.magicSchoolName}>{mt.schoolName} (Wert: {mt.value})</h4>
               {mt.thresholds.map(th => {
-                const availableSpells = SPELLS[mt.schoolId]?.filter(s => s.level === th.level) ?? []
+                const availableSpells = spells[mt.schoolId]?.filter(s => s.level === th.level) ?? []
                 return (
                   <div key={th.level} style={styles.spellLevelGroup}>
                     <span style={styles.spellLevelLabel}>Stufe {th.level} Spells</span>
@@ -454,7 +448,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
             Meisterschafts-Punkte: {bonusMeisterschaftPoints}
           </div>
           <div style={styles.bonusGrid}>
-            {BONUS_MEISTERSCHAFTEN.map(m => {
+            {bonusMeisterschaften.map(m => {
               const isSelected = selectedBonusMeisterschaften.includes(m.id)
               const isDisabled = !isSelected && bonusMeisterschaftPoints <= 0
               return (
@@ -481,7 +475,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
             Talent-Punkte: {bonusTalentPoints}
           </div>
           <div style={styles.bonusTalentTable}>
-            {BONUS_TALENTE.map(t => {
+            {bonusTalente.map(t => {
               const val = bonusTalents[t.id] ?? 0
               const canInc = bonusTalentPoints > 0 && val < 6
               const canDec = val > 0
@@ -516,7 +510,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
             Ressourcen-Punkte: {bonusResourcePoints}
           </div>
           <div style={styles.bonusGrid}>
-            {BONUS_RESSOURCEN.map(r => {
+            {bonusRessourcen.map(r => {
               const isSelected = selectedBonusResource === r.id
               const isDisabled = !isSelected && bonusResourcePoints <= 0
               return (
