@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import SchicksalStep from './creation/SchicksalStep'
 import RasseStep from './creation/RasseStep'
+import AbstammungStep from './creation/AbstammungStep'
 
 const steps = [
   'Schicksal',
@@ -48,6 +49,9 @@ export default function CreationView() {
     }
     if (currentStep === 2) {
       return <RasseStep onValid={setCanProceed} />
+    }
+    if (currentStep === 3) {
+      return <AbstammungStep onValid={setCanProceed} />
     }
     return (
       <div style={styles.content}>
