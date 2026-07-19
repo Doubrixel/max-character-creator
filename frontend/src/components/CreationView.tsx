@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
+import SchicksalStep from './creation/SchicksalStep'
 
 const steps = [
   'Schicksal',
@@ -12,6 +14,7 @@ const steps = [
 
 export default function CreationView() {
   const { characterId, currentStep, setCurrentStep, saveStep, createCharacter } = useAppContext()
+  const [canProceed, setCanProceed] = useState(false)
 
   if (!characterId) {
     return (
@@ -38,6 +41,18 @@ export default function CreationView() {
     }
   }
 
+  const renderStepContent = () => {
+    if (currentStep === 1) {
+      return <SchicksalStep onValid={setCanProceed} />
+    }
+    return (
+      <div style={styles.content}>
+        <h3>{steps[currentStep - 1]}</h3>
+        <p style={{ color: '#888' }}>Schritt {currentStep} von {steps.length}</p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div style={styles.stepBar}>
@@ -53,10 +68,7 @@ export default function CreationView() {
           </span>
         ))}
       </div>
-      <div style={styles.content}>
-        <h3>{steps[currentStep - 1]}</h3>
-        <p style={{ color: '#888' }}>Schritt {currentStep} von {steps.length}</p>
-      </div>
+      {renderStepContent()}
       <div style={styles.navButtons}>
         <button
           style={{ ...styles.navButton, ...(currentStep === 1 ? styles.navButtonDisabled : {}) }}
@@ -66,9 +78,12 @@ export default function CreationView() {
           Zurück
         </button>
         <button
-          style={{ ...styles.navButton, ...(currentStep === steps.length ? styles.navButtonDisabled : {}) }}
+          style={{
+            ...styles.navButton,
+            ...((currentStep === steps.length || !canProceed) ? styles.navButtonDisabled : {}),
+          }}
           onClick={handleNext}
-          disabled={currentStep === steps.length}
+          disabled={currentStep === steps.length || !canProceed}
         >
           Weiter
         </button>
