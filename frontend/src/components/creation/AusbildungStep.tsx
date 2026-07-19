@@ -83,6 +83,28 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   }, [])
 
   useEffect(() => {
+    const saved = stepData as {
+      skills?: Record<string, number>
+      staerken?: string[]
+      ressourcen?: string[]
+    } | null
+    if (saved?.skills) {
+      const allSkills = [...talents, ...weapons, ...magicSchools]
+      const updated: Record<string, number> = {}
+      allSkills.forEach((s) => {
+        updated[s.id] = saved.skills?.[s.id] ?? 0
+      })
+      setSkills(updated)
+    }
+    if (saved?.staerken) {
+      setStaerken(saved.staerken)
+    }
+    if (saved?.ressourcen) {
+      setRessourcen(saved.ressourcen)
+    }
+  }, [stepData])
+
+  useEffect(() => {
     const valid =
       staerkenAvailable === 0 &&
       fertigkeitenAvailable === 0 &&

@@ -19,7 +19,7 @@ const steps = [
 ]
 
 export default function CreationView() {
-  const { characterId, currentStep, setCurrentStep, saveStep, createCharacter } = useAppContext()
+  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter } = useAppContext()
   const [canProceed, setCanProceed] = useState(false)
 
   if (!characterId) {
@@ -33,16 +33,14 @@ export default function CreationView() {
     )
   }
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (currentStep < steps.length) {
-      await saveStep(currentStep, {})
       setCurrentStep(currentStep + 1)
     }
   }
 
-  const handleBack = async () => {
+  const handleBack = () => {
     if (currentStep > 1) {
-      await saveStep(currentStep, {})
       setCurrentStep(currentStep - 1)
     }
   }
@@ -79,6 +77,11 @@ export default function CreationView() {
 
   return (
     <div>
+      <div style={styles.headerRow}>
+        <button style={styles.resetButton} onClick={resetCharacter}>
+          Neuer Charakter
+        </button>
+      </div>
       <div style={styles.stepBar}>
         {steps.map((step, i) => (
           <span
@@ -117,6 +120,21 @@ export default function CreationView() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  headerRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: 12,
+  },
+  resetButton: {
+    padding: '6px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    background: 'transparent',
+    color: '#e94560',
+    border: '1px solid #e94560',
+    borderRadius: 6,
+    cursor: 'pointer',
+  },
   stepBar: {
     display: 'flex',
     gap: 8,

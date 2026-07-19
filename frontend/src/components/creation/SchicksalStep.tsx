@@ -46,6 +46,13 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
     onValid(selected !== null)
   }, [selected, onValid])
 
+  useEffect(() => {
+    const destiny = (stepData as { destiny?: string } | null)?.destiny
+    if (destiny) {
+      setSelected(destiny)
+    }
+  }, [stepData])
+
   const handleSelect = (id: string) => {
     setSelected(id)
     saveStep(1, { destiny: id })

@@ -79,6 +79,20 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     onValid(allDecided && heritage !== '')
   }, [chosenDecisions, heritage, onValid])
 
+  useEffect(() => {
+    const saved = stepData as { dice?: [number, number]; heritage?: string; decisions?: { id: string; choice: string }[] } | null
+    if (saved?.dice) {
+      setDice1(String(saved.dice[0]))
+      setDice2(String(saved.dice[1]))
+    }
+    if (saved?.heritage) {
+      setHeritage(saved.heritage)
+    }
+    if (saved?.decisions) {
+      setChosenDecisions(Object.fromEntries(saved.decisions.map((d) => [d.id, d.choice])))
+    }
+  }, [stepData])
+
   const handleAutoRoll = () => {
     const r1 = Math.floor(Math.random() * 6) + 1
     const r2 = Math.floor(Math.random() * 6) + 1

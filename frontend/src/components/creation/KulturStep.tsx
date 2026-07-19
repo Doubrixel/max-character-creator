@@ -70,6 +70,28 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   }, [])
 
   useEffect(() => {
+    const saved = stepData as {
+      skills?: Record<string, number>
+      staerke?: string
+      meisterschaft?: string
+    } | null
+    if (saved?.skills) {
+      const allSkills = [...talents, ...weapons, ...magicSchools]
+      const updated: Record<string, number> = {}
+      allSkills.forEach((s) => {
+        updated[s.id] = saved.skills?.[s.id] ?? 0
+      })
+      setSkills(updated)
+    }
+    if (saved?.staerke) {
+      setStaerke(saved.staerke)
+    }
+    if (saved?.meisterschaft) {
+      setMeisterschaft(saved.meisterschaft)
+    }
+  }, [stepData])
+
+  useEffect(() => {
     const eligible = Object.entries(skills)
       .filter(([, v]) => v >= 1)
       .map(([id]) => id)

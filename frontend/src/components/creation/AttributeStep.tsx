@@ -136,6 +136,22 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   }, [allAssigned, onValid])
 
   useEffect(() => {
+    const saved = stepData as {
+      attributes?: Record<string, number>
+      rolls?: number[]
+    } | null
+    if (saved?.rolls && saved.rolls.length === 10) {
+      setRolls(saved.rolls)
+    }
+    if (saved?.attributes && Object.keys(saved.attributes).length > 0) {
+      setAssignments(saved.attributes as Partial<Record<AttributeKey, number>>)
+      setManualInputs(
+        Object.fromEntries(ATTRIBUTES.map((a) => [a, saved.attributes?.[a] !== undefined ? String(saved.attributes[a]) : '']))
+      )
+    }
+  }, [stepData])
+
+  useEffect(() => {
     if (Object.keys(assignments).length > 0) {
       saveStep(6, {
         attributes: assignments,

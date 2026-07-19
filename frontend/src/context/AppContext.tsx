@@ -17,6 +17,7 @@ interface AppContextType {
   saveStep: (step: number, data: Record<string, unknown>) => Promise<void>
   loadStep: (step: number) => Promise<void>
   createCharacter: () => Promise<void>
+  resetCharacter: () => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -83,6 +84,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCharacterIdState(character.id)
   }
 
+  const resetCharacter = () => {
+    setCharacterIdState(null)
+    setCurrentStepState(1)
+    setStepData(null)
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -95,6 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveStep,
         loadStep,
         createCharacter,
+        resetCharacter,
       }}
     >
       {children}

@@ -11,9 +11,16 @@
 4. **UI-Shell** ✅ ABGESCHLOSSEN
    - 4a. Layout + Navigation (Sidebar, 3 Tabs, Zeitschritt-Leiste) ✅
    - 4b. API Integration (Character erstellen, Step Navigation, Save/Load) ✅
-5. **Creation Schritt 1-3** — Schicksal, Rasse, Abstammung ⏳ FEHLT
-6. **Creation Schritt 4-5** — Kultur & Kindheit, Ausbildung ⏳ FEHLT
-7. **Creation Schritt 6-7** — Attribute, Meisterschaften & Spells ⏳ FEHLT
+5. **Creation Schritt 1-3** ✅ ABGESCHLOSSEN
+   - Schritt 1: Schicksal ✅
+   - Schritt 2: Rasse ✅
+   - Schritt 3: Abstammung ✅
+6. **Creation Schritt 4-5** ✅ ABGESCHLOSSEN
+   - Schritt 4: Kultur & Kindheit ✅
+   - Schritt 5: Ausbildung ✅
+7. **Creation Schritt 6-7** ✅ ABGESCHLOSSEN
+   - Schritt 6: Attribute ✅
+   - Schritt 7: Meisterschaften & Spells ✅
 8. **Chronik** — Archiv, XP, Steigerung, Items/Ressourcen ⏳ FEHLT
 9. **Bibliothek** — CRUD pro Typ (iterativ) ⏳ FEHLT
 
@@ -42,6 +49,12 @@
 - Zu viel Kontext auf einmal (Token-Limit)
 - Unklare Dateipfade
 - Implizite Annahmen über bestehende Struktur
+
+## Nächste Schritte
+1. **Datenverlust-Bugfix** (Navigation & Refresh) ⏳ IN ARBEIT
+2. **Manuelle Tests** (Testcases sind erstellt, warten auf Bugfix)
+3. **Chronik-Tab** (Archiv, XP, Steigerung)
+4. **Bibliothek-Tab** (CRUD für alle Typen)
 
 ## Bekannte Fallstricke
 - **Polymorphe Tabellen** — SQLite不支持, separate Tabellen pro Library-Typ
