@@ -14,15 +14,5 @@ export async function runMigration() {
     console.log('Migration: renamed data to delta in character_steps');
   }
 
-  if (await columnExists('characters', 'stats')) {
-    const tableInfo = await client.execute({ sql: `PRAGMA table_info(characters)`, args: [] });
-    const rows = tableInfo.rows || [];
-    const statsCol = rows.find((row: any) => row.name === 'stats');
-    if (statsCol) {
-      await client.execute(`CREATE TABLE characters_new AS SELECT id, name, created_at, updated_at, status, xp, total_xp FROM characters`);
-      await client.execute(`DROP TABLE characters`);
-      await client.execute(`ALTER TABLE characters_new RENAME TO characters`);
-      console.log('Migration: removed stats column from characters');
-    }
-  }
+  console.log('Migration: stats column left in place (unused, harmless)');
 }
