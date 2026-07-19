@@ -7,7 +7,7 @@
 3. **API-Grundgerüst**
    - 3a. Character CRUD (GET/POST/PATCH/DELETE, XP-Log) ✅
    - 3b. Library CRUD (10 Tabellen, generische Factory) ✅
-   - 3c. **Step-Endpoints** (`GET/POST /api/characters/:id/steps/:step`) ⏳ **FEHLT** — war nie implementiert
+   - 3c. **Step-Endpoints** (`GET/POST /api/characters/:id/steps/:step`) ✅ ABGESCHLOSSEN
    - 3d. Derived Values (Formel-Parser + Berechnung) ⏳ FEHLT
 4. **UI-Shell** ✅ ABGESCHLOSSEN
    - 4a. Layout + Navigation (Sidebar, 3 Tabs, Zeitschritt-Leiste) ✅
@@ -40,10 +40,9 @@
 - **Lösung offen lassen** — Problem und Constraints definieren, aber Lösung dem Agenten überlassen
 
 ## Nächste Schritte
-1. **Step-Endpoints implementieren** (`GET/POST /api/characters/:id/steps/:step`) — Persistenz war nie implementiert
-2. **Manuelle Tests** (38 Testfälle in `docs/TESTPROTOKOLL.md`)
-3. **Chronik-Tab** (Archiv, XP, Steigerung)
-4. **Bibliothek-Tab** (CRUD für alle Typen)
+1. **Manuelle Tests** (38 Testfälle in `docs/TESTPROTOKOLL.md`) — Persistenz ist jetzt stabil
+2. **Chronik-Tab** (Archiv, XP, Steigerung)
+3. **Bibliothek-Tab** (CRUD für alle Typen)
 
 ## Bekannte Fallstricke
 - **Polymorphe Tabellen** — SQLite不支持, separate Tabellen pro Library-Typ
