@@ -30,6 +30,7 @@ export const darkTheme = {
   '--detail-title': '#1a1a2e',
   '--detail-text': '#444444',
   '--shadow-accent': 'rgba(233, 69, 96, 0.3)',
+  '--danger': '#ef4444',
   '--body-bg': '#0a0a1a',
 }
 
@@ -65,6 +66,7 @@ export const lightTheme: typeof darkTheme = {
   '--detail-title': '#1a1a2e',
   '--detail-text': '#444444',
   '--shadow-accent': 'rgba(209, 54, 80, 0.25)',
+  '--danger': '#dc2626',
   '--body-bg': '#f0f0f0',
 }
 

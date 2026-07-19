@@ -87,6 +87,10 @@ app.patch('/api/characters/:id', async (c) => {
 
 app.delete('/api/characters/:id', async (c) => {
   const id = c.req.param('id')
+  const { characterSteps: cs, characterXpLog: xpLog } = await import('../db/schema')
+
+  await db.delete(xpLog).where(eq(xpLog.characterId, id))
+  await db.delete(cs).where(eq(cs.characterId, id))
   const result = await db.delete(characters).where(eq(characters.id, id)).returning()
 
   if (result.length === 0) {
