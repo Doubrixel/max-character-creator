@@ -47,19 +47,12 @@ interface AusbildungStepProps {
 export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const { stepData, saveStep } = useAppContext()
 
-  const saved = stepData as {
-    skills?: Record<string, number>
-    staerken?: string[]
-    ressourcen?: string[]
-  } | null
-
-  const savedSkills = saved?.skills ?? {}
-  const savedStaerken = saved?.staerken ?? []
-  const savedRessourcen = saved?.ressourcen ?? []
-
   const [skills, setSkills] = useState<Record<string, number>>({})
-  const [staerken, setStaerken] = useState<string[]>(savedStaerken)
-  const [ressourcen, setRessourcen] = useState<string[]>(savedRessourcen)
+  const [staerken, setStaerken] = useState<string[]>([])
+  const [ressourcen, setRessourcen] = useState<string[]>([])
+  const [initialized, setInitialized] = useState(false)
+
+  const savedSkills = (stepData as { skills?: Record<string, number> } | null)?.skills ?? {}
 
   const fertigkeitenUsed = Object.entries(skills)
     .filter(([id]) => !magicSchools.some((m) => m.id === id))
@@ -74,43 +67,32 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const ressourcenAvailable = RESSOURCEN_POINTS - ressourcenUsed
 
   useEffect(() => {
-    const allSkills = [...talents, ...weapons, ...magicSchools]
-    const initial: Record<string, number> = {}
-    allSkills.forEach((s) => {
-      initial[s.id] = savedSkills[s.id] ?? 0
-    })
-    setSkills(initial)
-  }, [])
-
-  useEffect(() => {
     const saved = stepData as {
       skills?: Record<string, number>
       staerken?: string[]
       ressourcen?: string[]
     } | null
-    if (saved?.skills && Object.keys(skills).length === 0) {
-      const allSkills = [...talents, ...weapons, ...magicSchools]
-      const updated: Record<string, number> = {}
-      allSkills.forEach((s) => {
-        updated[s.id] = saved.skills?.[s.id] ?? 0
-      })
-      setSkills(updated)
-    }
-    if (saved?.staerken && staerken.length === 0) {
-      setStaerken(saved.staerken)
-    }
-    if (saved?.ressourcen && ressourcen.length === 0) {
-      setRessourcen(saved.ressourcen)
-    }
+
+    const allSkills = [...talents, ...weapons, ...magicSchools]
+    const initialSkills: Record<string, number> = {}
+    allSkills.forEach((s) => {
+      initialSkills[s.id] = saved?.skills?.[s.id] ?? 0
+    })
+
+    setSkills(initialSkills)
+    setStaerken(saved?.staerken ?? [])
+    setRessourcen(saved?.ressourcen ?? [])
+    setInitialized(true)
   }, [stepData])
 
   useEffect(() => {
+    if (!initialized) return
     const valid =
       staerkenAvailable === 0 &&
       fertigkeitenAvailable === 0 &&
       ressourcenAvailable === 0
     onValid(valid)
-  }, [staerkenAvailable, fertigkeitenAvailable, ressourcenAvailable, onValid])
+  }, [staerkenAvailable, fertigkeitenAvailable, ressourcenAvailable, onValid, initialized])
 
   const getSkillMax = (id: string): number => {
     if (talents.some((t) => t.id === id) || weapons.some((w) => w.id === id)) {

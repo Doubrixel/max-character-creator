@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -26,6 +26,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [characterId, setCharacterIdState] = useState<string | null>(null)
   const [currentStep, setCurrentStepState] = useState(1)
   const [stepData, setStepData] = useState<Record<string, unknown> | null>(null)
+  const [_loadingStep, setLoadingStep] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/characters`)
@@ -38,39 +39,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
   }, [])
 
+  const loadStep = useCallback(async (step: number) => {
+    if (!characterId) return
+    setLoadingStep(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
+      if (!res.ok) {
+        setStepData(null)
+        return
+      }
+      const json = await res.json()
+      setStepData(json.data ?? null)
+    } catch {
+      setStepData(null)
+    } finally {
+      setLoadingStep(false)
+    }
+  }, [characterId])
+
   useEffect(() => {
     if (characterId) {
       loadStep(currentStep)
     }
-  }, [characterId, currentStep])
+  }, [characterId, currentStep, loadStep])
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
   }
 
-  const setCurrentStep = async (step: number) => {
-    if (characterId && step !== currentStep) {
-      setCurrentStepState(step)
-    }
+  const setCurrentStep = (step: number) => {
+    setCurrentStepState(step)
   }
 
   const saveStep = async (step: number, data: Record<string, unknown>) => {
     if (!characterId) return
-    await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data }),
-    })
-  }
-
-  const loadStep = async (step: number) => {
-    if (!characterId) return
     try {
-      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
-      const json = await res.json()
-      setStepData(json.data)
-    } catch {
-      setStepData(null)
+      await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      })
+    } catch (err) {
+      console.error('saveStep failed:', err)
     }
   }
 

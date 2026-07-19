@@ -99,7 +99,7 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, saveStep } = useAppContext()
+  const { characterId, saveStep, currentStep } = useAppContext()
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
   const [magicThresholds, setMagicThresholds] = useState<MagicThreshold[]>([])
@@ -220,7 +220,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
 
   useEffect(() => {
     loadPreviousSteps()
-  }, [loadPreviousSteps])
+  }, [loadPreviousSteps, currentStep])
 
   useEffect(() => {
     if (loading) return
