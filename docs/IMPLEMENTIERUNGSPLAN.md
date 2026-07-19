@@ -40,9 +40,10 @@
 - **Lösung offen lassen** — Problem und Constraints definieren, aber Lösung dem Agenten überlassen
 
 ## Nächste Schritte
-1. **Manuelle Tests** (38 Testfälle in `docs/TESTPROTOKOLL.md`) — Persistenz ist jetzt stabil
-2. **Chronik-Tab** (Archiv, XP, Steigerung)
-3. **Bibliothek-Tab** (CRUD für alle Typen)
+1. **Bugfixing** (Priorität: BUG-02, BUG-06, BUG-07)
+2. **Manuelle Tests** (TC-28 bis TC-38) — Läuft parallel
+3. **Chronik-Tab** (Archiv, XP, Steigerung)
+4. **Bibliothek-Tab** (CRUD für alle Typen)
 
 ## Bekannte Fallstricke
 - **Polymorphe Tabellen** — SQLite不支持, separate Tabellen pro Library-Typ

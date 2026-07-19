@@ -129,8 +129,11 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
 
   const handleUndo = (decisionId: string) => {
     setChosenDecisions((prev) => {
+      const undoIndex = decisions.findIndex((d) => d.id === decisionId)
       const next = { ...prev }
-      delete next[decisionId]
+      for (let i = undoIndex; i < decisions.length; i++) {
+        delete next[decisions[i].id]
+      }
       chosenDecisionsRef.current = next
       const allDecisions = Object.entries(next).map(([id, choice]) => ({ id, choice }))
       const d1 = parseInt(dice1, 10)
