@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TYPE_SCHEMAS } from './typeSchemas'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -21,7 +22,12 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', config: '' })
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [configFields, setConfigFields] = useState<Record<string, string>>({})
+
+  const schema = TYPE_SCHEMAS[type]
+  const fields = schema?.fields ?? []
 
   const load = () => {
     fetch(`${API_BASE}/api/library/${type}`)
@@ -32,12 +38,19 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
   useEffect(() => { load() }, [type])
 
+  const resetForm = () => {
+    setName('')
+    setDescription('')
+    setConfigFields({})
+    setEditingId(null)
+  }
+
   const handleSubmit = async () => {
-    if (!form.name.trim()) return
+    if (!name.trim()) return
     const body = {
-      name: form.name.trim(),
-      description: form.description.trim() || null,
-      config: form.config.trim() || null,
+      name: name.trim(),
+      description: description.trim() || null,
+      config: JSON.stringify(configFields) || null,
     }
     if (editingId) {
       await fetch(`${API_BASE}/api/library/${type}/${editingId}`, {
@@ -52,8 +65,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         body: JSON.stringify(body),
       })
     }
-    setForm({ name: '', description: '', config: '' })
-    setEditingId(null)
+    resetForm()
     setShowForm(false)
     load()
   }
@@ -65,13 +77,19 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   }
 
   const startEdit = (entry: LibraryEntry) => {
-    setForm({
-      name: entry.name,
-      description: entry.description ?? '',
-      config: entry.config ?? '',
-    })
+    setName(entry.name)
+    setDescription(entry.description ?? '')
+    try {
+      setConfigFields(entry.config ? JSON.parse(entry.config) : {})
+    } catch {
+      setConfigFields({})
+    }
     setEditingId(entry.id)
     setShowForm(true)
+  }
+
+  const setField = (key: string, value: string) => {
+    setConfigFields(prev => ({ ...prev, [key]: value }))
   }
 
   if (loading) return <div style={styles.loading}>Lade...</div>
@@ -83,8 +101,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         <button
           style={styles.addBtn}
           onClick={() => {
-            setForm({ name: '', description: '', config: '' })
-            setEditingId(null)
+            resetForm()
             setShowForm(!showForm)
           }}
         >
@@ -97,23 +114,57 @@ export default function LibraryTable({ type }: LibraryTableProps) {
           <input
             style={styles.input}
             placeholder="Name *"
-            value={form.name}
-            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            value={name}
+            onChange={e => setName(e.target.value)}
           />
           <textarea
             style={styles.textarea}
             placeholder="Beschreibung"
-            value={form.description}
-            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            rows={3}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={2}
           />
-          <textarea
-            style={styles.textarea}
-            placeholder='Config (JSON, z.B. {"vorteile": "...", "nachteile": "..."})'
-            value={form.config}
-            onChange={e => setForm(p => ({ ...p, config: e.target.value }))}
-            rows={4}
-          />
+          {fields.map(field => (
+            <div key={field.key}>
+              <label style={styles.label}>{field.label}</label>
+              {field.type === 'select' ? (
+                <select
+                  style={styles.select}
+                  value={configFields[field.key] ?? ''}
+                  onChange={e => setField(field.key, e.target.value)}
+                >
+                  <option value="">Bitte wählen...</option>
+                  {field.options?.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              ) : field.type === 'textarea' ? (
+                <textarea
+                  style={styles.textarea}
+                  placeholder={field.placeholder}
+                  value={configFields[field.key] ?? ''}
+                  onChange={e => setField(field.key, e.target.value)}
+                  rows={3}
+                />
+              ) : field.type === 'number' ? (
+                <input
+                  style={styles.input}
+                  type="number"
+                  placeholder={field.placeholder}
+                  value={configFields[field.key] ?? ''}
+                  onChange={e => setField(field.key, e.target.value)}
+                />
+              ) : (
+                <input
+                  style={styles.input}
+                  type="text"
+                  placeholder={field.placeholder}
+                  value={configFields[field.key] ?? ''}
+                  onChange={e => setField(field.key, e.target.value)}
+                />
+              )}
+            </div>
+          ))}
           <div style={styles.formActions}>
             <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
               Abbrechen
@@ -129,24 +180,35 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         {entries.length === 0 ? (
           <p style={styles.empty}>Noch keine Einträge vorhanden.</p>
         ) : (
-          entries.map(entry => (
-            <div key={entry.id} style={styles.row}>
-              <div style={styles.rowContent}>
-                <div style={styles.rowName}>{entry.name}</div>
-                {entry.description && (
-                  <div style={styles.rowDesc}>{entry.description}</div>
-                )}
+          entries.map(entry => {
+            let configSummary = ''
+            try {
+              const cfg = entry.config ? JSON.parse(entry.config) : {}
+              const vals = Object.values(cfg).filter(v => v && v !== '')
+              configSummary = vals.slice(0, 3).join(' · ')
+            } catch {}
+            return (
+              <div key={entry.id} style={styles.row}>
+                <div style={styles.rowContent}>
+                  <div style={styles.rowName}>{entry.name}</div>
+                  {entry.description && (
+                    <div style={styles.rowDesc}>{entry.description}</div>
+                  )}
+                  {configSummary && (
+                    <div style={styles.rowConfig}>{configSummary}</div>
+                  )}
+                </div>
+                <div style={styles.rowActions}>
+                  <button style={styles.editBtn} onClick={() => startEdit(entry)}>
+                    Bearbeiten
+                  </button>
+                  <button style={styles.deleteBtn} onClick={() => setDeleteConfirm(entry.id)}>
+                    Löschen
+                  </button>
+                </div>
               </div>
-              <div style={styles.rowActions}>
-                <button style={styles.editBtn} onClick={() => startEdit(entry)}>
-                  Bearbeiten
-                </button>
-                <button style={styles.deleteBtn} onClick={() => setDeleteConfirm(entry.id)}>
-                  Löschen
-                </button>
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -184,16 +246,26 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
     borderRadius: 8, padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10,
   },
+  label: {
+    fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+    marginBottom: 4, display: 'block',
+  },
   input: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)', outline: 'none',
+    width: '100%',
+  },
+  select: {
+    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)', outline: 'none',
+    width: '100%',
   },
   textarea: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)',
-    outline: 'none', resize: 'vertical', fontFamily: 'monospace',
+    outline: 'none', resize: 'vertical', width: '100%',
   },
-  formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end' },
+  formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {
     background: 'transparent', border: '1px solid var(--border)',
     color: 'var(--text-primary)', borderRadius: 6, padding: '8px 16px', cursor: 'pointer',
@@ -215,6 +287,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13, color: 'var(--text-secondary)', marginTop: 2,
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
+  rowConfig: {
+    fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4,
+    fontStyle: 'italic',
+  },
   rowActions: { display: 'flex', gap: 8, marginLeft: 12, flexShrink: 0 },
   editBtn: {
     background: 'transparent', border: '1px solid var(--accent)',
@@ -225,7 +301,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--danger)', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 13,
   },
   modalOverlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+    position: 'fixed', inset: 0, background: 'var(--overlay)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
   },
   modal: {
