@@ -39,23 +39,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   )
   const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null)
   const [rollsDetail, setRollsDetail] = useState<{ dice: number[]; sum: number }[]>([])
-  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
-
-  const savedAttributes = (stepData as { attribute?: Record<string, number> } | null)?.attribute ?? {}
-  const savedRolls = (stepData as { rolls?: number[] } | null)?.rolls ?? []
-
-  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
-    if (prev === undefined) return true
-    if (prev === null && next === null) return false
-    if (prev === null || next === null) return true
-    const prevKeys = Object.keys(prev)
-    const nextKeys = Object.keys(next)
-    if (prevKeys.length !== nextKeys.length) return true
-    for (const key of nextKeys) {
-      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
-    }
-    return false
-  }
+  const initializedRef = useRef(false)
 
   const simplePool = useMemo(() => {
     const result: { value: number; originalIndex: number }[] = []
@@ -89,25 +73,31 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   }, [allAssigned, onValid])
 
   useEffect(() => {
-    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
-    if (!hasChanged) return
-    prevStepDataRef.current = stepData
+    if (initializedRef.current) return
+    initializedRef.current = true
+
+    const savedAttrs = (stepData as { attribute?: Record<string, number> } | null)?.attribute ?? {}
+    const savedRolls = (stepData as { rolls?: number[] } | null)?.rolls ?? []
 
     if (savedRolls.length === 10) {
       setRolls(savedRolls)
     } else {
       setRolls([])
     }
-    if (Object.keys(savedAttributes).length > 0) {
-      setAssignments(savedAttributes as Partial<Record<AttributeKey, number>>)
+    if (Object.keys(savedAttrs).length > 0) {
+      setAssignments(savedAttrs as Partial<Record<AttributeKey, number>>)
       setManualInputs(
-        Object.fromEntries(ATTRIBUTES.map((a) => [a, savedAttributes[a] !== undefined ? String(savedAttributes[a]) : '']))
+        Object.fromEntries(ATTRIBUTES.map((a) => [a, savedAttrs[a] !== undefined ? String(savedAttrs[a]) : '']))
       )
     } else {
       setAssignments({})
       setManualInputs(Object.fromEntries(ATTRIBUTES.map((a) => [a, ''])))
     }
   }, [stepData])
+
+  useEffect(() => {
+    return () => { initializedRef.current = false }
+  }, [])
 
   useEffect(() => {
     if (Object.keys(assignments).length > 0) {

@@ -53,7 +53,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const [staerken, setStaerken] = useState<string[]>([])
   const [ressourcen, setRessourcen] = useState<string[]>([])
   const [initialized, setInitialized] = useState(false)
-  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
+  const initializedRef = useRef(false)
 
 
   function buildMagicValues(s: Record<string, number>): Record<string, number> {
@@ -66,23 +66,9 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     return magicValues
   }
 
-  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
-    if (prev === undefined) return true
-    if (prev === null && next === null) return false
-    if (prev === null || next === null) return true
-    const prevKeys = Object.keys(prev)
-    const nextKeys = Object.keys(next)
-    if (prevKeys.length !== nextKeys.length) return true
-    for (const key of nextKeys) {
-      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
-    }
-    return false
-  }
-
   useEffect(() => {
-    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
-    if (!hasChanged) return
-    prevStepDataRef.current = stepData
+    if (initializedRef.current) return
+    initializedRef.current = true
 
     const saved = stepData as {
       skills?: Record<string, number>
@@ -104,6 +90,10 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     setRessourcen(saved?.ressourcen ?? [])
     setInitialized(true)
   }, [stepData])
+
+  useEffect(() => {
+    return () => { initializedRef.current = false }
+  }, [])
 
   const fertigkeitenUsed = Object.entries(skills)
     .filter(([id]) => !magicSchools.some((m) => m.id === id))

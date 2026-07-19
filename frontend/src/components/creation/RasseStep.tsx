@@ -58,29 +58,19 @@ export default function RasseStep({ onValid }: RasseStepProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalRace, setModalRace] = useState<typeof races[0] | null>(null)
-  const prevStepDataRef = useRef<Record<string, unknown> | null | undefined>(undefined)
-
-  function stepDataHasChanged(prev: Record<string, unknown> | null | undefined, next: Record<string, unknown> | null): boolean {
-    if (prev === undefined) return true
-    if (prev === null && next === null) return false
-    if (prev === null || next === null) return true
-    const prevKeys = Object.keys(prev)
-    const nextKeys = Object.keys(next)
-    if (prevKeys.length !== nextKeys.length) return true
-    for (const key of nextKeys) {
-      if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) return true
-    }
-    return false
-  }
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    const hasChanged = stepDataHasChanged(prevStepDataRef.current, stepData)
-    if (!hasChanged) return
-    prevStepDataRef.current = stepData
+    if (initializedRef.current) return
+    initializedRef.current = true
 
     const id = (stepData as { id?: string } | null)?.id
     setSelected(id ?? null)
   }, [stepData])
+
+  useEffect(() => {
+    return () => { initializedRef.current = false }
+  }, [])
 
   useEffect(() => {
     onValid(selected !== null)
