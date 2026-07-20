@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import LibraryTable from './LibraryTable'
+import StrengthsView from './StrengthsView'
 
 const TABS = [
   { id: 'races', label: 'Rassen' },
@@ -36,7 +37,11 @@ export default function LibraryView() {
         ))}
       </div>
       <div style={styles.content}>
-        <LibraryTable key={activeTab} type={activeTab} />
+        {activeTab === 'strengths' ? (
+          <StrengthsView />
+        ) : (
+          <LibraryTable key={activeTab} type={activeTab} />
+        )}
       </div>
     </div>
   )
