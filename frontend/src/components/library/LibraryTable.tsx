@@ -48,6 +48,8 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [configFields, setConfigFields] = useState<Record<string, string>>({})
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
 
   const schema = TYPE_SCHEMAS[type]
   const fields = schema?.fields ?? []
@@ -129,6 +131,64 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     setConfigFields(prev => ({ ...prev, [key]: value }))
   }
 
+  const parseStaerkenFile = (content: string): { name: string; description: string; config: Record<string, string> }[] => {
+    const results: { name: string; description: string; config: Record<string, string> }[] = []
+    const regex = /\*\*(.+?)\s*\((\d+)(\*?)\):\*\*\s*([\s\S]*?)(?=\n\n\*\*|\n*$)/g
+    let match
+    while ((match = regex.exec(content)) !== null) {
+      const name = match[1].trim()
+      const kosten = match[2]
+      const creationOnly = match[3] === '*'
+      const description = match[4].trim().replace(/\n/g, ' ')
+      results.push({
+        name,
+        description,
+        config: {
+          kosten,
+          nur_bei_erstellung: creationOnly ? 'true' : 'false',
+        },
+      })
+    }
+    return results
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const content = await file.text()
+      const parsed = parseStaerkenFile(content)
+      let imported = 0
+      let skipped = 0
+      const existingNames = new Set(entries.map((en) => en.name.toLowerCase()))
+      for (const entry of parsed) {
+        if (existingNames.has(entry.name.toLowerCase())) {
+          skipped++
+          continue
+        }
+        await fetch(`${API_BASE}/api/library/${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: entry.name,
+            description: entry.description,
+            config: JSON.stringify(entry.config),
+          }),
+        })
+        imported++
+      }
+      setImportResult({ imported, skipped })
+      load()
+    } catch (err) {
+      console.error('Import fehlgeschlagen:', err)
+    } finally {
+      setImporting(false)
+      e.target.value = ''
+    }
+  }
+
   const toggleMultiSelect = (key: string, id: string) => {
     setConfigFields(prev => {
       const current = parseConfigArray(prev[key])
@@ -149,16 +209,36 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       )}
       <div style={styles.header}>
         <span style={styles.count}>{entries.length} Einträge</span>
-        <button
-          style={styles.addBtn}
-          onClick={() => {
-            resetForm()
-            setShowForm(!showForm)
-          }}
-        >
-          {showForm ? 'Abbrechen' : '+ Neu'}
-        </button>
+        <div style={styles.headerActions}>
+          {type === 'strengths' && (
+            <label style={styles.importBtn}>
+              <input
+                type="file"
+                accept=".md"
+                style={{ display: 'none' }}
+                onChange={handleImport}
+                disabled={importing}
+              />
+              {importing ? 'Importiere...' : 'Datei importieren'}
+            </label>
+          )}
+          <button
+            style={styles.addBtn}
+            onClick={() => {
+              resetForm()
+              setShowForm(!showForm)
+            }}
+          >
+            {showForm ? 'Abbrechen' : '+ Neu'}
+          </button>
+        </div>
       </div>
+      {importResult && (
+        <div style={styles.successBanner}>
+          Import abgeschlossen: {importResult.imported} importiert, {importResult.skipped} übersprungen (bereits vorhanden).
+          <button style={styles.errorClose} onClick={() => setImportResult(null)}>×</button>
+        </div>
+      )}
 
       {showForm && (
         <div style={styles.form}>
@@ -334,10 +414,22 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent', border: 'none', color: 'var(--danger)',
     cursor: 'pointer', fontSize: 18, padding: '0 4px',
   },
+  successBanner: {
+    background: 'var(--bg-success, rgba(76,175,80,0.1))', border: '1px solid var(--success)',
+    borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    color: 'var(--success)', fontSize: 14,
+  },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
   count: { fontSize: 13, color: 'var(--text-secondary)' },
+  headerActions: { display: 'flex', gap: 8 },
+  importBtn: {
+    background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+    color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center',
+  },
   addBtn: {
     background: 'var(--accent)', border: 'none', color: '#fff',
     borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
