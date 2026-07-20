@@ -122,7 +122,6 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
     fields: [
       { key: 'kosten', label: 'Kosten (Punkte)', type: 'number', placeholder: '1' },
       { key: 'nur_bei_erstellung', label: 'Nur bei Erstellung wählbar', type: 'checkbox' },
-      { key: 'effekt', label: 'Effekt', type: 'textarea', required: true },
     ],
   },
 }
