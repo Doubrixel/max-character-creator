@@ -477,7 +477,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-secondary)', border: '2px solid var(--border)',
     borderRadius: 8, padding: '10px 12px', cursor: 'pointer',
     transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 6,
-    minHeight: 60,
+    minHeight: 60, outline: 'none',
   },
   cardSelected: {
     borderColor: 'var(--accent)', background: 'var(--bg-tertiary)',
