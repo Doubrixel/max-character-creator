@@ -184,7 +184,9 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
           {fields.map(field => (
             <div key={field.key} style={styles.formRow}>
-              <label style={styles.label}>{field.label}</label>
+              {field.type !== 'checkbox' && (
+                <label style={styles.label}>{field.label}</label>
+              )}
 
               {field.type === 'skillSelect' ? (
                 <div style={styles.chipContainer}>
@@ -232,6 +234,15 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                   value={configFields[field.key] ?? ''}
                   onChange={e => setField(field.key, e.target.value)}
                 />
+              ) : field.type === 'checkbox' ? (
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={configFields[field.key] === 'true'}
+                    onChange={e => setField(field.key, e.target.checked ? 'true' : 'false')}
+                  />
+                  <span>{field.label}</span>
+                </label>
               ) : (
                 <input
                   style={styles.input}
@@ -353,6 +364,10 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)',
     outline: 'none', resize: 'vertical', width: '100%',
+  },
+  checkboxLabel: {
+    display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text-primary)',
+    cursor: 'pointer',
   },
   chipContainer: {
     display: 'flex', flexWrap: 'wrap', gap: 6,

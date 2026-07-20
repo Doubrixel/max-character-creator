@@ -1,7 +1,7 @@
 export interface FieldSchema {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'statblock' | 'prerequisite'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'statblock' | 'prerequisite' | 'checkbox'
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -120,7 +120,9 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   strengths: {
     label: 'Stärken',
     fields: [
-      { key: 'effekt', label: 'Effekt', type: 'text', placeholder: '+1 auf ...' },
+      { key: 'kosten', label: 'Kosten (Punkte)', type: 'number', placeholder: '1' },
+      { key: 'nur_bei_erstellung', label: 'Nur bei Erstellung wählbar', type: 'checkbox' },
+      { key: 'effekt', label: 'Effekt', type: 'textarea', required: true },
     ],
   },
 }
