@@ -193,20 +193,6 @@ export default function StrengthsView() {
               <span style={styles.cardName}>{entry.name}</span>
               <span style={styles.cardKosten}>Kosten: {getKosten(entry)}</span>
             </div>
-            <div style={styles.cardActions}>
-              <button
-                style={styles.cardEditBtn}
-                onClick={(e) => { e.stopPropagation(); startEdit(entry) }}
-              >
-                Bearb.
-              </button>
-              <button
-                style={styles.cardDeleteBtn}
-                onClick={(e) => { e.stopPropagation(); setDeleteConfirm(entry.id) }}
-              >
-                Löschen
-              </button>
-            </div>
           </div>
         ))}
         {items.length === 0 && (
@@ -246,6 +232,23 @@ export default function StrengthsView() {
               />
               {importing ? 'Importiere...' : 'Datei importieren'}
             </label>
+            <button
+              style={selectedId ? styles.editBtn : styles.editBtnDisabled}
+              disabled={!selectedId}
+              onClick={() => {
+                if (!selectedEntry) return
+                startEdit(selectedEntry)
+              }}
+            >
+              Bearbeiten
+            </button>
+            <button
+              style={selectedId ? styles.deleteBtn : styles.deleteBtnDisabled}
+              disabled={!selectedId}
+              onClick={() => { if (selectedId) setDeleteConfirm(selectedId) }}
+            >
+              Löschen
+            </button>
             <button
               style={styles.addBtn}
               onClick={() => { resetForm(); setShowForm(!showForm) }}
@@ -411,6 +414,24 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--accent)', border: 'none', color: '#fff',
     borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
   },
+  editBtn: {
+    background: 'transparent', border: '1px solid var(--accent)',
+    color: 'var(--accent)', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+  },
+  editBtnDisabled: {
+    background: 'transparent', border: '1px solid var(--border)',
+    color: 'var(--text-tertiary)', borderRadius: 6, padding: '8px 16px', fontSize: 13,
+    opacity: 0.5, cursor: 'not-allowed',
+  },
+  deleteBtn: {
+    background: 'transparent', border: '1px solid var(--danger)',
+    color: 'var(--danger)', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+  },
+  deleteBtnDisabled: {
+    background: 'transparent', border: '1px solid var(--border)',
+    color: 'var(--text-tertiary)', borderRadius: 6, padding: '8px 16px', fontSize: 13,
+    opacity: 0.5, cursor: 'not-allowed',
+  },
   form: {
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
     borderRadius: 8, padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12,
@@ -470,19 +491,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardKosten: {
     fontSize: 11, color: 'var(--text-tertiary)',
-  },
-  cardActions: {
-    display: 'flex', gap: 4,
-  },
-  cardEditBtn: {
-    background: 'transparent', border: '1px solid var(--border)',
-    color: 'var(--text-secondary)', borderRadius: 4, padding: '2px 6px',
-    cursor: 'pointer', fontSize: 10,
-  },
-  cardDeleteBtn: {
-    background: 'transparent', border: '1px solid var(--danger)',
-    color: 'var(--danger)', borderRadius: 4, padding: '2px 6px',
-    cursor: 'pointer', fontSize: 10,
   },
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'var(--overlay)',
