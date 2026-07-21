@@ -26,6 +26,8 @@ export default function StrengthsView() {
   const [description, setDescription] = useState('')
   const [kosten, setKosten] = useState('1')
   const [nurBeiErstellung, setNurBeiErstellung] = useState(false)
+  const [kategorie, setKategorie] = useState('staerke')
+  const [unterkategorie, setUnterkategorie] = useState('vorteil')
 
   const load = () => {
     fetch(`${API_BASE}/api/library/strengths`)
@@ -54,8 +56,24 @@ export default function StrengthsView() {
     } catch { return '?' }
   }
 
+  const getKategorie = (e: StrengthEntry): string => {
+    try {
+      const cfg = e.config ? JSON.parse(e.config) : {}
+      return cfg.kategorie ?? 'staerke'
+    } catch { return 'staerke' }
+  }
+
+  const getUnterkategorie = (e: StrengthEntry): string => {
+    try {
+      const cfg = e.config ? JSON.parse(e.config) : {}
+      return cfg.unterkategorie ?? ''
+    } catch { return '' }
+  }
+
   const creationOnly = entries.filter(e => getCreationOnly(e))
-  const others = entries.filter(e => !getCreationOnly(e))
+  const others = entries.filter(e => !getCreationOnly(e) && getKategorie(e) === 'staerke')
+  const rassenVorteile = entries.filter(e => getKategorie(e) === 'rasse' && getUnterkategorie(e) === 'vorteil')
+  const rassenNachteile = entries.filter(e => getKategorie(e) === 'rasse' && getUnterkategorie(e) === 'nachteil')
   const selectedEntry = entries.find(e => e.id === selectedId) ?? null
 
   const resetForm = () => {
@@ -63,6 +81,8 @@ export default function StrengthsView() {
     setDescription('')
     setKosten('1')
     setNurBeiErstellung(false)
+    setKategorie('staerke')
+    setUnterkategorie('vorteil')
     setEditingId(null)
   }
 
@@ -71,7 +91,12 @@ export default function StrengthsView() {
     const body = {
       name: name.trim(),
       description: description.trim() || null,
-      config: JSON.stringify({ kosten, nur_bei_erstellung: nurBeiErstellung ? 'true' : 'false' }),
+      config: JSON.stringify({
+        kosten,
+        nur_bei_erstellung: nurBeiErstellung ? 'true' : 'false',
+        kategorie,
+        ...(kategorie === 'rasse' ? { unterkategorie } : {}),
+      }),
     }
     if (editingId) {
       await fetch(`${API_BASE}/api/library/strengths/${editingId}`, {
@@ -112,9 +137,13 @@ export default function StrengthsView() {
       const cfg = entry.config ? JSON.parse(entry.config) : {}
       setKosten(cfg.kosten ?? '1')
       setNurBeiErstellung(cfg.nur_bei_erstellung === 'true')
+      setKategorie(cfg.kategorie ?? 'staerke')
+      setUnterkategorie(cfg.unterkategorie ?? 'vorteil')
     } catch {
       setKosten('1')
       setNurBeiErstellung(false)
+      setKategorie('staerke')
+      setUnterkategorie('vorteil')
     }
     setEditingId(entry.id)
     setShowForm(true)
@@ -284,6 +313,30 @@ export default function StrengthsView() {
               />
             </div>
             <div style={styles.formRow}>
+              <label style={styles.label}>Kategorie</label>
+              <select
+                style={styles.select}
+                value={kategorie}
+                onChange={e => setKategorie(e.target.value)}
+              >
+                <option value="staerke">Stärke</option>
+                <option value="rasse">Rasse</option>
+              </select>
+            </div>
+            {kategorie === 'rasse' && (
+              <div style={styles.formRow}>
+                <label style={styles.label}>Unterkategorie *</label>
+                <select
+                  style={styles.select}
+                  value={unterkategorie}
+                  onChange={e => setUnterkategorie(e.target.value)}
+                >
+                  <option value="vorteil">Vorteil</option>
+                  <option value="nachteil">Nachteil</option>
+                </select>
+              </div>
+            )}
+            <div style={styles.formRow}>
               <label style={styles.label}>Kosten (Punkte)</label>
               <input
                 style={styles.input}
@@ -315,7 +368,9 @@ export default function StrengthsView() {
         )}
 
         {renderGrid('Nur bei Erstellung', creationOnly)}
-        {renderGrid('Alle Stärken', others)}
+        {renderGrid('Stärken', others)}
+        {renderGrid('Rassen-Vorteile', rassenVorteile)}
+        {renderGrid('Rassen-Nachteile', rassenNachteile)}
       </div>
 
       <div style={styles.detailPanel}>
@@ -325,6 +380,9 @@ export default function StrengthsView() {
             <div style={styles.detailMeta}>
               Kosten: {getKosten(selectedEntry)}
               {getCreationOnly(selectedEntry) && ' · Nur bei Erstellung'}
+              {getKategorie(selectedEntry) === 'rasse' && (
+                <> · {getUnterkategorie(selectedEntry) === 'vorteil' ? 'Rassen-Vorteil' : 'Rassen-Nachteil'}</>
+              )}
             </div>
             <div style={styles.detailDesc}>
               {selectedEntry.description || 'Keine Beschreibung vorhanden.'}
@@ -443,6 +501,11 @@ const styles: Record<string, React.CSSProperties> = {
   formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' },
   input: {
+    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)',
+    outline: 'none', width: '100%',
+  },
+  select: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)',
     outline: 'none', width: '100%',

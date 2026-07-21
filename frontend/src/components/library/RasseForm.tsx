@@ -42,8 +42,23 @@ export default function RasseForm({
   const [allSchwaechen, setAllSchwaechen] = useState<LibraryEntry[]>([])
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/library/strengths`).then(r => r.json()).then(setAllStaerken).catch(() => {})
-    fetch(`${API_BASE}/api/library/weaknesses`).then(r => r.json()).then(setAllSchwaechen).catch(() => {})
+    fetch(`${API_BASE}/api/library/strengths`)
+      .then(r => r.json())
+      .then((data: LibraryEntry[]) => {
+        setAllStaerken(data.filter(e => {
+          try {
+            const cfg = e.config ? JSON.parse(e.config) : {}
+            return cfg.kategorie === 'rasse' && cfg.unterkategorie === 'vorteil'
+          } catch { return false }
+        }))
+        setAllSchwaechen(data.filter(e => {
+          try {
+            const cfg = e.config ? JSON.parse(e.config) : {}
+            return cfg.kategorie === 'rasse' && cfg.unterkategorie === 'nachteil'
+          } catch { return false }
+        }))
+      })
+      .catch(() => {})
   }, [])
 
   const toggleStaerke = (id: string) => {
