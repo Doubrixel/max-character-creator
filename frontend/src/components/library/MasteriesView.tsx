@@ -203,8 +203,6 @@ export default function MasteriesView() {
     return formatVoraussetzung(parseConfig(e.config))
   }
 
-  const pflicht = entries.filter(e => getKategorie(e) === 'pflicht')
-  const bonus = entries.filter(e => getKategorie(e) !== 'pflicht')
   const selectedEntry = entries.find(e => e.id === selectedId) ?? null
 
   const resetForm = () => {
@@ -388,39 +386,36 @@ export default function MasteriesView() {
 
   if (loading) return <div style={styles.loading}>Lade...</div>
 
-  const renderGrid = (title: string, items: MasteryEntry[]) => (
-    <div style={styles.gridSection}>
-      <h3 style={styles.gridTitle}>{title} ({items.length})</h3>
-      <div style={styles.grid}>
-        {items.map(entry => {
-          const cfg = parseConfig(entry.config)
-          const schwelleNr = cfg.schwelle ?? ''
-          return (
-            <div
-              key={entry.id}
-              tabIndex={-1}
-              style={{
-                ...styles.card,
-                ...(selectedId === entry.id ? styles.cardSelected : {}),
-              }}
-              onClick={(e) => {
-                setSelectedId(entry.id === selectedId ? null : entry.id)
-                ;(e.currentTarget as HTMLElement).blur()
-              }}
-            >
-              <div style={styles.cardHeader}>
-                <span style={styles.cardName}>{entry.name}</span>
-                <span style={styles.cardMeta}>
-                  {schwelleNr && `S${schwelleNr} · `}Kosten: {getKosten(entry)}
-                </span>
-              </div>
+  const renderGrid = (items: MasteryEntry[]) => (
+    <div style={styles.grid}>
+      {items.map(entry => {
+        const cfg = parseConfig(entry.config)
+        const schwelleNr = cfg.schwelle ?? ''
+        return (
+          <div
+            key={entry.id}
+            tabIndex={-1}
+            style={{
+              ...styles.card,
+              ...(selectedId === entry.id ? styles.cardSelected : {}),
+            }}
+            onClick={(e) => {
+              setSelectedId(entry.id === selectedId ? null : entry.id)
+              ;(e.currentTarget as HTMLElement).blur()
+            }}
+          >
+            <div style={styles.cardHeader}>
+              <span style={styles.cardName}>{entry.name}</span>
+              <span style={styles.cardMeta}>
+                {schwelleNr && `S${schwelleNr} · `}Kosten: {getKosten(entry)}
+              </span>
             </div>
-          )
-        })}
-        {items.length === 0 && (
-          <div style={styles.gridEmpty}>Keine Einträge vorhanden.</div>
-        )}
-      </div>
+          </div>
+        )
+      })}
+      {items.length === 0 && (
+        <div style={styles.gridEmpty}>Keine Einträge vorhanden.</div>
+      )}
     </div>
   )
 
@@ -442,7 +437,10 @@ export default function MasteriesView() {
         )}
 
         <div style={styles.header}>
-          <span style={styles.count}>{entries.length} Meisterschaften</span>
+          <div style={styles.headerLeft}>
+            <span style={styles.count}>{entries.length} Meisterschaften</span>
+            <button style={styles.filterBtn} disabled>Filter</button>
+          </div>
           <div style={styles.headerActions}>
             <label style={styles.importBtn}>
               <input
@@ -572,8 +570,7 @@ export default function MasteriesView() {
           </div>
         )}
 
-        {renderGrid('Pflicht-Meisterschaften', pflicht)}
-        {renderGrid('Bonus-Meisterschaften', bonus)}
+        {renderGrid(entries)}
       </div>
 
       <div style={styles.detailPanel}>
@@ -687,7 +684,15 @@ const styles: Record<string, React.CSSProperties> = {
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
+  headerLeft: {
+    display: 'flex', alignItems: 'center', gap: 12,
+  },
   count: { fontSize: 13, color: 'var(--text-secondary)' },
+  filterBtn: {
+    background: 'transparent', border: '1px solid var(--border)',
+    color: 'var(--text-tertiary)', borderRadius: 6, padding: '8px 16px', fontSize: 13,
+    opacity: 0.5, cursor: 'not-allowed',
+  },
   headerActions: { display: 'flex', gap: 8 },
   importBtn: {
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
@@ -745,11 +750,6 @@ const styles: Record<string, React.CSSProperties> = {
   saveBtn: {
     background: 'var(--accent)', border: 'none', color: '#fff',
     borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600,
-  },
-  gridSection: { marginBottom: 24 },
-  gridTitle: {
-    fontSize: 15, fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 12px',
-    textTransform: 'uppercase', letterSpacing: '0.05em',
   },
   grid: {
     display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10,
