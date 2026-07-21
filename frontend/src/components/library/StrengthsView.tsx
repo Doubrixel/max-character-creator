@@ -320,7 +320,7 @@ export default function StrengthsView() {
                 onChange={e => setKategorie(e.target.value)}
               >
                 <option value="staerke">Stärke</option>
-                <option value="rasse">Rasse</option>
+                <option value="rasse">Rassenvorteil/-nachteil</option>
               </select>
             </div>
             {kategorie === 'rasse' && (
