@@ -12,7 +12,6 @@ interface LibraryEntry {
 interface RasseFormProps {
   editingId: string | null
   initialName?: string
-  initialDescription?: string
   initialConfig?: Record<string, string>
   onSaved: () => void
   onCancel: () => void
@@ -30,13 +29,11 @@ function parseIdArray(raw: string | null): string[] {
 export default function RasseForm({
   editingId,
   initialName = '',
-  initialDescription = '',
   initialConfig = {},
   onSaved,
   onCancel,
 }: RasseFormProps) {
   const [name, setName] = useState(initialName)
-  const [description, setDescription] = useState(initialDescription)
   const [beschreibung, setBeschreibung] = useState(initialConfig.beschreibung ?? '')
   const [selectedStaerken, setSelectedStaerken] = useState<string[]>(parseIdArray(initialConfig.staerken))
   const [selectedSchwaechen, setSelectedSchwaechen] = useState<string[]>(parseIdArray(initialConfig.schwaechen))
@@ -61,7 +58,7 @@ export default function RasseForm({
     if (!name.trim()) return
     const body = {
       name: name.trim(),
-      description: description.trim() || null,
+      description: null,
       config: JSON.stringify({
         beschreibung: beschreibung.trim(),
         staerken: selectedStaerken,
@@ -162,16 +159,6 @@ export default function RasseForm({
           value={beschreibung}
           onChange={e => setBeschreibung(e.target.value)}
           rows={3}
-        />
-      </div>
-      <div style={styles.formRow}>
-        <label style={styles.label}>Flavor / Lore</label>
-        <textarea
-          style={styles.textarea}
-          placeholder="Hintergrundgeschichte..."
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          rows={2}
         />
       </div>
       <div style={styles.pickColumns}>

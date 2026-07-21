@@ -167,7 +167,6 @@ export default function MasteriesView() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [effekt, setEffekt] = useState('')
   const [kosten, setKosten] = useState('1')
   const [kategorie, setKategorie] = useState('pflicht')
@@ -204,7 +203,6 @@ export default function MasteriesView() {
 
   const resetForm = () => {
     setName('')
-    setDescription('')
     setEffekt('')
     setKosten('1')
     setKategorie('pflicht')
@@ -234,7 +232,7 @@ export default function MasteriesView() {
     if (!name.trim()) return
     const body = {
       name: name.trim(),
-      description: description.trim() || null,
+      description: null,
       config: JSON.stringify(buildConfig()),
     }
     if (editingId) {
@@ -271,7 +269,6 @@ export default function MasteriesView() {
 
   const startEdit = (entry: MasteryEntry) => {
     setName(entry.name)
-    setDescription(entry.description ?? '')
     const cfg = parseConfig(entry.config)
     setEffekt(cfg.effekt ?? '')
     setKosten(cfg.kosten ?? '1')
@@ -493,16 +490,6 @@ export default function MasteriesView() {
                 rows={3}
               />
             </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Beschreibung</label>
-              <textarea
-                style={styles.textarea}
-                placeholder="Flavor / Lore..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={2}
-              />
-            </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ ...styles.formRow, flex: 1 }}>
                 <label style={styles.label}>Kosten (Punkte)</label>
@@ -592,11 +579,6 @@ export default function MasteriesView() {
             <div style={styles.detailDesc}>
               {getEffekt(selectedEntry) || 'Kein Effekt definiert.'}
             </div>
-            {selectedEntry.description && (
-              <div style={styles.detailLore}>
-                {selectedEntry.description}
-              </div>
-            )}
           </div>
         ) : (
           <div style={styles.detailPlaceholder}>
@@ -650,11 +632,6 @@ const styles: Record<string, React.CSSProperties> = {
   detailDesc: {
     fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6,
     whiteSpace: 'pre-wrap',
-  },
-  detailLore: {
-    fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.5,
-    fontStyle: 'italic', borderTop: '1px solid var(--border)', paddingTop: 12,
-    marginTop: 4,
   },
   detailPlaceholder: {
     color: 'var(--text-tertiary)', fontSize: 14, fontStyle: 'italic',

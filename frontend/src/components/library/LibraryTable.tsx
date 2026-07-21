@@ -53,7 +53,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [rasseEditingId, setRasseEditingId] = useState<string | null>(null)
   const [rasseName, setRasseName] = useState('')
-  const [rasseDescription, setRasseDescription] = useState('')
   const [rasseConfig, setRasseConfig] = useState<Record<string, string>>({})
 
   const schema = TYPE_SCHEMAS[type]
@@ -117,7 +116,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     if (type === 'races') {
       setRasseEditingId(entry.id)
       setRasseName(entry.name)
-      setRasseDescription(entry.description ?? '')
       setRasseConfig(entry.config ? JSON.parse(entry.config) : {})
       setShowForm(true)
       return
@@ -257,7 +255,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         <RasseForm
           editingId={rasseEditingId}
           initialName={rasseName}
-          initialDescription={rasseDescription}
           initialConfig={rasseConfig}
           onSaved={() => { setShowForm(false); setRasseEditingId(null); load() }}
           onCancel={() => { setShowForm(false); setRasseEditingId(null) }}

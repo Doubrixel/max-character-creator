@@ -380,11 +380,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6,
     whiteSpace: 'pre-wrap',
   },
-  detailLore: {
-    fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.5,
-    fontStyle: 'italic', borderTop: '1px solid var(--border)', paddingTop: 12,
-    marginTop: 4,
-  },
   detailPlaceholder: {
     color: 'var(--text-tertiary)', fontSize: 14, fontStyle: 'italic',
     textAlign: 'center', padding: 40,
