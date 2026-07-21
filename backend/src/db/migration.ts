@@ -171,10 +171,29 @@ async function seedSkillsFromMasteries() {
   console.log(`Migration: seeded ${inserted} skills from mastery references`);
 }
 
+async function createWeaknessesTable() {
+  const result = await client.execute({ sql: `SELECT name FROM sqlite_master WHERE type='table' AND name='weaknesses'`, args: [] });
+  if (result.rows && result.rows.length > 0) return;
+
+  console.log('Migration: creating weaknesses table');
+
+  await client.execute(`CREATE TABLE weaknesses (
+    id text PRIMARY KEY NOT NULL,
+    name text NOT NULL,
+    description text,
+    config text,
+    created_at integer,
+    updated_at integer
+  )`);
+
+  console.log('Migration: weaknesses table created');
+}
+
 export async function runMigration() {
   await repairCharactersTable();
   await makeSkillsTypeNullable();
   await createStrengthsTable();
+  await createWeaknessesTable();
   await seedSkillsFromMasteries();
 
   if ((await columnExists('character_steps', 'data')) && !(await columnExists('character_steps', 'delta'))) {

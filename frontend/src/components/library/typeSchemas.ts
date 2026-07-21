@@ -1,7 +1,7 @@
 export interface FieldSchema {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'statblock' | 'prerequisite' | 'checkbox'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox'
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -11,19 +11,9 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   races: {
     label: 'Rassen',
     fields: [
-      { key: 'spezieslaw', label: 'Spezieslaw (Regeltext)', type: 'textarea', required: true },
-      { key: 'statblock_MU', label: 'MU (Mut)', type: 'number', placeholder: '0' },
-      { key: 'statblock_KL', label: 'KL (Klugheit)', type: 'number', placeholder: '0' },
-      { key: 'statblock_IN', label: 'IN (Intuition)', type: 'number', placeholder: '0' },
-      { key: 'statblock_CH', label: 'CH (Charisma)', type: 'number', placeholder: '0' },
-      { key: 'statblock_FF', label: 'FF (Fingerfertigkeit)', type: 'number', placeholder: '0' },
-      { key: 'statblock_GE', label: 'GE (Gewandheit)', type: 'number', placeholder: '0' },
-      { key: 'statblock_KO', label: 'KO (Konstitution)', type: 'number', placeholder: '0' },
-      { key: 'statblock_KK', label: 'KK (Körperkraft)', type: 'number', placeholder: '0' },
-      { key: 'statblock_SR', label: 'SR (Sinnenschärfe)', type: 'number', placeholder: '0' },
-      { key: 'skillBonuses', label: 'Skill-Boni (JSON)', type: 'textarea', placeholder: '{"nahkampf":1,"wahrnehmung":2}' },
-      { key: 'vorteile', label: 'Vorteile (JSON)', type: 'textarea', placeholder: '[{"name":"Dunkelsicht","effekt":"sieht im Dunkeln"}]' },
-      { key: 'nachteile', label: 'Nachteile (JSON)', type: 'textarea', placeholder: '[{"name":"Lichtempfindlichkeit","effekt":"-2 bei Sonnenlicht"}]' },
+      { key: 'beschreibung', label: 'Beschreibung', type: 'textarea' },
+      { key: 'staerken', label: 'Stärken', type: 'libraryPick', placeholder: 'Stärken auswählen...' },
+      { key: 'schwaechen', label: 'Schwächen', type: 'libraryPick', placeholder: 'Schwächen auswählen...' },
     ],
   },
   cultures: {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, type FieldSchema } from './typeSchemas'
+import RasseForm from './RasseForm'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -50,6 +51,10 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [configFields, setConfigFields] = useState<Record<string, string>>({})
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
+  const [rasseEditingId, setRasseEditingId] = useState<string | null>(null)
+  const [rasseName, setRasseName] = useState('')
+  const [rasseDescription, setRasseDescription] = useState('')
+  const [rasseConfig, setRasseConfig] = useState<Record<string, string>>({})
 
   const schema = TYPE_SCHEMAS[type]
   const fields = schema?.fields ?? []
@@ -109,6 +114,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   }
 
   const startEdit = (entry: LibraryEntry) => {
+    if (type === 'races') {
+      setRasseEditingId(entry.id)
+      setRasseName(entry.name)
+      setRasseDescription(entry.description ?? '')
+      setRasseConfig(entry.config ? JSON.parse(entry.config) : {})
+      setShowForm(true)
+      return
+    }
     setName(entry.name)
     setDescription(entry.description ?? '')
     try {
@@ -240,7 +253,18 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         </div>
       )}
 
-      {showForm && (
+      {showForm && type === 'races' && (
+        <RasseForm
+          editingId={rasseEditingId}
+          initialName={rasseName}
+          initialDescription={rasseDescription}
+          initialConfig={rasseConfig}
+          onSaved={() => { setShowForm(false); setRasseEditingId(null); load() }}
+          onCancel={() => { setShowForm(false); setRasseEditingId(null) }}
+        />
+      )}
+
+      {showForm && type !== 'races' && (
         <div style={styles.form}>
           <div style={styles.formRow}>
             <label style={styles.label}>Name *</label>

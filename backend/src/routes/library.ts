@@ -12,6 +12,7 @@ import {
   derivedValues,
   skills,
   strengths,
+  weaknesses,
   characterSteps,
 } from '../db/schema'
 import { eq } from 'drizzle-orm'
@@ -28,6 +29,7 @@ const libraryTables = [
   { path: 'derived-values', table: derivedValues },
   { path: 'skills', table: skills },
   { path: 'strengths', table: strengths },
+  { path: 'weaknesses', table: weaknesses },
 ]
 
 function createLibraryRoutes() {
