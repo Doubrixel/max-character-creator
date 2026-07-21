@@ -12,6 +12,15 @@ interface MasteryEntry {
   updatedAt: number | null
 }
 
+interface ParsedMastery {
+  name: string
+  effekt: string
+  kategorie: string
+  schwelle: number
+  voraussetzung: string
+  config: Record<string, string>
+}
+
 function parseConfig(raw: string | null): Record<string, string> {
   if (!raw) return {}
   try { return JSON.parse(raw) } catch { return {} }
@@ -21,12 +30,139 @@ function getSkillName(id: string): string {
   return SKILL_OPTIONS.find(s => s.id === id)?.name ?? id
 }
 
+function formatVoraussetzung(cfg: Record<string, string>): string {
+  const typ = cfg.voraussetzung_typ
+  const id = cfg.voraussetzung_id
+  const wert = cfg.voraussetzung_wert
+  if (!typ || !id) return ''
+  if (typ === 'meisterschaft') return `Meisterschaft ${id}`
+  if (typ === 'fertigkeitspunkte') return `${getSkillName(id)} ${wert ?? ''}`.trim()
+  if (typ === 'schwerpunkt') return `Schwerpunkt ${id}`
+  if (typ === 'staerke') return `Stärke ${id}`
+  return `${getSkillName(id)} >= ${wert ?? '?'}`
+}
+
+function parseMeisterschaftenFile(content: string): ParsedMastery[] {
+  const lines = content.split('\n')
+  const results: ParsedMastery[] = []
+
+  let currentCategory = 'Allgemein'
+  let currentSchwelle = 1
+  let currentName = ''
+  let currentEffect = ''
+  let currentVoraussetzung = ''
+
+  const entryRegex = /^\*\*(.+?)((?:\s*\(([^)]+)\))?\s*:\*\*\s*)(.*)$/
+
+  const finalizeEntry = () => {
+    if (!currentName) return
+    const nameClean = currentName.trim()
+    const effectClean = currentEffect.trim()
+    if (!effectClean) return
+
+    const voraussetzung = currentVoraussetzung.trim()
+    const config: Record<string, string> = {
+      effekt: effectClean,
+      kosten: currentSchwelle <= 2 ? '1' : currentSchwelle === 3 ? '2' : '3',
+      kategorie: 'pflicht',
+      schwelle: String(currentSchwelle),
+      kategorie_name: currentCategory,
+    }
+
+    if (voraussetzung) {
+      const meisterMatch = voraussetzung.match(/^Meisterschaft\s+(?:.+?\s+in\s+der\s+Fertigkeit\s+)?(.+?)$/i)
+      if (meisterMatch) {
+        config.voraussetzung_typ = 'meisterschaft'
+        config.voraussetzung_id = meisterMatch[1].trim()
+      } else {
+        const fpMatch = voraussetzung.match(/^Fertigkeitspunkte\s+(\S+)\s+(\d+)$/i)
+        if (fpMatch) {
+          config.voraussetzung_typ = 'fertigkeitspunkte'
+          config.voraussetzung_id = fpMatch[1].toLowerCase()
+          config.voraussetzung_wert = fpMatch[2]
+        } else if (voraussetzung.startsWith('Schwerpunkt')) {
+          config.voraussetzung_typ = 'schwerpunkt'
+          config.voraussetzung_id = voraussetzung.replace(/^Schwerpunkt\s+/i, '').trim()
+        } else if (voraussetzung.startsWith('Stärke')) {
+          config.voraussetzung_typ = 'staerke'
+          config.voraussetzung_id = voraussetzung.replace(/^Stärke\s+/i, '').trim()
+        }
+      }
+    }
+
+    results.push({
+      name: nameClean,
+      effekt: effectClean,
+      kategorie: 'pflicht',
+      schwelle: currentSchwelle,
+      voraussetzung,
+      config,
+    })
+
+    currentName = ''
+    currentEffect = ''
+    currentVoraussetzung = ''
+  }
+
+  for (const line of lines) {
+    if (line.startsWith('***')) {
+      finalizeEntry()
+      currentCategory = line.replace(/\*+/g, '').trim()
+      continue
+    }
+
+    if (line.match(/^\*\*Schwelle\s+\d/)) {
+      finalizeEntry()
+      const schwelleMatch = line.match(/\d+/)
+      if (schwelleMatch) currentSchwelle = parseInt(schwelleMatch[0])
+      continue
+    }
+
+    if (line.match(/^_{3,}$/)) {
+      finalizeEntry()
+      continue
+    }
+
+    if (line.match(/^---+$/)) {
+      finalizeEntry()
+      continue
+    }
+
+    const entryMatch = line.match(entryRegex)
+    if (entryMatch) {
+      finalizeEntry()
+      currentName = entryMatch[1].trim()
+      if (entryMatch[3]) currentName += ` (${entryMatch[3]})`
+      if (entryMatch[4]) currentEffect = entryMatch[4]
+      continue
+    }
+
+    if (line.match(/^Voraussetzung(?:en)?:/i)) {
+      currentVoraussetzung = line.replace(/^Voraussetzung(?:en)?:\s*/i, '')
+      continue
+    }
+
+    if (currentName) {
+      if (line.trim() === '') {
+        currentEffect += '\n'
+      } else {
+        currentEffect += (currentEffect ? ' ' : '') + line
+      }
+    }
+  }
+
+  finalizeEntry()
+  return results
+}
+
 export default function MasteriesView() {
   const [entries, setEntries] = useState<MasteryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -35,7 +171,8 @@ export default function MasteriesView() {
   const [effekt, setEffekt] = useState('')
   const [kosten, setKosten] = useState('1')
   const [kategorie, setKategorie] = useState('pflicht')
-  const [voraussetzungTyp, setVoraussetzungTyp] = useState('skill >= wert')
+  const [schwelle, setSchwelle] = useState('1')
+  const [voraussetzungTyp, setVoraussetzungTyp] = useState('keine')
   const [voraussetzungId, setVoraussetzungId] = useState('')
   const [voraussetzungWert, setVoraussetzungWert] = useState('6')
 
@@ -61,11 +198,9 @@ export default function MasteriesView() {
   const getEffekt = (e: MasteryEntry): string => {
     return parseConfig(e.config).effekt ?? ''
   }
-  const getVoraussetzung = (e: MasteryEntry): string => {
-    const cfg = parseConfig(e.config)
-    if (!cfg.voraussetzung_id) return ''
-    const wert = cfg.voraussetzung_wert ?? '?'
-    return `${getSkillName(cfg.voraussetzung_id)} >= ${wert}`
+
+  const getVoraussetzungDisplay = (e: MasteryEntry): string => {
+    return formatVoraussetzung(parseConfig(e.config))
   }
 
   const pflicht = entries.filter(e => getKategorie(e) === 'pflicht')
@@ -78,20 +213,27 @@ export default function MasteriesView() {
     setEffekt('')
     setKosten('1')
     setKategorie('pflicht')
-    setVoraussetzungTyp('skill >= wert')
+    setSchwelle('1')
+    setVoraussetzungTyp('keine')
     setVoraussetzungId('')
     setVoraussetzungWert('6')
     setEditingId(null)
   }
 
-  const buildConfig = () => ({
-    effekt,
-    kosten,
-    kategorie,
-    voraussetzung_typ: voraussetzungTyp,
-    voraussetzung_id: voraussetzungId,
-    voraussetzung_wert: voraussetzungWert,
-  })
+  const buildConfig = () => {
+    const cfg: Record<string, string> = {
+      effekt,
+      kosten,
+      kategorie,
+      schwelle,
+    }
+    if (voraussetzungTyp !== 'keine' && voraussetzungId) {
+      cfg.voraussetzung_typ = voraussetzungTyp
+      cfg.voraussetzung_id = voraussetzungId
+      if (voraussetzungWert) cfg.voraussetzung_wert = voraussetzungWert
+    }
+    return cfg
+  }
 
   const handleSubmit = async () => {
     if (!name.trim()) return
@@ -139,11 +281,109 @@ export default function MasteriesView() {
     setEffekt(cfg.effekt ?? '')
     setKosten(cfg.kosten ?? '1')
     setKategorie(cfg.kategorie ?? 'pflicht')
-    setVoraussetzungTyp(cfg.voraussetzung_typ ?? 'skill >= wert')
+    setSchwelle(cfg.schwelle ?? '1')
+    setVoraussetzungTyp(cfg.voraussetzung_typ ?? 'keine')
     setVoraussetzungId(cfg.voraussetzung_id ?? '')
     setVoraussetzungWert(cfg.voraussetzung_wert ?? '6')
     setEditingId(entry.id)
     setShowForm(true)
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const content = await file.text()
+      const parsed = parseMeisterschaftenFile(content)
+      let imported = 0
+      let skipped = 0
+      const existingNames = new Set(entries.map(en => en.name.toLowerCase()))
+      for (const entry of parsed) {
+        if (existingNames.has(entry.name.toLowerCase())) {
+          skipped++
+          continue
+        }
+        await fetch(`${API_BASE}/api/library/masteries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: entry.name,
+            description: null,
+            config: JSON.stringify(entry.config),
+          }),
+        })
+        imported++
+      }
+      setImportResult({ imported, skipped })
+      load()
+    } catch (err) {
+      console.error('Import fehlgeschlagen:', err)
+    } finally {
+      setImporting(false)
+      e.target.value = ''
+    }
+  }
+
+  const renderVoraussetzungFields = () => {
+    if (voraussetzungTyp === 'keine') return null
+
+    if (voraussetzungTyp === 'meisterschaft') {
+      return (
+        <div style={styles.formRow}>
+          <label style={styles.label}>Meisterschaftsname</label>
+          <input
+            style={styles.input}
+            placeholder="z.B. Kampf mit zwei Waffen"
+            value={voraussetzungId}
+            onChange={e => setVoraussetzungId(e.target.value)}
+          />
+        </div>
+      )
+    }
+
+    if (voraussetzungTyp === 'schwerpunkt' || voraussetzungTyp === 'staerke') {
+      return (
+        <div style={styles.formRow}>
+          <label style={styles.label}>{voraussetzungTyp === 'schwerpunkt' ? 'Schwerpunkt' : 'Stärke'} Name</label>
+          <input
+            style={styles.input}
+            placeholder={voraussetzungTyp === 'schwerpunkt' ? 'z.B. Wettervorhersage' : 'z.B. Tiervertrauter'}
+            value={voraussetzungId}
+            onChange={e => setVoraussetzungId(e.target.value)}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <>
+        <div style={styles.formRow}>
+          <label style={styles.label}>Skill</label>
+          <select
+            style={styles.select}
+            value={voraussetzungId}
+            onChange={e => setVoraussetzungId(e.target.value)}
+          >
+            <option value="">Keine</option>
+            {SKILL_OPTIONS.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={styles.formRow}>
+          <label style={styles.label}>Min-Wert</label>
+          <input
+            style={styles.input}
+            type="number"
+            placeholder="6"
+            value={voraussetzungWert}
+            onChange={e => setVoraussetzungWert(e.target.value)}
+          />
+        </div>
+      </>
+    )
   }
 
   if (loading) return <div style={styles.loading}>Lade...</div>
@@ -152,25 +392,31 @@ export default function MasteriesView() {
     <div style={styles.gridSection}>
       <h3 style={styles.gridTitle}>{title} ({items.length})</h3>
       <div style={styles.grid}>
-        {items.map(entry => (
-          <div
-            key={entry.id}
-            tabIndex={-1}
-            style={{
-              ...styles.card,
-              ...(selectedId === entry.id ? styles.cardSelected : {}),
-            }}
-            onClick={(e) => {
-              setSelectedId(entry.id === selectedId ? null : entry.id)
-              ;(e.currentTarget as HTMLElement).blur()
-            }}
-          >
-            <div style={styles.cardHeader}>
-              <span style={styles.cardName}>{entry.name}</span>
-              <span style={styles.cardMeta}>Kosten: {getKosten(entry)}</span>
+        {items.map(entry => {
+          const cfg = parseConfig(entry.config)
+          const schwelleNr = cfg.schwelle ?? ''
+          return (
+            <div
+              key={entry.id}
+              tabIndex={-1}
+              style={{
+                ...styles.card,
+                ...(selectedId === entry.id ? styles.cardSelected : {}),
+              }}
+              onClick={(e) => {
+                setSelectedId(entry.id === selectedId ? null : entry.id)
+                ;(e.currentTarget as HTMLElement).blur()
+              }}
+            >
+              <div style={styles.cardHeader}>
+                <span style={styles.cardName}>{entry.name}</span>
+                <span style={styles.cardMeta}>
+                  {schwelleNr && `S${schwelleNr} · `}Kosten: {getKosten(entry)}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         {items.length === 0 && (
           <div style={styles.gridEmpty}>Keine Einträge vorhanden.</div>
         )}
@@ -188,9 +434,26 @@ export default function MasteriesView() {
           </div>
         )}
 
+        {importResult && (
+          <div style={styles.successBanner}>
+            Import: {importResult.imported} importiert, {importResult.skipped} übersprungen.
+            <button style={styles.errorClose} onClick={() => setImportResult(null)}>×</button>
+          </div>
+        )}
+
         <div style={styles.header}>
           <span style={styles.count}>{entries.length} Meisterschaften</span>
           <div style={styles.headerActions}>
+            <label style={styles.importBtn}>
+              <input
+                type="file"
+                accept=".md"
+                style={{ display: 'none' }}
+                onChange={handleImport}
+                disabled={importing}
+              />
+              {importing ? 'Importiere...' : 'Datei importieren'}
+            </label>
             <button
               style={selectedId ? styles.editBtn : styles.editBtnDisabled}
               disabled={!selectedId}
@@ -245,61 +508,59 @@ export default function MasteriesView() {
                 rows={2}
               />
             </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Kosten (Punkte)</label>
-              <input
-                style={styles.input}
-                type="number"
-                placeholder="1"
-                value={kosten}
-                onChange={e => setKosten(e.target.value)}
-              />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ ...styles.formRow, flex: 1 }}>
+                <label style={styles.label}>Kosten (Punkte)</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  placeholder="1"
+                  value={kosten}
+                  onChange={e => setKosten(e.target.value)}
+                />
+              </div>
+              <div style={{ ...styles.formRow, flex: 1 }}>
+                <label style={styles.label}>Schwelle</label>
+                <select
+                  style={styles.select}
+                  value={schwelle}
+                  onChange={e => setSchwelle(e.target.value)}
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div style={{ ...styles.formRow, flex: 1 }}>
+                <label style={styles.label}>Kategorie</label>
+                <select
+                  style={styles.select}
+                  value={kategorie}
+                  onChange={e => setKategorie(e.target.value)}
+                >
+                  <option value="pflicht">Pflicht</option>
+                  <option value="bonus">Bonus</option>
+                </select>
+              </div>
             </div>
             <div style={styles.formRow}>
-              <label style={styles.label}>Kategorie</label>
-              <select
-                style={styles.select}
-                value={kategorie}
-                onChange={e => setKategorie(e.target.value)}
-              >
-                <option value="pflicht">Pflicht</option>
-                <option value="bonus">Bonus</option>
-              </select>
-            </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Voraussetzung Typ</label>
+              <label style={styles.label}>Voraussetzung</label>
               <select
                 style={styles.select}
                 value={voraussetzungTyp}
-                onChange={e => setVoraussetzungTyp(e.target.value)}
+                onChange={e => { setVoraussetzungTyp(e.target.value); setVoraussetzungId('') }}
               >
+                <option value="keine">Keine</option>
+                <option value="meisterschaft">Meisterschaft</option>
                 <option value="skill >= wert">Skill {'>='} Wert</option>
                 <option value="magie >= wert">Magie {'>='} Wert</option>
+                <option value="fertigkeitspunkte">Fertigkeitspunkte</option>
+                <option value="schwerpunkt">Schwerpunkt</option>
+                <option value="staerke">Stärke</option>
               </select>
             </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Voraussetzung Skill</label>
-              <select
-                style={styles.select}
-                value={voraussetzungId}
-                onChange={e => setVoraussetzungId(e.target.value)}
-              >
-                <option value="">Keine</option>
-                {SKILL_OPTIONS.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Voraussetzung Min-Wert</label>
-              <input
-                style={styles.input}
-                type="number"
-                placeholder="6"
-                value={voraussetzungWert}
-                onChange={e => setVoraussetzungWert(e.target.value)}
-              />
-            </div>
+            {renderVoraussetzungFields()}
             <div style={styles.formActions}>
               <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
                 Abbrechen
@@ -320,11 +581,19 @@ export default function MasteriesView() {
           <div style={styles.detailContent}>
             <h3 style={styles.detailName}>{selectedEntry.name}</h3>
             <div style={styles.detailMeta}>
-              Kosten: {getKosten(selectedEntry)} · {getKategorie(selectedEntry) === 'pflicht' ? 'Pflicht' : 'Bonus'}
+              {(() => {
+                const cfg = parseConfig(selectedEntry.config)
+                const parts: string[] = []
+                parts.push(`Kosten: ${getKosten(selectedEntry)}`)
+                if (cfg.schwelle) parts.push(`Schwelle ${cfg.schwelle}`)
+                parts.push(getKategorie(selectedEntry) === 'pflicht' ? 'Pflicht' : 'Bonus')
+                if (cfg.kategorie_name) parts.push(cfg.kategorie_name)
+                return parts.join(' · ')
+              })()}
             </div>
-            {getVoraussetzung(selectedEntry) && (
+            {getVoraussetzungDisplay(selectedEntry) && (
               <div style={styles.detailMeta}>
-                Voraussetzung: {getVoraussetzung(selectedEntry)}
+                Voraussetzung: {getVoraussetzungDisplay(selectedEntry)}
               </div>
             )}
             <div style={styles.detailDesc}>
@@ -409,11 +678,22 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'transparent', border: 'none', color: 'var(--danger)',
     cursor: 'pointer', fontSize: 18, padding: '0 4px',
   },
+  successBanner: {
+    background: 'var(--bg-success, rgba(76,175,80,0.1))', border: '1px solid var(--success)',
+    borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    color: 'var(--success)', fontSize: 14,
+  },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
   },
   count: { fontSize: 13, color: 'var(--text-secondary)' },
   headerActions: { display: 'flex', gap: 8 },
+  importBtn: {
+    background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+    color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center',
+  },
   addBtn: {
     background: 'var(--accent)', border: 'none', color: '#fff',
     borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
