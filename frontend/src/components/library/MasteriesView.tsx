@@ -634,16 +634,16 @@ export default function MasteriesView() {
 
 const styles: Record<string, React.CSSProperties> = {
   layout: {
-    display: 'flex', gap: 20, minHeight: 400, overflow: 'hidden',
+    display: 'flex', gap: 20, alignItems: 'flex-start',
   },
   main: {
-    flex: 3, minWidth: 0, overflow: 'auto',
+    flex: 3, minWidth: 0,
   },
   detailPanel: {
-    flex: 1, minWidth: 250, maxWidth: '25vw',
+    flex: '0 0 300px', width: 300,
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
-    borderRadius: 12, padding: 20, position: 'sticky', top: 0,
-    maxHeight: 'calc(100vh - 200px)', overflow: 'auto',
+    borderRadius: 12, padding: 20, position: 'sticky', top: 20,
+    maxHeight: 'calc(100vh - 40px)', overflow: 'auto',
   },
   detailContent: {
     display: 'flex', flexDirection: 'column', gap: 12,
