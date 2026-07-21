@@ -73,7 +73,6 @@ export default function StrengthsView() {
   const creationOnly = entries.filter(e => getCreationOnly(e))
   const others = entries.filter(e => !getCreationOnly(e) && getKategorie(e) === 'staerke')
   const rassenVorteile = entries.filter(e => getKategorie(e) === 'rasse' && getUnterkategorie(e) === 'vorteil')
-  const rassenNachteile = entries.filter(e => getKategorie(e) === 'rasse' && getUnterkategorie(e) === 'nachteil')
   const selectedEntry = entries.find(e => e.id === selectedId) ?? null
 
   const resetForm = () => {
@@ -370,7 +369,6 @@ export default function StrengthsView() {
         {renderGrid('Nur bei Erstellung', creationOnly)}
         {renderGrid('Stärken', others)}
         {renderGrid('Rassen-Vorteile', rassenVorteile)}
-        {renderGrid('Rassen-Nachteile', rassenNachteile)}
       </div>
 
       <div style={styles.detailPanel}>
