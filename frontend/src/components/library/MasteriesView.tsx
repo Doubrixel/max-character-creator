@@ -637,10 +637,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex', gap: 20, alignItems: 'flex-start',
   },
   main: {
-    flex: 3, minWidth: 0,
+    flex: 1, minWidth: 0,
   },
   detailPanel: {
-    flex: '0 0 300px', width: 300,
+    flex: '0 0 25%', width: '25%',
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 12, padding: 20, position: 'sticky', top: 20,
     maxHeight: 'calc(100vh - 40px)', overflow: 'auto',
@@ -752,7 +752,7 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase', letterSpacing: '0.05em',
   },
   grid: {
-    display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10,
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10,
   },
   gridEmpty: {
     gridColumn: '1 / -1', color: 'var(--text-tertiary)', fontSize: 13,
