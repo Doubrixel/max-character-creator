@@ -17,9 +17,9 @@ function parseConfig(raw: string | null): Record<string, string> {
 }
 
 const KATEGORIE_LABELS: Record<string, string> = {
-  talent: 'Talent',
-  waffe: 'Waffe',
-  magie: 'Magie',
+  fertigkeit: 'Fertigkeit',
+  kampf: 'Kampffertigkeit',
+  magie: 'Magieschule',
 }
 
 export default function SkillsView() {
@@ -33,8 +33,7 @@ export default function SkillsView() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [kategorie, setKategorie] = useState('talent')
-  const [maxWert, setMaxWert] = useState('10')
+  const [kategorie, setKategorie] = useState('fertigkeit')
   const [beschreibung, setBeschreibung] = useState('')
   const [attribut1, setAttribut1] = useState('')
   const [attribut2, setAttribut2] = useState('')
@@ -63,8 +62,7 @@ export default function SkillsView() {
   const resetForm = () => {
     setName('')
     setDescription('')
-    setKategorie('talent')
-    setMaxWert('10')
+    setKategorie('fertigkeit')
     setBeschreibung('')
     setAttribut1('')
     setAttribut2('')
@@ -74,7 +72,7 @@ export default function SkillsView() {
   const buildConfig = () => {
     const cfg: Record<string, string> = {
       kategorie,
-      maxWert,
+      maxWert: '18',
     }
     if (beschreibung.trim()) cfg.beschreibung = beschreibung.trim()
     if (attribut1.trim()) cfg.attribut1 = attribut1.trim()
@@ -125,8 +123,7 @@ export default function SkillsView() {
     setName(entry.name)
     setDescription(entry.description ?? '')
     const cfg = parseConfig(entry.config)
-    setKategorie(cfg.kategorie ?? 'talent')
-    setMaxWert(cfg.maxWert ?? '10')
+    setKategorie(cfg.kategorie ?? 'fertigkeit')
     setBeschreibung(cfg.beschreibung ?? '')
     setAttribut1(cfg.attribut1 ?? '')
     setAttribut2(cfg.attribut2 ?? '')
@@ -154,7 +151,7 @@ export default function SkillsView() {
           <div style={styles.headerLeft}>
             <span style={styles.count}>{filteredEntries.length} Fähigkeiten</span>
             <div style={styles.filterGroup}>
-              {['talent', 'waffe', 'magie'].map(k => (
+              {['fertigkeit', 'kampf', 'magie'].map(k => (
                 <button
                   key={k}
                   style={{
@@ -203,29 +200,17 @@ export default function SkillsView() {
                 onChange={e => setName(e.target.value)}
               />
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ ...styles.formRow, flex: 1 }}>
-                <label style={styles.label}>Kategorie</label>
-                <select
-                  style={styles.select}
-                  value={kategorie}
-                  onChange={e => setKategorie(e.target.value)}
-                >
-                  <option value="talent">Talent</option>
-                  <option value="waffe">Waffe</option>
-                  <option value="magie">Magie</option>
-                </select>
-              </div>
-              <div style={{ ...styles.formRow, flex: 1 }}>
-                <label style={styles.label}>Maximalwert</label>
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="10"
-                  value={maxWert}
-                  onChange={e => setMaxWert(e.target.value)}
-                />
-              </div>
+            <div style={styles.formRow}>
+              <label style={styles.label}>Kategorie</label>
+              <select
+                style={styles.select}
+                value={kategorie}
+                onChange={e => setKategorie(e.target.value)}
+              >
+                <option value="fertigkeit">Fertigkeit</option>
+                <option value="kampf">Kampffertigkeit</option>
+                <option value="magie">Magieschule</option>
+              </select>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ ...styles.formRow, flex: 1 }}>
@@ -342,7 +327,7 @@ export default function SkillsView() {
                 const cfg = parseConfig(selectedEntry.config)
                 const parts: string[] = []
                 parts.push(KATEGORIE_LABELS[cfg.kategorie] ?? cfg.kategorie)
-                if (cfg.maxWert) parts.push(`Max: ${cfg.maxWert}`)
+                parts.push('Max: 18')
                 if (cfg.attribut1) parts.push(cfg.attribut1)
                 if (cfg.attribut2) parts.push(cfg.attribut2)
                 return parts.join(' · ')

@@ -112,8 +112,7 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   skills: {
     label: 'Fähigkeiten',
     fields: [
-      { key: 'kategorie', label: 'Kategorie', type: 'select', options: ['talent', 'waffe', 'magie'], required: true },
-      { key: 'maxWert', label: 'Maximalwert', type: 'number', placeholder: '6' },
+      { key: 'kategorie', label: 'Kategorie', type: 'select', options: ['fertigkeit', 'kampf', 'magie'], required: true },
       { key: 'beschreibung', label: 'Beschreibung', type: 'textarea' },
     ],
   },
