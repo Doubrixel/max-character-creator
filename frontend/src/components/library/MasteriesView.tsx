@@ -189,9 +189,6 @@ export default function MasteriesView() {
 
   useEffect(() => { load() }, [])
 
-  const getKategorie = (e: MasteryEntry): string => {
-    return parseConfig(e.config).kategorie ?? 'pflicht'
-  }
   const getKosten = (e: MasteryEntry): string => {
     return parseConfig(e.config).kosten ?? '?'
   }
@@ -583,7 +580,6 @@ export default function MasteriesView() {
                 const parts: string[] = []
                 parts.push(`Kosten: ${getKosten(selectedEntry)}`)
                 if (cfg.schwelle) parts.push(`Schwelle ${cfg.schwelle}`)
-                parts.push(getKategorie(selectedEntry) === 'pflicht' ? 'Pflicht' : 'Bonus')
                 if (cfg.kategorie_name) parts.push(cfg.kategorie_name)
                 return parts.join(' · ')
               })()}
