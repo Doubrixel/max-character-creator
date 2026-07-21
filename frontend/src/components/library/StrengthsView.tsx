@@ -184,11 +184,11 @@ export default function StrengthsView() {
           <div
             key={entry.id}
             tabIndex={-1}
-            style={{
-              ...styles.card,
-              ...(selectedId === entry.id ? styles.cardSelected : {}),
+            style={styles.card}
+            onClick={(e) => {
+              setSelectedId(entry.id === selectedId ? null : entry.id)
+              ;(e.currentTarget as HTMLElement).blur()
             }}
-            onClick={() => setSelectedId(entry.id === selectedId ? null : entry.id)}
           >
             <div style={styles.cardHeader}>
               <span style={styles.cardName}>{entry.name}</span>
@@ -475,13 +475,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 12, fontStyle: 'italic',
   },
   card: {
-    background: 'var(--bg-secondary)', border: '2px solid transparent',
+    background: 'var(--bg-secondary)', border: '2px solid var(--border)',
     borderRadius: 8, padding: '10px 12px', cursor: 'pointer',
-    transition: 'border-color 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', gap: 6,
+    transition: 'background 0.15s', display: 'flex', flexDirection: 'column', gap: 6,
     minHeight: 60, outline: 'none',
-  },
-  cardSelected: {
-    borderColor: 'var(--accent)', background: 'var(--bg-tertiary)',
   },
   cardHeader: {
     display: 'flex', flexDirection: 'column', gap: 2,
