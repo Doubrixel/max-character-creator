@@ -484,7 +484,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 60, outline: 'none',
   },
   cardSelected: {
-    borderColor: '#eab308', background: 'rgba(234,179,8,0.08)',
+    background: 'rgba(234,179,8,0.12)',
   },
   cardHeader: {
     display: 'flex', flexDirection: 'column', gap: 2,
