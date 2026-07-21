@@ -45,7 +45,12 @@ export default function RasseForm({
     fetch(`${API_BASE}/api/library/strengths`)
       .then(r => r.json())
       .then((data: LibraryEntry[]) => {
-        setAllStaerken(data)
+        setAllStaerken(data.filter(e => {
+          try {
+            const cfg = e.config ? JSON.parse(e.config) : {}
+            return !(cfg.kategorie === 'rasse' && cfg.unterkategorie === 'nachteil')
+          } catch { return true }
+        }))
         setAllSchwaechen(data.filter(e => {
           try {
             const cfg = e.config ? JSON.parse(e.config) : {}
