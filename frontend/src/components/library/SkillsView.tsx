@@ -32,7 +32,6 @@ export default function SkillsView() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const [kategorie, setKategorie] = useState('fertigkeit')
   const [beschreibung, setBeschreibung] = useState('')
   const [attribut1, setAttribut1] = useState('')
@@ -61,7 +60,6 @@ export default function SkillsView() {
 
   const resetForm = () => {
     setName('')
-    setDescription('')
     setKategorie('fertigkeit')
     setBeschreibung('')
     setAttribut1('')
@@ -84,7 +82,7 @@ export default function SkillsView() {
     if (!name.trim()) return
     const body = {
       name: name.trim(),
-      description: description.trim() || null,
+      description: null,
       config: JSON.stringify(buildConfig()),
     }
     if (editingId) {
@@ -121,7 +119,6 @@ export default function SkillsView() {
 
   const startEdit = (entry: SkillEntry) => {
     setName(entry.name)
-    setDescription(entry.description ?? '')
     const cfg = parseConfig(entry.config)
     setKategorie(cfg.kategorie ?? 'fertigkeit')
     setBeschreibung(cfg.beschreibung ?? '')
@@ -262,16 +259,6 @@ export default function SkillsView() {
                 rows={3}
               />
             </div>
-            <div style={styles.formRow}>
-              <label style={styles.label}>Flavor / Lore</label>
-              <textarea
-                style={styles.textarea}
-                placeholder="Beschreibung / Lore..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={2}
-              />
-            </div>
             <div style={styles.formActions}>
               <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
                 Abbrechen
@@ -339,11 +326,6 @@ export default function SkillsView() {
                 <div style={styles.detailDesc}>{cfg.beschreibung}</div>
               ) : null
             })()}
-            {selectedEntry.description && (
-              <div style={styles.detailLore}>
-                {selectedEntry.description}
-              </div>
-            )}
           </div>
         ) : (
           <div style={styles.detailPlaceholder}>
