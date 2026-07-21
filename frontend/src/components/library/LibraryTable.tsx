@@ -54,6 +54,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [rasseEditingId, setRasseEditingId] = useState<string | null>(null)
   const [rasseName, setRasseName] = useState('')
   const [rasseConfig, setRasseConfig] = useState<Record<string, string>>({})
+  const [races, setRaces] = useState<LibraryEntry[]>([])
 
   const schema = TYPE_SCHEMAS[type]
   const fields = schema?.fields ?? []
@@ -66,6 +67,12 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   }
 
   useEffect(() => { load() }, [type])
+
+  useEffect(() => {
+    if (type === 'cultures') {
+      fetch(`${API_BASE}/api/library/races`).then(r => r.json()).then(setRaces).catch(() => {})
+    }
+  }, [type])
 
   const resetForm = () => {
     setName('')
@@ -308,6 +315,32 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                     )
                   })}
                 </div>
+              ) : field.type === 'raceSelect' ? (
+                <div>
+                  <div style={styles.chipContainer}>
+                    {races.map(race => {
+                      const selected = parseConfigArray(configFields[field.key]).includes(race.id)
+                      return (
+                        <button
+                          key={race.id}
+                          type="button"
+                          style={{
+                            ...styles.chip,
+                            ...(selected ? styles.chipRaceSelected : {}),
+                          }}
+                          onClick={() => toggleMultiSelect(field.key, race.id)}
+                        >
+                          {race.name}
+                        </button>
+                      )
+                    })}
+                    {races.length === 0 && (
+                      <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                        Noch keine Rassen vorhanden.
+                      </span>
+                    )}
+                  </div>
+                </div>
               ) : field.type === 'select' ? (
                 <select
                   style={styles.select}
@@ -493,6 +526,10 @@ const styles: Record<string, React.CSSProperties> = {
   chipSelected: {
     background: 'var(--accent)', borderColor: 'var(--accent)',
     color: '#fff',
+  },
+  chipRaceSelected: {
+    background: 'rgba(234,179,8,0.2)', borderColor: 'rgba(234,179,8,0.5)',
+    color: 'var(--text-primary)',
   },
   formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {

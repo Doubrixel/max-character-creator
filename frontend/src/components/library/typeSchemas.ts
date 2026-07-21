@@ -1,7 +1,7 @@
 export interface FieldSchema {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'raceSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox'
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -19,6 +19,7 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   cultures: {
     label: 'Kulturen',
     fields: [
+      { key: 'gaengigFuer', label: 'Gängig für', type: 'raceSelect' },
       { key: 'verfuegbareTalente', label: 'Verfügbare Talente', type: 'skillSelect', placeholder: 'Talente auswählen...' },
       { key: 'verfuegbareWaffen', label: 'Verfügbare Waffenskills', type: 'skillSelect', placeholder: 'Waffenskills auswählen...' },
       { key: 'verfuegbareMagie', label: 'Verfügbare Magieschulen', type: 'skillSelect', placeholder: 'Magieschulen auswählen...' },
