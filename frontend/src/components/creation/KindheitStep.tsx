@@ -40,11 +40,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number }[]>([])
   const [meisterschaftenData, setMeisterschaftenData] = useState<MeisterschaftItem[]>([])
   const [skillsLoading, setSkillsLoading] = useState(true)
-  const [skills, setSkills] = useState<Record<string, number>>({})
+  const [skillDelta, setSkillDelta] = useState<Record<string, number>>({})
   const [staerke, setStaerke] = useState<string>('')
   const [meisterschaftSkill, setMeisterschaftSkill] = useState<string>('')
   const [meisterschaft, setMeisterschaft] = useState<string>('')
-  const [initialized, setInitialized] = useState(false)
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -82,11 +81,6 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       .finally(() => setSkillsLoading(false))
   }, [])
 
-  const baseTotal = Object.values(baseSkills).reduce((a, b) => a + b, 0)
-  const totalSkills = Object.values(skills).reduce((a, b) => a + b, 0)
-  const usedPoints = totalSkills - baseTotal
-  const availablePoints = INITIAL_POINTS - usedPoints
-
   useEffect(() => {
     if (initializedRef.current) return
     if (skillsLoading) return
@@ -99,68 +93,62 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       meisterschaft?: string
     } | null
 
-    const allSkills = [...talents, ...weapons, ...magicSchools]
-    const initialSkills: Record<string, number> = {}
-    allSkills.forEach((s) => {
-      initialSkills[s.id] = (baseSkills[s.id] ?? 0) + (saved?.skills?.[s.id] ?? 0)
-    })
-
-    setSkills(initialSkills)
+    setSkillDelta(saved?.skills ?? {})
     setStaerke(saved?.staerke ?? '')
     setMeisterschaft(saved?.meisterschaft ?? '')
-    setInitialized(true)
   }, [stepData, skillsLoading, talents, weapons, magicSchools])
 
   useEffect(() => {
     return () => { initializedRef.current = false }
   }, [])
 
+  const usedPoints = Object.values(skillDelta).reduce((a, b) => a + b, 0)
+  const availablePoints = INITIAL_POINTS - usedPoints
+
+  const getSkillValue = (id: string) => (baseSkills[id] ?? 0) + (skillDelta[id] ?? 0)
+
+  const saveDelta = (newDelta: Record<string, number>, newStaerke?: string, newMeisterschaft?: string) => {
+    const cleaned: Record<string, number> = {}
+    for (const [k, v] of Object.entries(newDelta)) {
+      if (v > 0) cleaned[k] = v
+    }
+    updateStepDelta(5, { skills: cleaned, staerke: newStaerke ?? staerke, meisterschaft: newMeisterschaft ?? meisterschaft })
+  }
+
   useEffect(() => {
-    if (!initialized) return
-    const eligible = Object.entries(skills)
+    const eligible = Object.entries(skillDelta)
       .filter(([, v]) => v >= 1)
       .map(([id]) => id)
     if (meisterschaftSkill && !eligible.includes(meisterschaftSkill)) {
       setMeisterschaftSkill('')
       setMeisterschaft('')
     }
-  }, [skills, meisterschaftSkill, initialized])
+  }, [skillDelta, meisterschaftSkill])
 
   const eligibleStaerken = staerkenData.filter((s) => s.kosten === 1)
   const staerkeUsed = staerke ? 1 : 0
   const staerkeAvailable = 1 - staerkeUsed
 
   useEffect(() => {
-    if (!initialized) return
     const valid = staerke !== '' && meisterschaft !== ''
     onValid(valid)
-  }, [staerke, meisterschaft, onValid, initialized])
+  }, [staerke, meisterschaft, onValid])
 
   const incrementSkill = (id: string) => {
-    const current = skills[id] ?? 0
+    const current = getSkillValue(id)
     const max = getSkillMax(id)
     if (availablePoints <= 0 || current >= max) return
-    const next = { ...skills, [id]: current + 1 }
-    setSkills(next)
-    const myOnly: Record<string, number> = {}
-    for (const [sid, val] of Object.entries(next)) {
-      const base = baseSkills[sid] ?? 0
-      if (val > base) myOnly[sid] = val - base
-    }
-    updateStepDelta(5, { skills: myOnly, staerke, meisterschaft })
+    const next = { ...skillDelta, [id]: (skillDelta[id] ?? 0) + 1 }
+    setSkillDelta(next)
+    saveDelta(next)
   }
 
   const decrementSkill = (id: string) => {
-    const current = skills[id] ?? 0
-    if (current <= (baseSkills[id] ?? 0)) return
-    const next = { ...skills, [id]: current - 1 }
-    setSkills(next)
-    const myOnly: Record<string, number> = {}
-    for (const [sid, val] of Object.entries(next)) {
-      const base = baseSkills[sid] ?? 0
-      if (val > base) myOnly[sid] = val - base
-    }
-    updateStepDelta(5, { skills: myOnly, staerke, meisterschaft })
+    const current = skillDelta[id] ?? 0
+    if (current <= 0) return
+    const next = { ...skillDelta, [id]: current - 1 }
+    setSkillDelta(next)
+    saveDelta(next)
   }
 
   const getSkillMax = (_id: string): number => {
@@ -169,7 +157,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   const handleStaerke = (id: string) => {
     setStaerke(id)
-    updateStepDelta(5, { skills, staerke: id, meisterschaft })
+    saveDelta(skillDelta, id)
   }
 
   const handleMeisterschaftSkill = (id: string) => {
@@ -179,10 +167,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   const handleMeisterschaft = (id: string) => {
     setMeisterschaft(id)
-    updateStepDelta(5, { skills, staerke, meisterschaft: id })
+    saveDelta(skillDelta, undefined, id)
   }
 
-  const eligibleSkills = Object.entries(skills)
+  const eligibleSkills = Object.entries(skillDelta)
     .filter(([, v]) => v >= 1)
     .map(([id]) => {
       const all = [...talents, ...weapons, ...magicSchools]
@@ -216,10 +204,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         </thead>
         <tbody>
           {items.map((item) => {
-            const value = skills[item.id] ?? 0
+            const value = getSkillValue(item.id)
             const max = getSkillMax(item.id)
             const canInc = availablePoints > 0 && value < max
-            const canDec = value > (baseSkills[item.id] ?? 0)
+            const canDec = (skillDelta[item.id] ?? 0) > 0
             return (
               <tr key={item.id}>
                 <td style={styles.td}>{item.name}</td>
