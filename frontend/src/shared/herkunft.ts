@@ -27,7 +27,7 @@ export function choiceKey(choice: Choice): string {
 }
 
 export function choiceLabel(choice: Choice): string {
-  return choice.map((c) => `${c.name} ${'I'.repeat(c.value)}`).join(' + ')
+  return choice.map((c) => `${c.name} +${c.value}`).join(' + ')
 }
 
 export function parseChoiceKey(key: string): ChoiceItem[] {

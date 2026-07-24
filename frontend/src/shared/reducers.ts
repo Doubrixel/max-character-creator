@@ -5,6 +5,12 @@ type Reducer = (
   delta: Record<string, unknown>,
 ) => Record<string, unknown>;
 
+function skillNameToId(name: string): string {
+  return name.toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 function mergeSkills(
   current: Record<string, number>,
   incoming: Record<string, number>,
@@ -39,7 +45,8 @@ const step3: Reducer = (stats, delta) => {
     const items = parseChoiceKey(choiceStr)
     for (const item of items) {
       if (item.type === 'skill') {
-        herkunftSkills[item.name] = (herkunftSkills[item.name] ?? 0) + item.value
+        const id = skillNameToId(item.name)
+        herkunftSkills[id] = (herkunftSkills[id] ?? 0) + item.value
       } else {
         herkunftResources[item.name] = (herkunftResources[item.name] ?? 0) + item.value
       }
