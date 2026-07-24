@@ -105,11 +105,14 @@ async function replaceSkills() {
 
   const allSkills = [
     // Fertigkeiten (27)
-    { name: 'Akrobatik', kategorie: 'fertigkeit', a1: 'FF', a2: 'GE', beschreibung: 'Akrobatische Kunststücke, Balance, Sprünge' },
-    { name: 'Anführen', kategorie: 'fertigkeit', a1: 'CH', a2: 'HIN', beschreibung: 'Befehlen, Anleiten, Kampfkommandos' },
+    { name: 'Akrobatik', kategorie: 'fertigkeit', a1: 'FF', a2: 'GEW', beschreibung: 'Akrobatische Kunststücke, Balance, Sprünge' },
+    { name: 'Alchemie', kategorie: 'fertigkeit', a1: 'INT', a2: 'FF', beschreibung: 'Alchemistische Substanzen, Tränke, Gifte herstellen' },
+    { name: 'Anführen', kategorie: 'fertigkeit', a1: 'CHA', a2: 'HIN', beschreibung: 'Befehlen, Anleiten, Kampfkommandos' },
     { name: 'Arkane Kunde', kategorie: 'fertigkeit', a1: 'INT', a2: 'MYS', beschreibung: 'Magisches Wissen, Theorie, Artefakte' },
     { name: 'Athletik', kategorie: 'fertigkeit', a1: 'GEW', a2: 'KRA', beschreibung: 'Laufen, Klettern, Sportliche Leistungen' },
     { name: 'Diplomatie', kategorie: 'fertigkeit', a1: 'CHA', a2: 'INT', beschreibung: 'Verhandeln, Überzeugen, Intrigen' },
+    { name: 'Darbietung', kategorie: 'fertigkeit', a1: 'CHA', a2: 'MUT', beschreibung: 'Musik, Schauspiel, Geschichten erzählen' },
+    { name: 'Edelhandwerk', kategorie: 'fertigkeit', a1: 'FF', a2: 'INT', beschreibung: 'Kunstvolle Handwerkskunst, Schmuck, Feinarbeit' },
     { name: 'Empathie', kategorie: 'fertigkeit', a1: 'CHA', a2: 'HIN', beschreibung: 'Gefühle und Stimmungen anderer erkennen' },
     { name: 'Entschlossenheit', kategorie: 'fertigkeit', a1: 'MUT', a2: 'KON', beschreibung: 'Willenskraft, Ausdauer gegen psychischen Druck' },
     { name: 'Geschichten und Mythen', kategorie: 'fertigkeit', a1: 'INT', a2: 'CHA', beschreibung: 'Historisches Wissen, Sagen, Legenden' },
