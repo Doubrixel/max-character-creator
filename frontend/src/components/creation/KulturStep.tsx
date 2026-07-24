@@ -234,9 +234,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       <div style={styles.skillRow}>
         {renderSkillSection('Fertigkeiten', talents, true)}
         {renderSkillSection('Kampffertigkeiten', weapons, true)}
+        {renderSkillSection('Magieschulen', magicSchools, true)}
       </div>
-
-      {renderSkillSection('Magieschulen', magicSchools)}
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
