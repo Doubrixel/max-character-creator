@@ -180,11 +180,18 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       return all.find((s) => s.id === id)!
     })
 
-  const selectedSkillName = eligibleSkills.find((s) => s.id === meisterschaftSkill)?.name ?? ''
+  const selectedSkill = eligibleSkills.find((s) => s.id === meisterschaftSkill)
+  const selectedSkillName = selectedSkill?.name ?? ''
+  const isKampf = weapons.some((w) => w.id === meisterschaftSkill)
+  const isMagie = magicSchools.some((m) => m.id === meisterschaftSkill)
 
-  const availableMeisterschaften = meisterschaftenData.filter(
-    (m) => m.kategorieName === selectedSkillName && m.schwelle === 1
-  )
+  const availableMeisterschaften = meisterschaftenData.filter((m) => {
+    if (m.schwelle !== 1) return false
+    if (m.kategorieName === selectedSkillName) return true
+    if (isKampf && m.kategorieName === 'Allgemeine Nahkampfmeisterschaften') return true
+    if (isMagie && m.kategorieName === 'Allgemeine Magieschulen-Meisterschaften') return true
+    return false
+  })
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
     <div style={styles.section}>
