@@ -7,7 +7,7 @@ interface SkillItem {
   id: string
   name: string
   description: string
-  config: { kategorie: 'talent' | 'waffe' | 'magie' }
+  config: { kategorie: 'fertigkeit' | 'kampf' | 'magie' }
 }
 
 interface StrengthItem {
@@ -53,8 +53,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       fetch(`${API_BASE}/api/library/masteries`).then((r) => r.json()),
     ])
       .then(([skillsData, strengthsData, masteriesData]: [SkillItem[], StrengthItem[], any[]]) => {
-        setTalents(skillsData.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
-        setWeapons(skillsData.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
+        setTalents(skillsData.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(skillsData.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
         setMeisterschaftenData(masteriesData.map((m) => {
@@ -141,15 +141,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     saveStep(4, { skills: myOnly, staerke, meisterschaft })
   }
 
-  const getSkillMax = (id: string): number => {
-    if (talents.some((t) => t.id === id) || weapons.some((w) => w.id === id)) return 6
-    if (magicSchools.some((m) => m.id === id)) {
-      const hasHigh = magicSchools.some(
-        (m2) => (skills[m2.id] ?? 0) >= 3 && m2.id !== id
-      )
-      return hasHigh ? 2 : 3
-    }
-    return 6
+  const getSkillMax = (_id: string): number => {
+    return 6;
   }
 
   const handleStaerke = (id: string) => {
@@ -233,9 +226,9 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         Verfügbare Punkte: {availablePoints}
       </div>
 
-      {renderSkillSection('Talente', talents)}
-      {renderSkillSection('Waffen', weapons)}
-      {renderSkillSection('Magie', magicSchools)}
+      {renderSkillSection('Fertigkeiten', talents)}
+      {renderSkillSection('Kampffertigkeiten', weapons)}
+      {renderSkillSection('Magieschulen', magicSchools)}
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>

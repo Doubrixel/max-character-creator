@@ -35,6 +35,7 @@ export default function RasseForm({
 }: RasseFormProps) {
   const [name, setName] = useState(initialName)
   const [beschreibung, setBeschreibung] = useState(initialConfig.beschreibung ?? '')
+  const [groessenklasse, setGroessenklasse] = useState(initialConfig.groessenklasse ?? '')
   const [selectedStaerken, setSelectedStaerken] = useState<string[]>(parseIdArray(initialConfig.staerken))
   const [selectedSchwaechen, setSelectedSchwaechen] = useState<string[]>(parseIdArray(initialConfig.schwaechen))
 
@@ -76,6 +77,7 @@ export default function RasseForm({
       description: null,
       config: JSON.stringify({
         beschreibung: beschreibung.trim(),
+        groessenklasse: parseInt(groessenklasse) || undefined,
         staerken: selectedStaerken,
         schwaechen: selectedSchwaechen,
       }),
@@ -164,6 +166,18 @@ export default function RasseForm({
           placeholder="Rassenname"
           value={name}
           onChange={e => setName(e.target.value)}
+        />
+      </div>
+      <div style={styles.formRow}>
+        <label style={styles.label}>Großenklasse (GK)</label>
+        <input
+          style={styles.input}
+          type="number"
+          min={1}
+          max={5}
+          placeholder="1-5"
+          value={groessenklasse}
+          onChange={e => setGroessenklasse(e.target.value)}
         />
       </div>
       <div style={styles.formRow}>

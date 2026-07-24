@@ -10,7 +10,7 @@ export interface CharacterData {
 
 interface CharacterStats {
   schicksal?: { id: string; name: string; ruleText: string }
-  rasse?: { id: string; name: string; statblock?: Record<string, unknown> }
+  rasse?: { id: string; name: string; groessenklasse?: number; statblock?: Record<string, unknown> }
   abstammung?: { heritageRoll: number; heritage: string; decisions: Record<string, string> }
   skills?: Record<string, number>
   staerke?: string
@@ -18,8 +18,8 @@ interface CharacterStats {
   kulturMeisterschaft?: string
   ressourcen?: string[]
   magic?: Record<string, number>
-  attribute?: Record<string, number>
-  derived?: { LP: number; AP: number; MP: number; INI: number; WP: number; AW: number }
+  attribute?: { MUT?: number; KLU?: number; INT?: number; CHA?: number; HIN?: number; MYS?: number; FF?: number; GEW?: number; KON?: number; KRA?: number }
+  derived?: { LP: number; FK: number; SP: number; VTD: number; KW: number; GW: number; SS: number; INI: number }
   meisterschaften?: string[]
   bonusMeisterschaften?: string[]
   resources?: Record<string, number>

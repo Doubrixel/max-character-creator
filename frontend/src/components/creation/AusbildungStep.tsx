@@ -6,13 +6,12 @@ const FERTIGKEITEN_POINTS = 30
 const RESSOURCEN_POINTS = 2
 const MAGIC_MAX_PER_STEP = 3
 const MAGIC_MAX_TOTAL = 4
-const TALENT_WAFFEN_MAX = 6
 
 interface SkillItem {
   id: string
   name: string
   description: string
-  config: { kategorie: 'talent' | 'waffe' | 'magie' }
+  config: { kategorie: 'fertigkeit' | 'kampf' | 'magie' }
 }
 
 interface ResourceItem {
@@ -59,8 +58,8 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       fetch(`${API_BASE}/api/library/strengths`).then((r) => r.json()),
     ])
       .then(([skillsData, resourcesData, strengthsData]: [SkillItem[], ResourceItem[], StrengthItem[]]) => {
-        setTalents(skillsData.filter((s) => s.config.kategorie === 'talent').map((s) => ({ id: s.id, name: s.name })))
-        setWeapons(skillsData.filter((s) => s.config.kategorie === 'waffe').map((s) => ({ id: s.id, name: s.name })))
+        setTalents(skillsData.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(skillsData.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setRessourcenData(resourcesData.map((r) => ({ id: r.id, name: r.name, desc: r.description })))
         setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
@@ -132,17 +131,15 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   }, [staerkenAvailable, fertigkeitenAvailable, ressourcenAvailable, onValid, initialized])
 
   const getSkillMax = (id: string): number => {
-    if (talents.some((t) => t.id === id) || weapons.some((w) => w.id === id)) {
-      return TALENT_WAFFEN_MAX
+    const current = skills[id] ?? 0;
+    const isMagic = magicSchools.some((m) => m.id === id);
+    if (isMagic) {
+      const addedThisStep = current - (baseSkills[id] ?? 0);
+      if (addedThisStep >= MAGIC_MAX_PER_STEP) return current;
+      if (current >= MAGIC_MAX_TOTAL) return current;
+      return current + 1;
     }
-    if (magicSchools.some((m) => m.id === id)) {
-      const current = skills[id] ?? 0
-      const addedThisStep = current - (baseSkills[id] ?? 0)
-      if (addedThisStep >= MAGIC_MAX_PER_STEP) return current
-      if (current >= MAGIC_MAX_TOTAL) return current
-      return current + 1
-    }
-    return TALENT_WAFFEN_MAX
+    return 6;
   }
 
   const incrementSkill = (id: string) => {
@@ -274,9 +271,9 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
         </div>
       </div>
 
-      {renderSkillSection('Talente', talents)}
-      {renderSkillSection('Waffen', weapons)}
-      {renderSkillSection('Magie', magicSchools)}
+      {renderSkillSection('Fertigkeiten', talents)}
+      {renderSkillSection('Kampffertigkeiten', weapons)}
+      {renderSkillSection('Magieschulen', magicSchools)}
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>2 Stärken wählen</h3>

@@ -62,13 +62,17 @@ const step5: Reducer = (stats, delta) => {
 
 const step6: Reducer = (stats, delta) => {
   const attr = (delta.attribute ?? {}) as Record<string, number>;
+  const rasseData = (stats.rasse ?? {}) as Record<string, unknown>;
+  const gk = (rasseData.groessenklasse as number) ?? 3;
   const derived = {
-    LP: 10 + (attr.KO ?? 0) * 2,
-    AP: 5 + (attr.KK ?? 0),
-    MP: 3 + (attr.MU ?? 0),
-    INI: (attr.GE ?? 0) + (attr.IN ?? 0),
-    WP: 5 + (attr.SR ?? 0),
-    AW: 8 + (attr.GE ?? 0),
+    LP: (gk + (attr.KON ?? 0)) * 5,
+    FK: ((attr.MYS ?? 0) + (attr.MYS ?? 0)) * 3,
+    SP: ((attr.HIN ?? 0) + (attr.HIN ?? 0)) * 3,
+    VTD: 12 + (attr.GEW ?? 0) + (attr.INT ?? 0) + (5 - gk) * 2,
+    KW: 12 + (attr.KRA ?? 0) + (attr.KON ?? 0),
+    GW: 12 + (attr.MUT ?? 0) + (attr.KON ?? 0),
+    SS: gk - 3 + (attr.KON ?? 0),
+    INI: 20 - (attr.INT ?? 0) - (attr.GEW ?? 0),
   };
   return {
     ...stats,

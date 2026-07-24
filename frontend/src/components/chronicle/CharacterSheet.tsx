@@ -14,9 +14,10 @@ const SKILL_NAMES: Record<string, string> = {
 }
 
 const ATTRIBUTE_NAMES: Record<string, string> = {
-  MU: 'Mut', KL: 'Klugheit', IN: 'Intuition', CH: 'Charisma',
-  FF: 'Fingerfertigkeit', GE: 'Gewandheit', KO: 'Konstitution',
-  KK: 'Körperkraft', SR: 'Sinnenschärfe', GE2: 'Gewandheit (Zusatz)',
+  MUT: 'Mut', KLU: 'Klugheit', INT: 'Intuition', CHA: 'Charisma',
+  HIN: 'Hinterhalt', MYS: 'Mystik',
+  FF: 'Fingerfertigkeit', GEW: 'Gewandheit', KON: 'Konstitution',
+  KRA: 'Körperkraft',
 }
 
 const MEISTERSCHAFT_NAMES: Record<string, string> = {

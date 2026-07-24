@@ -1,20 +1,20 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
-const ATTRIBUTES = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK', 'SR', 'LE'] as const
+const ATTRIBUTES = ['MUT', 'KLU', 'INT', 'CHA', 'HIN', 'MYS', 'FF', 'GEW', 'KON', 'KRA'] as const
 type AttributeKey = (typeof ATTRIBUTES)[number]
 
 const ATTRIBUTE_NAMES: Record<AttributeKey, string> = {
-  MU: 'Mut',
-  KL: 'Klugheit',
-  IN: 'Intuition',
-  CH: 'Charisma',
+  MUT: 'Mut',
+  KLU: 'Klugheit',
+  INT: 'Intuition',
+  CHA: 'Charisma',
+  HIN: 'Hinterhalt',
+  MYS: 'Mystik',
   FF: 'Fingerfertigkeit',
-  GE: 'Geschicklichkeit',
-  KO: 'Konstitution',
-  KK: 'Körperkraft',
-  SR: 'Seelenstärke',
-  LE: 'Lebenskraft',
+  GEW: 'Gewandheit',
+  KON: 'Konstitution',
+  KRA: 'Körperkraft',
 }
 
 function roll4d6DropLowest(): { dice: number[]; sum: number } {

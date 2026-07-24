@@ -218,15 +218,16 @@ export default function SkillsView() {
                   onChange={e => setAttribut1(e.target.value)}
                 >
                   <option value="">Keines</option>
-                  <option value="MU">MU (Mut)</option>
-                  <option value="KL">KL (Klugheit)</option>
-                  <option value="IN">IN (Intuition)</option>
-                  <option value="CH">CH (Charisma)</option>
+                  <option value="MUT">MUT (Mut)</option>
+                  <option value="KLU">KLU (Klugheit)</option>
+                  <option value="INT">INT (Intuition)</option>
+                  <option value="CHA">CHA (Charisma)</option>
+                  <option value="HIN">HIN (Hinterhalt)</option>
+                  <option value="MYS">MYS (Mystik)</option>
                   <option value="FF">FF (Fingerfertigkeit)</option>
-                  <option value="GE">GE (Gewandheit)</option>
-                  <option value="KO">KO (Konstitution)</option>
-                  <option value="KK">KK (Körperkraft)</option>
-                  <option value="SR">SR (Sinnenschärfe)</option>
+                  <option value="GEW">GEW (Gewandheit)</option>
+                  <option value="KON">KON (Konstitution)</option>
+                  <option value="KRA">KRA (Körperkraft)</option>
                 </select>
               </div>
               <div style={{ ...styles.formRow, flex: 1 }}>
@@ -237,15 +238,16 @@ export default function SkillsView() {
                   onChange={e => setAttribut2(e.target.value)}
                 >
                   <option value="">Keines</option>
-                  <option value="MU">MU (Mut)</option>
-                  <option value="KL">KL (Klugheit)</option>
-                  <option value="IN">IN (Intuition)</option>
-                  <option value="CH">CH (Charisma)</option>
+                  <option value="MUT">MUT (Mut)</option>
+                  <option value="KLU">KLU (Klugheit)</option>
+                  <option value="INT">INT (Intuition)</option>
+                  <option value="CHA">CHA (Charisma)</option>
+                  <option value="HIN">HIN (Hinterhalt)</option>
+                  <option value="MYS">MYS (Mystik)</option>
                   <option value="FF">FF (Fingerfertigkeit)</option>
-                  <option value="GE">GE (Gewandheit)</option>
-                  <option value="KO">KO (Konstitution)</option>
-                  <option value="KK">KK (Körperkraft)</option>
-                  <option value="SR">SR (Sinnenschärfe)</option>
+                  <option value="GEW">GEW (Gewandheit)</option>
+                  <option value="KON">KON (Konstitution)</option>
+                  <option value="KRA">KRA (Körperkraft)</option>
                 </select>
               </div>
             </div>
