@@ -19,7 +19,7 @@ const steps = [
 ]
 
 export default function CreationView() {
-  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter, flushCurrentStep } = useAppContext()
+  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter, flushCurrentStep, stepDeltas } = useAppContext()
   const [canProceed, setCanProceed] = useState(false)
 
   if (!characterId) {
@@ -45,6 +45,13 @@ export default function CreationView() {
       await flushCurrentStep()
       setCurrentStep(currentStep - 1)
     }
+  }
+
+  const handleStepClick = async (target: number) => {
+    if (target === currentStep) return
+    if (!stepDeltas[target]) return
+    await flushCurrentStep()
+    setCurrentStep(target)
   }
 
   const renderStepContent = () => {
@@ -85,17 +92,26 @@ export default function CreationView() {
         </button>
       </div>
       <div style={styles.stepBar}>
-        {steps.map((step, i) => (
-          <span
-            key={i}
-            style={{
-              ...styles.step,
-              ...(i + 1 === currentStep ? styles.stepActive : {}),
-            }}
-          >
-            {i + 1}. {step}
-          </span>
-        ))}
+        {steps.map((step, i) => {
+          const stepNum = i + 1
+          const isActive = stepNum === currentStep
+          const isVisited = !!stepDeltas[stepNum]
+          return (
+            <span
+              key={i}
+              onClick={() => handleStepClick(stepNum)}
+              style={{
+                ...styles.step,
+                ...(isActive ? styles.stepActive : {}),
+                ...(!isActive && isVisited ? styles.stepVisited : {}),
+                ...(!isActive && !isVisited ? styles.stepLocked : {}),
+                cursor: isVisited ? 'pointer' : 'default',
+              }}
+            >
+              {stepNum}. {step}
+            </span>
+          )
+        })}
       </div>
       {renderStepContent()}
       <div style={styles.navButtons}>
@@ -148,8 +164,26 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     transition: 'background 0.2s',
   },
-  step: { fontSize: 13, fontWeight: 500, color: 'var(--stepbar-text)' },
-  stepActive: { color: 'var(--stepbar-text-active)', fontWeight: 700 },
+  step: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'var(--stepbar-text)',
+    padding: '4px 10px',
+    borderRadius: 6,
+    transition: 'all 0.2s',
+  },
+  stepActive: {
+    color: 'var(--stepbar-text-active)',
+    fontWeight: 700,
+    background: 'rgba(233, 69, 96, 0.15)',
+  },
+  stepVisited: {
+    color: 'var(--text-primary)',
+  },
+  stepLocked: {
+    color: 'var(--text-muted)',
+    opacity: 0.5,
+  },
   content: { padding: 16, border: '1px dashed var(--border-lighter)', borderRadius: 8, minHeight: 300 },
   navButtons: { display: 'flex', gap: 12, marginTop: 24, justifyContent: 'space-between' },
   navButton: {

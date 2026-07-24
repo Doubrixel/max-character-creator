@@ -4,7 +4,7 @@ export const darkTheme = {
   '--bg-tertiary': '#2a1a2e',
   '--bg-sidebar-active': '#16213e',
   '--bg-detail': '#f8f8f8',
-  '--bg-stepbar': '#f0f0f0',
+  '--bg-stepbar': '#16213e',
   '--bg-error': '#2e1a1a',
   '--bg-success-subtle': '#1a2e1a',
   '--bg-modal': '#ffffff',
