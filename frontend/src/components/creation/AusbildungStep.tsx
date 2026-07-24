@@ -277,7 +277,9 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       </div>
 
       <div style={styles.skillRow}>
-        {renderSkillSection('Fertigkeiten', talents)}
+        <div style={styles.skillCol}>
+          {renderSkillSection('Fertigkeiten', talents)}
+        </div>
         <div style={styles.skillCol}>
           {renderSkillSection('Kampffertigkeiten', weapons)}
           {renderSkillSection('Magieschulen', magicSchools)}
