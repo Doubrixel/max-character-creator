@@ -36,7 +36,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number }[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
@@ -59,7 +59,10 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
         setTalents(parsed.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
         setWeapons(parsed.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
-        setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
+        setStaerkenData(strengthsData.map((s) => {
+          const cfg = s.config ? JSON.parse(s.config) : {}
+          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1 }
+        }))
       })
       .catch(() => {})
       .finally(() => setDataLoading(false))
@@ -119,7 +122,11 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
   const fertigkeitenAvailable = FERTIGKEITEN_POINTS - fertigkeitenUsed
 
-  const staerkenUsed = staerken.length
+  const eligibleStaerken = staerkenData.filter((s) => s.kosten <= 2)
+  const staerkenUsed = staerken.reduce((sum, id) => {
+    const s = staerkenData.find((x) => x.id === id)
+    return sum + (s?.kosten ?? 1)
+  }, 0)
   const staerkenAvailable = STAERKEN_POINTS - staerkenUsed
 
   const resourcesSpent = ALL_RESOURCES.reduce((sum, name) => {
@@ -318,9 +325,9 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>2 Stärken wählen</h3>
         <div style={styles.staerkenGrid}>
-          {staerkenData.map((s) => {
+          {eligibleStaerken.map((s) => {
             const isSelected = staerken.includes(s.id)
-            const isDisabled = !isSelected && staerkenAvailable <= 0
+            const isDisabled = !isSelected && staerkenAvailable < s.kosten
             return (
               <button
                 key={s.id}
@@ -332,7 +339,10 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
                 onClick={() => handleStaerke(s.id)}
                 disabled={isDisabled}
               >
-                <span style={styles.staerkeName}>{s.name}</span>
+                <div style={styles.staerkeHeader}>
+                  <span style={styles.staerkeName}>{s.name}</span>
+                  <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
+                </div>
                 <span style={styles.staerkeDesc}>{s.desc}</span>
               </button>
             )
@@ -514,6 +524,19 @@ const styles: Record<string, React.CSSProperties> = {
   staerkeName: {
     fontSize: 15,
     fontWeight: 600,
+  },
+  staerkeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  staerkeCost: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--accent)',
+    background: 'rgba(233, 69, 96, 0.1)',
+    padding: '2px 8px',
+    borderRadius: 4,
   },
   staerkeDesc: {
     fontSize: 12,

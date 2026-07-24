@@ -37,7 +37,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number }[]>([])
   const [meisterschaftenData, setMeisterschaftenData] = useState<MeisterschaftItem[]>([])
   const [skillsLoading, setSkillsLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
@@ -63,7 +63,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         setTalents(parsed.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
         setWeapons(parsed.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
-        setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
+        setStaerkenData(strengthsData.map((s) => {
+          const cfg = s.config ? JSON.parse(s.config) : {}
+          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1 }
+        }))
         setMeisterschaftenData(masteriesData.map((m) => {
           const cfg = m.config ? JSON.parse(m.config) : {}
           return {
@@ -120,6 +123,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       setMeisterschaft('')
     }
   }, [skills, meisterschaftSkill, initialized])
+
+  const eligibleStaerken = staerkenData.filter((s) => s.kosten === 1)
+  const staerkeUsed = staerke ? 1 : 0
+  const staerkeAvailable = 1 - staerkeUsed
 
   useEffect(() => {
     if (!initialized) return
@@ -245,8 +252,13 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     <div style={styles.container}>
       {skillsLoading && <div style={styles.loading}>Lade Skills...</div>}
 
-      <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
-        Verfügbare Punkte: {availablePoints}
+      <div style={styles.counters}>
+        <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
+          Fertigkeits-Punkte: {availablePoints}
+        </div>
+        <div style={{ ...styles.counter, ...(staerkeAvailable === 0 ? styles.counterZero : {}) }}>
+          Stärke: {staerkeAvailable}
+        </div>
       </div>
 
       <div style={styles.skillRow}>
@@ -262,13 +274,16 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
         <div style={styles.staerkenGrid}>
-          {staerkenData.map((s) => (
+          {eligibleStaerken.map((s) => (
             <button
               key={s.id}
               style={{ ...styles.staerkeCard, ...(staerke === s.id ? styles.staerkeCardSelected : {}) }}
               onClick={() => handleStaerke(s.id)}
             >
-              <span style={styles.staerkeName}>{s.name}</span>
+              <div style={styles.staerkeHeader}>
+                <span style={styles.staerkeName}>{s.name}</span>
+                <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
+              </div>
               <span style={styles.staerkeDesc}>{s.desc}</span>
             </button>
           ))}
@@ -336,8 +351,15 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     padding: 24,
   },
+  counters: {
+    display: 'flex',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
   counter: {
-    fontSize: 18,
+    flex: 1,
+    minWidth: 150,
+    fontSize: 16,
     fontWeight: 700,
     color: 'var(--success)',
     padding: '12px 16px',
@@ -426,6 +448,19 @@ const styles: Record<string, React.CSSProperties> = {
   staerkeName: {
     fontSize: 15,
     fontWeight: 600,
+  },
+  staerkeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  staerkeCost: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--accent)',
+    background: 'rgba(233, 69, 96, 0.1)',
+    padding: '2px 8px',
+    borderRadius: 4,
   },
   staerkeDesc: {
     fontSize: 12,
