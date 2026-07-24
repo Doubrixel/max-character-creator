@@ -224,7 +224,7 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
 
   const warnings: Array<{ step: number, errors: string[] }> = []
 
-  for (let s = step + 1; s <= 7; s++) {
+  for (let s = step + 1; s <= 8; s++) {
     const delta = allDeltas[s]
     if (!delta) continue
 
@@ -235,7 +235,7 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
     const stateBefore = recalculateStats(deltasBefore)
     const errors: string[] = []
 
-    if (s === 4 || s === 5) {
+    if (s === 5 || s === 6) {
       const deltaSkills = (delta.skills ?? {}) as Record<string, number>
       for (const key of Object.keys(deltaSkills)) {
         if (!VALID_SKILLS.includes(key)) {
@@ -244,7 +244,7 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
       }
     }
 
-    if (s === 7) {
+    if (s === 8) {
       const meisterschaften = (delta.meisterschaften ?? []) as string[]
       const stateSkills = (stateBefore.skills ?? {}) as Record<string, number>
       for (const mId of meisterschaften) {

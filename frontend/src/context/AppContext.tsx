@@ -9,9 +9,10 @@ export interface CharacterData {
 }
 
 interface CharacterStats {
-  schicksal?: { classId: string; className: string; originId: string; originName: string; rowSelections: Record<number, string> }
+  schicksal?: { id: string; name: string; ruleText: string }
   rasse?: { id: string; name: string; groessenklasse?: number; statblock?: Record<string, unknown> }
   abstammung?: { classId: string; className: string; originId: string; originName: string; rowSelections: Record<number, string> }
+  kultur?: { kulturId: string; kulturName: string; kulturDescription?: string; kulturConfig?: Record<string, unknown> }
   skills?: Record<string, number>
   staerke?: string
   staerken?: string[]

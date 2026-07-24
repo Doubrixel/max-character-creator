@@ -33,7 +33,12 @@ const step3: Reducer = (stats, delta) => ({
   abstammung: delta,
 });
 
-const step4: Reducer = (stats, delta) => {
+const step4: Reducer = (stats, delta) => ({
+  ...stats,
+  kultur: delta,
+})
+
+const step5: Reducer = (stats, delta) => {
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
   const deltaSkills = (delta.skills ?? {}) as Record<string, number>;
   return {
@@ -44,7 +49,7 @@ const step4: Reducer = (stats, delta) => {
   };
 };
 
-const step5: Reducer = (stats, delta) => {
+const step6: Reducer = (stats, delta) => {
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
   const deltaSkills = (delta.skills ?? {}) as Record<string, number>;
   const currentStaerken = (stats.staerken ?? []) as unknown[];
@@ -60,7 +65,7 @@ const step5: Reducer = (stats, delta) => {
   };
 };
 
-const step6: Reducer = (stats, delta) => {
+const step7: Reducer = (stats, delta) => {
   const attr = (delta.attribute ?? {}) as Record<string, number>;
   const derived = {
     LP: 10 + (attr.KO ?? 0) * 2,
@@ -77,7 +82,7 @@ const step6: Reducer = (stats, delta) => {
   };
 };
 
-const step7: Reducer = (stats, delta) => {
+const step8: Reducer = (stats, delta) => {
   const currentMeisterschaften = (stats.meisterschaften ?? []) as unknown[];
   const deltaMeisterschaften = (delta.meisterschaften ?? []) as unknown[];
   const currentBonus = (stats.bonusMeisterschaften ?? []) as unknown[];
@@ -104,13 +109,14 @@ export const reducers: Map<number, Reducer> = new Map([
   [5, step5],
   [6, step6],
   [7, step7],
+  [8, step8],
 ]);
 
 export function recalculateStats(
   deltas: Record<number, Record<string, unknown>>,
 ): Record<string, unknown> {
   let stats: Record<string, unknown> = {};
-  for (let step = 1; step <= 7; step++) {
+  for (let step = 1; step <= 8; step++) {
     const delta = deltas[step];
     if (delta) {
       const reducer = reducers.get(step);

@@ -3,7 +3,8 @@ import { useAppContext } from '../context/AppContext'
 import SchicksalStep from './creation/SchicksalStep'
 import RasseStep from './creation/RasseStep'
 import AbstammungStep from './creation/AbstammungStep'
-import KulturStep from './creation/KulturStep'
+import KulturSelectStep from './creation/KulturSelectStep'
+import KindheitStep from './creation/KindheitStep'
 import AusbildungStep from './creation/AusbildungStep'
 import AttributeStep from './creation/AttributeStep'
 import MeisterschaftStep from './creation/MeisterschaftStep'
@@ -12,7 +13,8 @@ const steps = [
   'Schicksal',
   'Rasse',
   'Abstammung',
-  'Kultur & Kindheit',
+  'Kultur',
+  'Kindheit',
   'Ausbildung',
   'Attribute',
   'Meisterschaften & Spells',
@@ -65,15 +67,18 @@ export default function CreationView() {
       return <AbstammungStep onValid={setCanProceed} />
     }
     if (currentStep === 4) {
-      return <KulturStep onValid={setCanProceed} />
+      return <KulturSelectStep onValid={setCanProceed} />
     }
     if (currentStep === 5) {
-      return <AusbildungStep onValid={setCanProceed} />
+      return <KindheitStep onValid={setCanProceed} />
     }
     if (currentStep === 6) {
-      return <AttributeStep onValid={setCanProceed} />
+      return <AusbildungStep onValid={setCanProceed} />
     }
     if (currentStep === 7) {
+      return <AttributeStep onValid={setCanProceed} />
+    }
+    if (currentStep === 8) {
       return <MeisterschaftStep onValid={setCanProceed} />
     }
     return (
