@@ -20,7 +20,9 @@ interface StrengthItem {
 interface MeisterschaftItem {
   id: string
   name: string
-  skillId: string
+  kategorieName: string
+  schwelle: number
+  effekt: string
 }
 
 interface KulturStepProps {
@@ -64,7 +66,13 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
         setMeisterschaftenData(masteriesData.map((m) => {
           const cfg = m.config ? JSON.parse(m.config) : {}
-          return { id: m.id, name: m.name, skillId: cfg.skillId || '' }
+          return {
+            id: m.id,
+            name: m.name,
+            kategorieName: cfg.kategorie_name || '',
+            schwelle: parseInt(cfg.schwelle) || 1,
+            effekt: cfg.effekt || m.description || '',
+          }
         }))
       })
       .catch(() => {})
@@ -172,8 +180,10 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       return all.find((s) => s.id === id)!
     })
 
+  const selectedSkillName = eligibleSkills.find((s) => s.id === meisterschaftSkill)?.name ?? ''
+
   const availableMeisterschaften = meisterschaftenData.filter(
-    (m) => m.skillId === meisterschaftSkill
+    (m) => m.kategorieName === selectedSkillName && m.schwelle === 1
   )
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
@@ -278,7 +288,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
                   style={{ ...styles.meisterschaftBtn, ...(meisterschaft === m.id ? styles.meisterschaftBtnSelected : {}) }}
                   onClick={() => handleMeisterschaft(m.id)}
                 >
-                  {m.name}
+                  <span>{m.name}</span>
+                  {m.effekt && <span style={styles.meisterschaftEffekt}>{m.effekt}</span>}
                 </button>
               ))}
               {availableMeisterschaften.length === 0 && (
@@ -439,10 +450,18 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid var(--border)',
     borderRadius: 8,
     cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    textAlign: 'left',
   },
   meisterschaftBtnSelected: {
     border: '2px solid var(--accent)',
     background: 'var(--bg-tertiary)',
+  },
+  meisterschaftEffekt: {
+    fontSize: 12,
+    color: 'var(--text-secondary)',
   },
   noMeisterschaft: {
     fontSize: 13,
