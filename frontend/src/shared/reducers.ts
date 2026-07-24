@@ -20,39 +20,39 @@ function concatArrays<T>(current: T[] | undefined, incoming: T[] | undefined): T
   return [...(current ?? []), ...(incoming ?? [])];
 }
 
-const step1: Reducer = (stats, delta) => {
-  const rowSelections = (delta.rowSelections ?? {}) as Record<number, string>
-  const skills: Record<string, number> = {}
-  const resources: Record<string, number> = {}
-
-  for (const choiceStr of Object.values(rowSelections)) {
-    const items = parseChoiceKey(choiceStr)
-    for (const item of items) {
-      if (item.type === 'skill') {
-        skills[item.name] = (skills[item.name] ?? 0) + item.value
-      } else {
-        resources[item.name] = (resources[item.name] ?? 0) + item.value
-      }
-    }
-  }
-
-  return {
-    ...stats,
-    schicksal: delta,
-    skills: mergeSkills((stats.skills ?? {}) as Record<string, number>, skills),
-    resources: mergeSkills((stats.resources ?? {}) as Record<string, number>, resources),
-  }
-}
+const step1: Reducer = (stats, delta) => ({
+  ...stats,
+  schicksal: delta,
+})
 
 const step2: Reducer = (stats, delta) => ({
   ...stats,
   rasse: delta,
 });
 
-const step3: Reducer = (stats, delta) => ({
-  ...stats,
-  abstammung: delta,
-});
+const step3: Reducer = (stats, delta) => {
+  const rowSelections = (delta.rowSelections ?? {}) as Record<number, string>
+  const herkunftSkills: Record<string, number> = {}
+  const herkunftResources: Record<string, number> = {}
+
+  for (const choiceStr of Object.values(rowSelections)) {
+    const items = parseChoiceKey(choiceStr)
+    for (const item of items) {
+      if (item.type === 'skill') {
+        herkunftSkills[item.name] = (herkunftSkills[item.name] ?? 0) + item.value
+      } else {
+        herkunftResources[item.name] = (herkunftResources[item.name] ?? 0) + item.value
+      }
+    }
+  }
+
+  return {
+    ...stats,
+    abstammung: delta,
+    skills: mergeSkills((stats.skills ?? {}) as Record<string, number>, herkunftSkills),
+    resources: mergeSkills((stats.resources ?? {}) as Record<string, number>, herkunftResources),
+  }
+}
 
 const step4: Reducer = (stats, delta) => {
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;

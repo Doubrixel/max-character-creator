@@ -11,7 +11,7 @@ export interface CharacterData {
 interface CharacterStats {
   schicksal?: { classId: string; className: string; originId: string; originName: string; rowSelections: Record<number, string> }
   rasse?: { id: string; name: string; groessenklasse?: number; statblock?: Record<string, unknown> }
-  abstammung?: { heritageRoll: number; heritage: string; decisions: Record<string, string> }
+  abstammung?: { classId: string; className: string; originId: string; originName: string; rowSelections: Record<number, string> }
   skills?: Record<string, number>
   staerke?: string
   staerken?: string[]

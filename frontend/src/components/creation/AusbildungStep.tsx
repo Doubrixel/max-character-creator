@@ -14,19 +14,14 @@ interface SkillItem {
   config: { kategorie: string; [key: string]: unknown }
 }
 
-interface ResourceItem {
-  id: string
-  name: string
-  description: string
-  config: { startwert: number; maximalwert: number; typ: string }
-}
-
 interface StrengthItem {
   id: string
   name: string
   description: string | null
   config: string | null
 }
+
+const ALL_RESOURCES = ['Geld', 'Ruf', 'Kontakt', 'Artefakt', 'Begleiter', 'Organisation', 'Lehrmeister']
 
 interface AusbildungStepProps {
   onValid: (valid: boolean) => void
@@ -36,28 +31,26 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const { computeBaseStats, stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
+  const baseResources = (computeBaseStats(currentStep).resources ?? {}) as Record<string, number>
 
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [ressourcenData, setRessourcenData] = useState<{ id: string; name: string; desc: string }[]>([])
   const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string }[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
-  const [ressourcen, setRessourcen] = useState<string[]>([])
+  const [resourceLevels, setResourceLevels] = useState<Record<string, number>>({})
   const [initialized, setInitialized] = useState(false)
   const initializedRef = useRef(false)
-
 
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL || ''
     Promise.all([
       fetch(`${API_BASE}/api/library/skills`).then((r) => r.json()),
-      fetch(`${API_BASE}/api/library/resources`).then((r) => r.json()),
       fetch(`${API_BASE}/api/library/strengths`).then((r) => r.json()),
     ])
-      .then(([skillsData, resourcesData, strengthsData]: [SkillItem[], ResourceItem[], StrengthItem[]]) => {
+      .then(([skillsData, strengthsData]: [SkillItem[], StrengthItem[]]) => {
         const raw: { id: string; name: string; description: string; config: unknown }[] = skillsData as any
         const parsed: SkillItem[] = raw.map((s) => {
           const cfg = typeof s.config === 'string' ? JSON.parse(s.config) : (s.config ?? {})
@@ -66,7 +59,6 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
         setTalents(parsed.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
         setWeapons(parsed.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
-        setRessourcenData(resourcesData.map((r) => ({ id: r.id, name: r.name, desc: r.description })))
         setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
       })
       .catch(() => {})
@@ -92,7 +84,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     const saved = stepData as {
       skills?: Record<string, number>
       staerken?: string[]
-      ressourcen?: string[]
+      resourceLevels?: Record<string, number>
       magic?: Record<string, number>
     } | null
 
@@ -104,9 +96,16 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       initialSkills[s.id] = base + mine
     })
 
+    const initialResources: Record<string, number> = {}
+    for (const name of ALL_RESOURCES) {
+      const base = baseResources[name] ?? 0
+      const mine = saved?.resourceLevels?.[name] ?? 0
+      initialResources[name] = base + mine
+    }
+
     setSkills(initialSkills)
     setStaerken(saved?.staerken ?? [])
-    setRessourcen(saved?.ressourcen ?? [])
+    setResourceLevels(initialResources)
     setInitialized(true)
   }, [stepData, dataLoading, talents, weapons, magicSchools])
 
@@ -123,8 +122,12 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   const staerkenUsed = staerken.length
   const staerkenAvailable = STAERKEN_POINTS - staerkenUsed
 
-  const ressourcenUsed = ressourcen.length
-  const ressourcenAvailable = RESSOURCEN_POINTS - ressourcenUsed
+  const resourcesSpent = ALL_RESOURCES.reduce((sum, name) => {
+    const base = baseResources[name] ?? 0
+    const current = resourceLevels[name] ?? 0
+    return sum + Math.max(0, current - base)
+  }, 0)
+  const ressourcenAvailable = RESSOURCEN_POINTS - resourcesSpent
 
   useEffect(() => {
     if (!initialized) return
@@ -168,7 +171,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) step5Only[sid] = val - base
     }
-    updateStepDelta(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
+    updateStepDelta(5, { skills: step5Only, staerken, resourceLevels: stepResourceLevels(), magic: buildMagicValues(next) })
   }
 
   const decrementSkill = (id: string) => {
@@ -181,33 +184,59 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) step5Only[sid] = val - base
     }
-    updateStepDelta(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
+    updateStepDelta(5, { skills: step5Only, staerken, resourceLevels: stepResourceLevels(), magic: buildMagicValues(next) })
   }
 
   const handleStaerke = (id: string) => {
     if (staerken.includes(id)) {
       const next = staerken.filter((s) => s !== id)
       setStaerken(next)
-      updateStepDelta(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken: next, resourceLevels: stepResourceLevels(), magic: buildMagicValues(skills) })
     } else {
       if (staerkenAvailable <= 0) return
       const next = [...staerken, id]
       setStaerken(next)
-      updateStepDelta(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken: next, resourceLevels: stepResourceLevels(), magic: buildMagicValues(skills) })
     }
   }
 
-  const handleRessource = (id: string) => {
-    if (ressourcen.includes(id)) {
-      const next = ressourcen.filter((r) => r !== id)
-      setRessourcen(next)
-      updateStepDelta(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
-    } else {
-      if (ressourcenAvailable <= 0) return
-      const next = [...ressourcen, id]
-      setRessourcen(next)
-      updateStepDelta(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
+  const stepResourceLevels = (): Record<string, number> => {
+    const stepOnly: Record<string, number> = {}
+    for (const name of ALL_RESOURCES) {
+      const base = baseResources[name] ?? 0
+      const current = resourceLevels[name] ?? 0
+      if (current > base) stepOnly[name] = current - base
     }
+    return stepOnly
+  }
+
+  const incrementResource = (name: string) => {
+    if (ressourcenAvailable <= 0) return
+    const current = resourceLevels[name] ?? 0
+    const next = { ...resourceLevels, [name]: current + 1 }
+    setResourceLevels(next)
+    const stepOnly: Record<string, number> = {}
+    for (const n of ALL_RESOURCES) {
+      const base = baseResources[n] ?? 0
+      const val = next[n] ?? 0
+      if (val > base) stepOnly[n] = val - base
+    }
+    updateStepDelta(5, { skills, staerken, resourceLevels: stepOnly, magic: buildMagicValues(skills) })
+  }
+
+  const decrementResource = (name: string) => {
+    const current = resourceLevels[name] ?? 0
+    const base = baseResources[name] ?? 0
+    if (current <= base) return
+    const next = { ...resourceLevels, [name]: current - 1 }
+    setResourceLevels(next)
+    const stepOnly: Record<string, number> = {}
+    for (const n of ALL_RESOURCES) {
+      const b = baseResources[n] ?? 0
+      const val = next[n] ?? 0
+      if (val > b) stepOnly[n] = val - b
+    }
+    updateStepDelta(5, { skills, staerken, resourceLevels: stepOnly, magic: buildMagicValues(skills) })
   }
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
@@ -312,28 +341,48 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       </div>
 
       <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>2 Ressourcen steigern</h3>
-        <div style={styles.ressourcenGrid}>
-          {ressourcenData.map((r) => {
-            const isSelected = ressourcen.includes(r.id)
-            const isDisabled = !isSelected && ressourcenAvailable <= 0
-            return (
-              <button
-                key={r.id}
-                style={{
-                  ...styles.ressourceCard,
-                  ...(isSelected ? styles.ressourceCardSelected : {}),
-                  ...(isDisabled ? styles.ressourceCardDisabled : {}),
-                }}
-                onClick={() => handleRessource(r.id)}
-                disabled={isDisabled}
-              >
-                <span style={styles.ressourceName}>{r.name}</span>
-                <span style={styles.ressourceDesc}>{r.desc}</span>
-              </button>
-            )
-          })}
-        </div>
+        <h3 style={styles.sectionTitle}>Ressourcen steigern</h3>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Ressource</th>
+              <th style={styles.th}>Wert</th>
+              <th style={styles.th}>Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ALL_RESOURCES.map((name) => {
+              const value = resourceLevels[name] ?? 0
+              const base = baseResources[name] ?? 0
+              const canInc = ressourcenAvailable > 0
+              const canDec = value > base
+              return (
+                <tr key={name}>
+                  <td style={styles.td}>{name}</td>
+                  <td style={{ ...styles.td, ...styles.valueCell }}>{value}</td>
+                  <td style={styles.td}>
+                    <div style={styles.buttonGroup}>
+                      <button
+                        style={{ ...styles.pointButton, ...(canDec ? {} : styles.pointButtonDisabled) }}
+                        onClick={() => decrementResource(name)}
+                        disabled={!canDec}
+                      >
+                        −
+                      </button>
+                      <button
+                        style={{ ...styles.pointButton, ...(canInc ? {} : styles.pointButtonDisabled) }}
+                        onClick={() => incrementResource(name)}
+                        disabled={!canInc}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -467,39 +516,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   staerkeDesc: {
-    fontSize: 12,
-    color: 'var(--text-secondary)',
-  },
-  ressourcenGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: 12,
-  },
-  ressourceCard: {
-    padding: 14,
-    background: 'var(--bg-secondary)',
-    color: 'var(--text-primary)',
-    border: '2px solid var(--border)',
-    borderRadius: 8,
-    cursor: 'pointer',
-    textAlign: 'left',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  ressourceCardSelected: {
-    border: '2px solid var(--accent)',
-    background: 'var(--bg-tertiary)',
-  },
-  ressourceCardDisabled: {
-    opacity: 0.4,
-    cursor: 'not-allowed',
-  },
-  ressourceName: {
-    fontSize: 15,
-    fontWeight: 600,
-  },
-  ressourceDesc: {
     fontSize: 12,
     color: 'var(--text-secondary)',
   },
