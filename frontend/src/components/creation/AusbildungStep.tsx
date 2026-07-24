@@ -11,7 +11,7 @@ interface SkillItem {
   id: string
   name: string
   description: string
-  config: { kategorie: 'fertigkeit' | 'kampf' | 'magie' }
+  config: { kategorie: string; [key: string]: unknown }
 }
 
 interface ResourceItem {
@@ -58,9 +58,14 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       fetch(`${API_BASE}/api/library/strengths`).then((r) => r.json()),
     ])
       .then(([skillsData, resourcesData, strengthsData]: [SkillItem[], ResourceItem[], StrengthItem[]]) => {
-        setTalents(skillsData.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
-        setWeapons(skillsData.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
-        setMagicSchools(skillsData.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+        const raw: { id: string; name: string; description: string; config: unknown }[] = skillsData as any
+        const parsed: SkillItem[] = raw.map((s) => {
+          const cfg = typeof s.config === 'string' ? JSON.parse(s.config) : (s.config ?? {})
+          return { id: s.id, name: s.name, description: s.description, config: cfg }
+        })
+        setTalents(parsed.filter((s) => s.config.kategorie === 'fertigkeit').map((s) => ({ id: s.id, name: s.name })))
+        setWeapons(parsed.filter((s) => s.config.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
+        setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setRessourcenData(resourcesData.map((r) => ({ id: r.id, name: r.name, desc: r.description })))
         setStaerkenData(strengthsData.map((s) => ({ id: s.id, name: s.name, desc: s.description || '' })))
       })
