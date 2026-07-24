@@ -90,36 +90,40 @@ export default function CreationView() {
   }
 
   return (
-    <div>
-      <div style={styles.headerRow}>
-        <button style={styles.resetButton} onClick={resetCharacter}>
-          Neuer Charakter
-        </button>
+    <div style={styles.outerContainer}>
+      <div style={styles.innerContainer}>
+        <div style={styles.headerRow}>
+          <button style={styles.resetButton} onClick={resetCharacter}>
+            Neuer Charakter
+          </button>
+        </div>
+        <div style={styles.stepBar}>
+          {steps.map((step, i) => {
+            const stepNum = i + 1
+            const isActive = stepNum === currentStep
+            const isVisited = !!stepDeltas[stepNum]
+            const isReachable = stepNum <= currentStep || isVisited
+            return (
+              <span
+                key={i}
+                onClick={() => handleStepClick(stepNum)}
+                style={{
+                  ...styles.step,
+                  ...(isActive ? styles.stepActive : {}),
+                  ...(!isActive && isVisited ? styles.stepVisited : {}),
+                  ...(!isActive && !isReachable ? styles.stepLocked : {}),
+                  cursor: isReachable ? 'pointer' : 'default',
+                }}
+              >
+                {stepNum}. {step}
+              </span>
+            )
+          })}
+        </div>
+        {renderStepContent()}
+        <div style={styles.spacer} />
       </div>
-      <div style={styles.stepBar}>
-        {steps.map((step, i) => {
-          const stepNum = i + 1
-          const isActive = stepNum === currentStep
-          const isVisited = !!stepDeltas[stepNum]
-          return (
-            <span
-              key={i}
-              onClick={() => handleStepClick(stepNum)}
-              style={{
-                ...styles.step,
-                ...(isActive ? styles.stepActive : {}),
-                ...(!isActive && isVisited ? styles.stepVisited : {}),
-                ...(!isActive && !isVisited ? styles.stepLocked : {}),
-                cursor: isVisited ? 'pointer' : 'default',
-              }}
-            >
-              {stepNum}. {step}
-            </span>
-          )
-        })}
-      </div>
-      {renderStepContent()}
-      <div style={styles.navButtons}>
+      <div style={styles.navBar}>
         <button
           style={{ ...styles.navButton, ...(currentStep === 1 ? styles.navButtonDisabled : {}) }}
           onClick={handleBack}
@@ -189,20 +193,40 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-muted)',
     opacity: 0.5,
   },
-  content: { padding: 16, border: '1px dashed var(--border-lighter)', borderRadius: 8, minHeight: 300 },
-  navButtons: { display: 'flex', gap: 12, marginTop: 24, justifyContent: 'space-between' },
+  outerContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 'calc(100vh - 40px)',
+  },
+  innerContainer: {
+    flex: 1,
+  },
+  spacer: {
+    height: 80,
+  },
+  navBar: {
+    position: 'sticky',
+    bottom: 0,
+    display: 'flex',
+    gap: 12,
+    justifyContent: 'space-between',
+    padding: '16px 24px',
+    background: 'var(--bg-secondary)',
+    borderTop: '1px solid var(--border)',
+    zIndex: 10,
+  },
   navButton: {
-    padding: '10px 24px',
+    padding: '10px 32px',
     fontSize: 14,
     fontWeight: 600,
-    background: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 6,
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
-  navButtonDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+  navButtonDisabled: { opacity: 0.5, cursor: 'not-allowed', background: 'var(--bg-primary)', color: 'var(--text-secondary)' },
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
