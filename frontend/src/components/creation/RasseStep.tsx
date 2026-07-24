@@ -10,7 +10,7 @@ interface RasseStepProps {
 }
 
 export default function RasseStep({ onValid }: RasseStepProps) {
-  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const [races, setRaces] = useState<Race[]>([])
   const [dataLoading, setDataLoading] = useState(true)
@@ -62,7 +62,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     setSelected(id)
     const race = races.find((r) => r.id === id)
     if (race) {
-      saveStep(2, { id: race.id, name: race.name, statblock: race.statblock })
+      updateStepDelta(2, { id: race.id, name: race.name, statblock: race.statblock })
       setModalRace(race)
       setModalOpen(true)
     }

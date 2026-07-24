@@ -29,7 +29,7 @@ interface AttributeStepProps {
 }
 
 export default function AttributeStep({ onValid }: AttributeStepProps) {
-  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [rolls, setRolls] = useState<number[]>([])
@@ -101,7 +101,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
 
   useEffect(() => {
     if (Object.keys(assignments).length > 0) {
-      saveStep(6, {
+      updateStepDelta(6, {
         attribute: assignments,
         rolls,
       })

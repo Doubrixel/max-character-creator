@@ -28,7 +28,7 @@ interface KulturStepProps {
 }
 
 export default function KulturStep({ onValid }: KulturStepProps) {
-  const { computeBaseStats, stepDeltas, currentStep, saveStep } = useAppContext()
+  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
@@ -130,7 +130,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) myOnly[sid] = val - base
     }
-    saveStep(4, { skills: myOnly, staerke, meisterschaft })
+    updateStepDelta(4, { skills: myOnly, staerke, meisterschaft })
   }
 
   const decrementSkill = (id: string) => {
@@ -143,7 +143,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) myOnly[sid] = val - base
     }
-    saveStep(4, { skills: myOnly, staerke, meisterschaft })
+    updateStepDelta(4, { skills: myOnly, staerke, meisterschaft })
   }
 
   const getSkillMax = (_id: string): number => {
@@ -152,7 +152,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   const handleStaerke = (id: string) => {
     setStaerke(id)
-    saveStep(4, { skills, staerke: id, meisterschaft })
+    updateStepDelta(4, { skills, staerke: id, meisterschaft })
   }
 
   const handleMeisterschaftSkill = (id: string) => {
@@ -162,7 +162,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   const handleMeisterschaft = (id: string) => {
     setMeisterschaft(id)
-    saveStep(4, { skills, staerke, meisterschaft: id })
+    updateStepDelta(4, { skills, staerke, meisterschaft: id })
   }
 
   const eligibleSkills = Object.entries(skills)
@@ -176,8 +176,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     (m) => m.skillId === meisterschaftSkill
   )
 
-  const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
-    <div style={styles.section}>
+  const renderSkillSection = (title: string, items: { id: string; name: string }[], flex?: boolean) => (
+    <div style={{ ...styles.section, ...(flex ? { flex: 1, minWidth: 0 } : {}) }}>
       <h3 style={styles.sectionTitle}>{title}</h3>
       <table style={styles.table}>
         <thead>
@@ -231,8 +231,11 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         Verfügbare Punkte: {availablePoints}
       </div>
 
-      {renderSkillSection('Fertigkeiten', talents)}
-      {renderSkillSection('Kampffertigkeiten', weapons)}
+      <div style={styles.skillRow}>
+        {renderSkillSection('Fertigkeiten', talents, true)}
+        {renderSkillSection('Kampffertigkeiten', weapons, true)}
+      </div>
+
       {renderSkillSection('Magieschulen', magicSchools)}
 
       <div style={styles.section}>
@@ -292,6 +295,10 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 20,
     minHeight: 300,
+  },
+  skillRow: {
+    display: 'flex',
+    gap: 20,
   },
   loading: {
     fontSize: 16,

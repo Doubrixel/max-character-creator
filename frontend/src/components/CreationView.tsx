@@ -19,7 +19,7 @@ const steps = [
 ]
 
 export default function CreationView() {
-  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter } = useAppContext()
+  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter, flushCurrentStep } = useAppContext()
   const [canProceed, setCanProceed] = useState(false)
 
   if (!characterId) {
@@ -33,14 +33,16 @@ export default function CreationView() {
     )
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length) {
+      await flushCurrentStep()
       setCurrentStep(currentStep + 1)
     }
   }
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (currentStep > 1) {
+      await flushCurrentStep()
       setCurrentStep(currentStep - 1)
     }
   }

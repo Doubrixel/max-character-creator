@@ -35,7 +35,9 @@ interface AppContextType {
   computeBaseStats: (upToStep: number) => CharacterStats
   setCharacterId: (id: string) => void
   setCurrentStep: (step: number) => void
+  updateStepDelta: (step: number, delta: Record<string, unknown>) => void
   saveStep: (step: number, delta: Record<string, unknown>) => Promise<void>
+  flushCurrentStep: () => Promise<void>
   loadCharacter: (id: string) => Promise<void>
   validateStep: (step: number) => Promise<{ valid: boolean; errors: string[] }>
   createCharacter: () => Promise<void>
@@ -63,6 +65,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setCurrentStep = (step: number) => {
     setCurrentStepState(step)
+  }
+
+  const updateStepDelta = (step: number, delta: Record<string, unknown>) => {
+    setStepDeltas(prev => ({ ...prev, [step]: delta }))
+  }
+
+  const flushCurrentStep = async () => {
+    if (!characterId) return
+    const delta = stepDeltas[currentStep]
+    if (!delta) return
+    try {
+      await fetch(`${API_BASE}/api/characters/${characterId}/steps/${currentStep}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta }),
+      })
+    } catch (err) {
+      console.error('flushCurrentStep failed:', err)
+    }
   }
 
   const loadCharacter = async (characterId: string) => {
@@ -154,7 +175,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         computeBaseStats,
         setCharacterId,
         setCurrentStep,
+        updateStepDelta,
         saveStep,
+        flushCurrentStep,
         loadCharacter,
         validateStep,
         createCharacter,

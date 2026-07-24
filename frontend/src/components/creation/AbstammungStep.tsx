@@ -48,7 +48,7 @@ interface AbstammungStepProps {
 }
 
 export default function AbstammungStep({ onValid }: AbstammungStepProps) {
-  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [dice1, setDice1] = useState<string>('')
@@ -93,7 +93,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       const sum = d1 + d2
       const result = heritageTable[sum] ?? 'Unbekannte Herkunft'
       setHeritage(result)
-      saveStep(3, { heritageRoll: d1 + d2, heritage: result, decisions: chosenDecisionsRef.current })
+      updateStepDelta(3, { heritageRoll: d1 + d2, heritage: result, decisions: chosenDecisionsRef.current })
     } else {
       setHeritage('')
     }
@@ -117,7 +117,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       chosenDecisionsRef.current = next
       const d1 = parseInt(dice1, 10)
       const d2 = parseInt(dice2, 10)
-      saveStep(3, { heritageRoll: d1 + d2, heritage, decisions: next })
+      updateStepDelta(3, { heritageRoll: d1 + d2, heritage, decisions: next })
       return next
     })
   }
@@ -132,7 +132,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       chosenDecisionsRef.current = next
       const d1 = parseInt(dice1, 10)
       const d2 = parseInt(dice2, 10)
-      saveStep(3, { heritageRoll: d1 + d2, heritage, decisions: next })
+      updateStepDelta(3, { heritageRoll: d1 + d2, heritage, decisions: next })
       return next
     })
   }

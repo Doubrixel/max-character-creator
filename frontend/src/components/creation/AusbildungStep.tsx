@@ -33,7 +33,7 @@ interface AusbildungStepProps {
 }
 
 export default function AusbildungStep({ onValid }: AusbildungStepProps) {
-  const { computeBaseStats, stepDeltas, currentStep, saveStep } = useAppContext()
+  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
@@ -168,7 +168,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) step5Only[sid] = val - base
     }
-    saveStep(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
+    updateStepDelta(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const decrementSkill = (id: string) => {
@@ -181,19 +181,19 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const base = baseSkills[sid] ?? 0
       if (val > base) step5Only[sid] = val - base
     }
-    saveStep(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
+    updateStepDelta(5, { skills: step5Only, staerken, ressourcen, magic: buildMagicValues(next) })
   }
 
   const handleStaerke = (id: string) => {
     if (staerken.includes(id)) {
       const next = staerken.filter((s) => s !== id)
       setStaerken(next)
-      saveStep(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
     } else {
       if (staerkenAvailable <= 0) return
       const next = [...staerken, id]
       setStaerken(next)
-      saveStep(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken: next, ressourcen, magic: buildMagicValues(skills) })
     }
   }
 
@@ -201,17 +201,17 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     if (ressourcen.includes(id)) {
       const next = ressourcen.filter((r) => r !== id)
       setRessourcen(next)
-      saveStep(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
     } else {
       if (ressourcenAvailable <= 0) return
       const next = [...ressourcen, id]
       setRessourcen(next)
-      saveStep(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
+      updateStepDelta(5, { skills, staerken, ressourcen: next, magic: buildMagicValues(skills) })
     }
   }
 
-  const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
-    <div style={styles.section}>
+  const renderSkillSection = (title: string, items: { id: string; name: string }[], flex?: boolean) => (
+    <div style={{ ...styles.section, ...(flex ? { flex: 1, minWidth: 0 } : {}) }}>
       <h3 style={styles.sectionTitle}>{title}</h3>
       <table style={styles.table}>
         <thead>
@@ -276,8 +276,11 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
         </div>
       </div>
 
-      {renderSkillSection('Fertigkeiten', talents)}
-      {renderSkillSection('Kampffertigkeiten', weapons)}
+      <div style={styles.skillRow}>
+        {renderSkillSection('Fertigkeiten', talents, true)}
+        {renderSkillSection('Kampffertigkeiten', weapons, true)}
+      </div>
+
       {renderSkillSection('Magieschulen', magicSchools)}
 
       <div style={styles.section}>
@@ -339,6 +342,10 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 20,
     minHeight: 300,
+  },
+  skillRow: {
+    display: 'flex',
+    gap: 20,
   },
   loading: {
     fontSize: 16,

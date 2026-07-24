@@ -37,7 +37,7 @@ interface SchicksalStepProps {
 }
 
 export default function SchicksalStep({ onValid }: SchicksalStepProps) {
-  const { stepDeltas, currentStep, saveStep } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const [selected, setSelected] = useState<string | null>(null)
   const initializedRef = useRef(false)
@@ -62,7 +62,7 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
     setSelected(id)
     const destiny = destinies.find((d) => d.id === id)
     if (destiny) {
-      saveStep(1, { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
+      updateStepDelta(1, { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
     }
   }
 

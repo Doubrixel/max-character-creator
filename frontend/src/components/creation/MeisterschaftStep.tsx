@@ -33,7 +33,7 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, stepDeltas, currentStep, saveStep, computeBaseStats } = useAppContext()
+  const { characterId, stepDeltas, currentStep, updateStepDelta, computeBaseStats } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
@@ -322,7 +322,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
       resources: br ? { [br]: 1 } : {},
       spells: Object.values(magicSpellsObj).filter(Boolean),
     }
-    saveStep(7, data)
+    updateStepDelta(7, data)
   }
 
   const handleFinalize = async () => {
