@@ -1,3 +1,5 @@
+import { parseChoiceKey } from './herkunft'
+
 type Reducer = (
   currentStats: Record<string, unknown>,
   delta: Record<string, unknown>,
@@ -18,10 +20,29 @@ function concatArrays<T>(current: T[] | undefined, incoming: T[] | undefined): T
   return [...(current ?? []), ...(incoming ?? [])];
 }
 
-const step1: Reducer = (stats, delta) => ({
-  ...stats,
-  schicksal: delta,
-});
+const step1: Reducer = (stats, delta) => {
+  const rowSelections = (delta.rowSelections ?? {}) as Record<number, string>
+  const skills: Record<string, number> = {}
+  const resources: Record<string, number> = {}
+
+  for (const choiceStr of Object.values(rowSelections)) {
+    const items = parseChoiceKey(choiceStr)
+    for (const item of items) {
+      if (item.type === 'skill') {
+        skills[item.name] = (skills[item.name] ?? 0) + item.value
+      } else {
+        resources[item.name] = (resources[item.name] ?? 0) + item.value
+      }
+    }
+  }
+
+  return {
+    ...stats,
+    schicksal: delta,
+    skills: mergeSkills((stats.skills ?? {}) as Record<string, number>, skills),
+    resources: mergeSkills((stats.resources ?? {}) as Record<string, number>, resources),
+  }
+}
 
 const step2: Reducer = (stats, delta) => ({
   ...stats,
