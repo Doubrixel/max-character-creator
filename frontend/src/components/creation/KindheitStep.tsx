@@ -82,7 +82,9 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       .finally(() => setSkillsLoading(false))
   }, [])
 
-  const usedPoints = Object.values(skills).reduce((a, b) => a + b, 0)
+  const baseTotal = Object.values(baseSkills).reduce((a, b) => a + b, 0)
+  const totalSkills = Object.values(skills).reduce((a, b) => a + b, 0)
+  const usedPoints = totalSkills - baseTotal
   const availablePoints = INITIAL_POINTS - usedPoints
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     const allSkills = [...talents, ...weapons, ...magicSchools]
     const initialSkills: Record<string, number> = {}
     allSkills.forEach((s) => {
-      initialSkills[s.id] = baseSkills[s.id] ?? saved?.skills?.[s.id] ?? 0
+      initialSkills[s.id] = (baseSkills[s.id] ?? 0) + (saved?.skills?.[s.id] ?? 0)
     })
 
     setSkills(initialSkills)
@@ -253,11 +255,11 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       {skillsLoading && <div style={styles.loading}>Lade Skills...</div>}
 
       <div style={styles.counters}>
-        <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
-          Fertigkeits-Punkte: {availablePoints}
-        </div>
         <div style={{ ...styles.counter, ...(staerkeAvailable === 0 ? styles.counterZero : {}) }}>
           Stärke: {staerkeAvailable}
+        </div>
+        <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
+          Fertigkeits-Punkte: {availablePoints}
         </div>
       </div>
 
