@@ -210,8 +210,8 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     }
   }
 
-  const renderSkillSection = (title: string, items: { id: string; name: string }[], flex?: boolean) => (
-    <div style={{ ...styles.section, ...(flex ? { flex: 1, minWidth: 0 } : {}) }}>
+  const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
+    <div style={styles.section}>
       <h3 style={styles.sectionTitle}>{title}</h3>
       <table style={styles.table}>
         <thead>
@@ -277,9 +277,11 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       </div>
 
       <div style={styles.skillRow}>
-        {renderSkillSection('Fertigkeiten', talents, true)}
-        {renderSkillSection('Kampffertigkeiten', weapons, true)}
-        {renderSkillSection('Magieschulen', magicSchools, true)}
+        {renderSkillSection('Fertigkeiten', talents)}
+        <div style={styles.skillCol}>
+          {renderSkillSection('Kampffertigkeiten', weapons)}
+          {renderSkillSection('Magieschulen', magicSchools)}
+        </div>
       </div>
 
       <div style={styles.section}>
@@ -345,6 +347,14 @@ const styles: Record<string, React.CSSProperties> = {
   skillRow: {
     display: 'flex',
     gap: 20,
+    alignItems: 'flex-start',
+  },
+  skillCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 20,
+    flex: 1,
+    minWidth: 0,
   },
   loading: {
     fontSize: 16,
