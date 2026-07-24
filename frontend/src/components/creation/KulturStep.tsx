@@ -183,12 +183,13 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const selectedSkill = eligibleSkills.find((s) => s.id === meisterschaftSkill)
   const selectedSkillName = selectedSkill?.name ?? ''
   const isKampf = weapons.some((w) => w.id === meisterschaftSkill)
+  const isNahkampf = isKampf && !['schusswaffen', 'wurfwaffen'].includes(meisterschaftSkill)
   const isMagie = magicSchools.some((m) => m.id === meisterschaftSkill)
 
   const availableMeisterschaften = meisterschaftenData.filter((m) => {
     if (m.schwelle !== 1) return false
     if (m.kategorieName === selectedSkillName) return true
-    if (isKampf && m.kategorieName === 'Allgemeine Nahkampfmeisterschaften') return true
+    if (isNahkampf && m.kategorieName === 'Allgemeine Nahkampfmeisterschaften') return true
     if (isMagie && m.kategorieName === 'Allgemeine Magieschulen-Meisterschaften') return true
     return false
   })
