@@ -149,11 +149,44 @@ async function rebuildCharacterStepsWithStepKey() {
   console.log('Migration: character_steps rebuilt (step_key + unique index)');
 }
 
+async function addCharactersStateColumn() {
+  if (await columnExists('characters', 'state')) return;
+
+  console.log('Migration: adding characters.state column');
+
+  await client.execute(`ALTER TABLE characters ADD COLUMN state text`);
+}
+
+async function addGroessenklasseToRaces() {
+  const result = await client.execute({ sql: `SELECT id, name, config FROM races`, args: [] });
+  const rows = result.rows || [];
+  let updated = 0;
+
+  for (const row of rows) {
+    let cfg: Record<string, unknown> = {};
+    if (row.config) {
+      try { cfg = JSON.parse(row.config as string) } catch { cfg = {} }
+    }
+    if (typeof cfg.groessenklasse === 'number') continue;
+
+    cfg.groessenklasse = (row.name as string) === 'Elf' ? 2 : 3;
+    await client.execute({
+      sql: `UPDATE races SET config = ? WHERE id = ?`,
+      args: [JSON.stringify(cfg), row.id as string],
+    });
+    updated++;
+  }
+
+  if (updated > 0) console.log(`Migration: added groessenklasse to ${updated} race(s)`);
+}
+
 export async function runMigration() {
   await repairCharactersTable();
   await makeSkillsTypeNullable();
   await createStrengthsTable();
   await createWeaknessesTable();
+  await addCharactersStateColumn();
+  await addGroessenklasseToRaces();
 
   if ((await columnExists('character_steps', 'data')) && !(await columnExists('character_steps', 'delta'))) {
     await client.execute(`ALTER TABLE character_steps RENAME COLUMN data TO delta`);

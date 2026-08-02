@@ -42,3 +42,22 @@ export interface CharacterState {
   resources?: Record<string, number>
   spells?: string[]
 }
+
+export const FINAL_CHARACTER_VERSION = 1
+
+export interface FinalCharacter {
+  version: typeof FINAL_CHARACTER_VERSION
+  name: string
+  schicksal: string | null
+  rasse: string | null
+  groessenklasse: number
+  kultur: string | null
+  attribute: AttributeValues
+  derived: DerivedValues
+  skills: Record<string, number>
+  staerken: string[]
+  meisterschaften: string[]
+  spells: string[]
+  ressourcen: Record<string, number>
+  xp: number
+}

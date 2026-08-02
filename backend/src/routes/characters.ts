@@ -4,6 +4,7 @@ import { characters, characterXpLog, characterSteps, spells } from '../db/schema
 import { eq, and } from 'drizzle-orm'
 import {
   recalculateStats,
+  buildFinalCharacter,
   isStepKey,
   STEP_ORDER,
   StepDeltas,
@@ -28,6 +29,37 @@ app.post('/api/characters', async (c) => {
   const body = await c.req.json()
   const id = crypto.randomUUID()
   const now = Date.now()
+
+  const steps: StepDeltas | undefined = body.steps
+
+  if (steps) {
+    const final = buildFinalCharacter(body.name, steps)
+
+    await db.insert(characters).values({
+      id,
+      name: body.name,
+      createdAt: now,
+      updatedAt: now,
+      status: 'completed',
+      state: JSON.stringify(final),
+      xp: 15,
+      totalXp: 15,
+    })
+
+    for (const step of STEP_ORDER) {
+      const delta = steps[step]
+      if (!delta) continue
+      await db.insert(characterSteps).values({
+        id: crypto.randomUUID(),
+        characterId: id,
+        stepKey: step,
+        delta: JSON.stringify(delta),
+        updatedAt: now,
+      })
+    }
+
+    return c.json({ id, name: body.name, status: 'completed', xp: 15, state: final }, 201)
+  }
 
   const result = await db.insert(characters).values({
     id,
@@ -55,6 +87,17 @@ app.get('/api/characters/:id', async (c) => {
 
 app.get('/api/characters/:id/state', async (c) => {
   const id = c.req.param('id')
+
+  const character = await db.select().from(characters).where(eq(characters.id, id))
+  if (character.length === 0) {
+    return c.json({ error: 'Character not found' }, 404)
+  }
+
+  if (character[0].state) {
+    const final = JSON.parse(character[0].state)
+    return c.json({ state: final, deltas: null })
+  }
+
   const upToParam = c.req.query('upTo')
   const upTo: StepKey | undefined = upToParam && isStepKey(upToParam) ? upToParam : undefined
   const upToIdx = upTo ? STEP_ORDER.indexOf(upTo) : STEP_ORDER.length - 1

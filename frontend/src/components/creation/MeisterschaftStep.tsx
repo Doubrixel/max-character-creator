@@ -33,7 +33,7 @@ interface MeisterschaftStepProps {
 }
 
 export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
-  const { characterId, stepDeltas, currentStep, updateStepDelta, computeBaseStats } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta, computeBaseStats, finalizeCharacter, resetCharacter } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [skill6Entries, setSkill6Entries] = useState<Skill6Entry[]>([])
@@ -299,7 +299,6 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
     overrideBonusT?: Record<string, number>,
     overrideBonusR?: string | null,
   ) => {
-    if (!characterId) return
     const s6 = overrideSkill6 ?? skill6Entries
     const mg = overrideMagic ?? magicThresholds
     const bm = overrideBonusM ?? selectedBonusMeisterschaften
@@ -326,22 +325,15 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
   }
 
   const handleFinalize = async () => {
-    if (!characterId) return
     setFinalizing(true)
     setError(null)
-    try {
-      const res = await fetch(`${API_BASE}/api/characters/${characterId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      })
-      if (!res.ok) throw new Error('Fehler beim Fertigstellen')
+    const ok = await finalizeCharacter()
+    if (ok) {
       setCompleted(true)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unbekannter Fehler')
-    } finally {
-      setFinalizing(false)
+    } else {
+      setError('Fehler beim Fertigstellen')
     }
+    setFinalizing(false)
   }
 
   if (dataLoading) {
@@ -358,7 +350,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
         <h2 style={styles.completedTitle}>Charakter fertiggestellt!</h2>
         <p style={styles.completedText}>Dein Charakter wurde erfolgreich erstellt und erhält 15 Start-XP.</p>
         <p style={styles.completedText}>Er erscheint nun im Chroniken-Tab.</p>
-        <button style={styles.finalizeButton} onClick={() => window.location.reload()}>
+        <button style={styles.finalizeButton} onClick={resetCharacter}>
           Zurück zur Übersicht
         </button>
       </div>

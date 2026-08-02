@@ -117,8 +117,8 @@ export async function seedIfNeeded(): Promise<void> {
 
   if (await isEmpty(races)) {
     const raceData = [
-      { name: 'Mensch', config: JSON.stringify({ vorteile: ['Anpassungsfähig'], nachteile: ['Keine'] }) },
-      { name: 'Elf', config: JSON.stringify({ vorteile: ['Nachtsicht'], nachteile: ['Empfindlich gegen Eisen'] }) },
+      { name: 'Mensch', config: JSON.stringify({ vorteile: ['Anpassungsfähig'], nachteile: ['Keine'], groessenklasse: 3 }) },
+      { name: 'Elf', config: JSON.stringify({ vorteile: ['Nachtsicht'], nachteile: ['Empfindlich gegen Eisen'], groessenklasse: 2 }) },
     ];
     for (const entry of raceData) {
       await db.insert(races).values({ id: randomUUID(), ...entry, createdAt: now, updatedAt: now });

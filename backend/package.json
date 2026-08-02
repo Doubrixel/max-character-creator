@@ -6,7 +6,8 @@
     "dev": "node --watch --import=tsx src/server.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "seed": "tsx src/db/seed-cli.ts"
+    "seed": "tsx src/db/seed-cli.ts",
+    "wipe:characters": "tsx src/scripts/wipe-characters.ts"
   },
   "dependencies": {
     "@mcc/shared": "*",

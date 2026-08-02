@@ -85,9 +85,21 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const staerken = (state.staerken ?? []) as string[]
   const meisterschaften = [...(state.meisterschaften ?? []) as string[], ...(state.bonusMeisterschaften ?? []) as string[]]
   const spells = (state.spells ?? []) as string[]
-  const resources = (state.resources ?? {}) as Record<string, number>
-  const rasse = (state.rasse ?? {}) as { name?: string }
-  const abstammung = (state.abstammung ?? {}) as { originName?: string }
+  const resources = (state.ressourcen ?? state.resources ?? {}) as Record<string, number>
+
+  const rasseRaw = state.rasse
+  const rasseName = typeof rasseRaw === 'string'
+    ? rasseRaw
+    : (rasseRaw as { name?: string } | null | undefined)?.name
+  const schicksalRaw = state.schicksal
+  const schicksalName = typeof schicksalRaw === 'string'
+    ? schicksalRaw
+    : (schicksalRaw as { name?: string } | null | undefined)?.name
+  const kulturRaw = state.kultur
+  const kulturName = typeof kulturRaw === 'string'
+    ? kulturRaw
+    : (kulturRaw as { kulturName?: string } | null | undefined)?.kulturName
+  const groessenklasse = typeof state.groessenklasse === 'number' ? state.groessenklasse : null
 
   return (
     <div style={styles.sheet}>
@@ -98,16 +110,25 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         </button>
       </div>
 
-      {rasse.name && (
+      {schicksalName && (
         <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>Rasse:</span>
-          <span>{rasse.name}</span>
+          <span style={styles.infoLabel}>Schicksal:</span>
+          <span>{schicksalName}</span>
         </div>
       )}
-      {abstammung.originName && (
+      {rasseName && (
         <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>Abstammung:</span>
-          <span>{abstammung.originName}</span>
+          <span style={styles.infoLabel}>Rasse:</span>
+          <span>
+            {rasseName}
+            {groessenklasse !== null && ` (Größenklasse ${groessenklasse})`}
+          </span>
+        </div>
+      )}
+      {kulturName && (
+        <div style={styles.infoRow}>
+          <span style={styles.infoLabel}>Kultur:</span>
+          <span>{kulturName}</span>
         </div>
       )}
 

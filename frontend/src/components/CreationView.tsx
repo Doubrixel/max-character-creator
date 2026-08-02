@@ -24,10 +24,10 @@ const STEP_LABELS: Record<StepKey, string> = {
 const steps = STEP_ORDER.map(key => ({ key, label: STEP_LABELS[key] }))
 
 export default function CreationView() {
-  const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter, flushCurrentStep, stepDeltas } = useAppContext()
+  const { creating, currentStep, setCurrentStep, createCharacter, resetCharacter, stepDeltas } = useAppContext()
   const [canProceed, setCanProceed] = useState(false)
 
-  if (!characterId) {
+  if (!creating) {
     return (
       <div style={styles.emptyState}>
         <h2 style={{ marginBottom: 16, color: 'var(--text-primary)' }}>Noch kein Charakter vorhanden</h2>
@@ -40,27 +40,21 @@ export default function CreationView() {
 
   const currentIdx = STEP_ORDER.indexOf(currentStep)
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (currentIdx < steps.length - 1) {
-      const saved = await flushCurrentStep()
-      if (!saved) return
       setCurrentStep(STEP_ORDER[currentIdx + 1])
     }
   }
 
-  const handleBack = async () => {
+  const handleBack = () => {
     if (currentIdx > 0) {
-      const saved = await flushCurrentStep()
-      if (!saved) return
       setCurrentStep(STEP_ORDER[currentIdx - 1])
     }
   }
 
-  const handleStepClick = async (target: StepKey) => {
+  const handleStepClick = (target: StepKey) => {
     if (target === currentStep) return
     if (!stepDeltas[target]) return
-    const saved = await flushCurrentStep()
-    if (!saved) return
     setCurrentStep(target)
   }
 

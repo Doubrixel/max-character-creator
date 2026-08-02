@@ -24,6 +24,7 @@ export interface SchicksalDelta {
 export interface RasseDelta {
   id: string
   name: string
+  groessenklasse?: number
   statblock: { vorteile: string[]; nachteile: string[] }
 }
 

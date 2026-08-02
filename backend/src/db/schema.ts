@@ -6,6 +6,7 @@ export const characters = sqliteTable('characters', {
   createdAt: integer('created_at'),
   updatedAt: integer('updated_at'),
   status: text('status').default('draft'),
+  state: text('state'),
   xp: integer('xp').default(15),
   totalXp: integer('total_xp').default(15),
 });

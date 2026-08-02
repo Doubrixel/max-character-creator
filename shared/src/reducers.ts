@@ -1,5 +1,5 @@
 import { parseChoiceKey } from './herkunft'
-import { CharacterState } from './character'
+import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
   STEP_ORDER,
@@ -193,4 +193,40 @@ export function recalculateStatsUpTo(
     }
   }
   return stats;
+}
+
+const ZERO_DERIVED: DerivedValues = { LP: 0, FK: 0, SP: 0, VTD: 0, KW: 0, GW: 0, SS: 0, INI: 0 }
+
+export function buildFinalCharacter(name: string, steps: StepDeltas): FinalCharacter {
+  const state = recalculateStats(steps)
+
+  const staerken = [
+    ...(steps.rasse?.statblock.vorteile ?? []),
+    ...(steps.rasse?.statblock.nachteile ?? []),
+    ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
+    ...(steps.ausbildung?.staerken ?? []),
+  ]
+
+  return {
+    version: FINAL_CHARACTER_VERSION,
+    name,
+    schicksal: steps.schicksal?.name ?? null,
+    rasse: steps.rasse?.name ?? null,
+    groessenklasse: steps.rasse?.groessenklasse ?? 3,
+    kultur: steps.kultur?.kulturName ?? null,
+    attribute: (state.attribute ?? {}) as FinalCharacter['attribute'],
+    derived: (state.derived ?? ZERO_DERIVED) as DerivedValues,
+    skills: (state.skills ?? {}) as Record<string, number>,
+    staerken,
+    meisterschaften: [
+      ...(state.meisterschaften ?? []),
+      ...(state.bonusMeisterschaften ?? []),
+    ],
+    spells: state.spells ?? [],
+    ressourcen: mergeSkills(
+      (state.ressourcen ?? {}) as Record<string, number>,
+      (state.resources ?? {}) as Record<string, number>,
+    ),
+    xp: 15,
+  };
 }

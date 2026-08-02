@@ -3,7 +3,7 @@ import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-type Race = { id: string, name: string, icon: string, speciesLaw: string, statblock: { vorteile: string[], nachteile: string[] } }
+type Race = { id: string, name: string, icon: string, speciesLaw: string, groessenklasse: number, statblock: { vorteile: string[], nachteile: string[] } }
 
 interface RasseStepProps {
   onValid: (valid: boolean) => void
@@ -42,6 +42,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
             name: r.name,
             icon: cfg.bildUrl ? '🖼️' : '🧑',
             speciesLaw: cfg.spezieslaw || r.description || '',
+            groessenklasse: typeof cfg.groessenklasse === 'number' ? cfg.groessenklasse : 3,
             statblock: {
               vorteile: cfg.vorteile ? (typeof cfg.vorteile === 'string' ? JSON.parse(cfg.vorteile) : cfg.vorteile) : [],
               nachteile: cfg.nachteile ? (typeof cfg.nachteile === 'string' ? JSON.parse(cfg.nachteile) : cfg.nachteile) : [],
@@ -62,7 +63,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     setSelected(id)
     const race = races.find((r) => r.id === id)
     if (race) {
-      updateStepDelta('rasse', { id: race.id, name: race.name, statblock: race.statblock })
+      updateStepDelta('rasse', { id: race.id, name: race.name, groessenklasse: race.groessenklasse, statblock: race.statblock })
       setModalRace(race)
       setModalOpen(true)
     }
