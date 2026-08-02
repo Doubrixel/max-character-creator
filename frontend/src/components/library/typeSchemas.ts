@@ -97,8 +97,7 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   'derived-values': {
     label: 'Abgeleitete Werte',
     fields: [
-      { key: 'formel', label: 'Formel', type: 'text', placeholder: 'z.B. 10 + KO * 2', required: true },
-      { key: 'benötigteAttribute', label: 'Benötigte Attribute', type: 'text', placeholder: 'z.B. KO,GE' },
+      { key: 'formel', label: 'Formel', type: 'text', placeholder: 'z.B. ( GK + KON ) * 5', required: true },
     ],
   },
   skills: {

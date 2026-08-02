@@ -89,6 +89,54 @@ const STRENGTH_SEED = [
   { id: 'staerke_charisma', name: 'Charisma', description: '+1 auf soziale Proben', config: '{}' },
 ];
 
+const DERIVED_VALUE_SEED = [
+  { name: 'Lebenspunkte', description: 'Maximale Lebensenergie eines Charakters', formel: '( GK + KON ) * 5' },
+  { name: 'Focus', description: 'Magische Fokuskraft eines Charakters', formel: '( MYS + MYS ) * 3' },
+  { name: 'Spirit', description: 'Geistige Kraftquelle für Magie und Wunder', formel: '( HIN + HIN ) * 3' },
+  { name: 'Verteidigung', description: 'Basiswert zum Abwehren von Angriffen', formel: '12 + GE + INT + ( 5 - GK ) * 2' },
+  { name: 'Körperlicher Widerstand', description: 'Widerstand gegen körperliche Effekte und Schaden', formel: '12 + KRA + KON' },
+  { name: 'Geistiger Widerstand', description: 'Widerstand gegen geistige Effekte und Kontrolle', formel: '12 + MUT + KON' },
+  { name: 'Schadensschwelle', description: 'Ab diesem Schaden wird der Charakter beeinträchtigt', formel: 'GK - 3 + KON' },
+  { name: 'Initiative', description: 'Reihenfolge im Kampf; 1d10 wird gewürfelt', formel: '20 - INT - GE - 1d10' },
+];
+
+async function syncDerivedValues() {
+  const existing = await db.select().from(derivedValues);
+  const currentSignatures = existing.map((e) => {
+    let formel = '';
+    if (e.config) {
+      try {
+        const cfg = JSON.parse(e.config);
+        formel = typeof cfg.formel === 'string' ? cfg.formel : '';
+      } catch {
+        formel = e.config;
+      }
+    }
+    return JSON.stringify({ name: e.name, description: e.description ?? '', formel });
+  });
+  const targetSignatures = DERIVED_VALUE_SEED.map((e) =>
+    JSON.stringify({ name: e.name, description: e.description, formel: e.formel }),
+  );
+  const matches =
+    existing.length === DERIVED_VALUE_SEED.length &&
+    targetSignatures.every((sig) => currentSignatures.includes(sig));
+  if (matches) return;
+
+  const now = Date.now();
+  await db.delete(derivedValues);
+  for (const entry of DERIVED_VALUE_SEED) {
+    await db.insert(derivedValues).values({
+      id: randomUUID(),
+      name: entry.name,
+      description: entry.description,
+      config: JSON.stringify({ formel: entry.formel }),
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  console.log(`Seed: synced derived values (${DERIVED_VALUE_SEED.length})`);
+}
+
 export async function seedIfNeeded(): Promise<void> {
   const now = Date.now();
 
@@ -104,16 +152,7 @@ export async function seedIfNeeded(): Promise<void> {
     }
   }
 
-  if (await isEmpty(derivedValues)) {
-    const derivedData = [
-      { name: 'Lebenspunkte', config: '10+KO*2' },
-      { name: 'Astralenergie', config: 'KL+IN+MU' },
-      { name: 'Karmaenergie', config: 'KO+IN+CH' },
-    ];
-    for (const entry of derivedData) {
-      await db.insert(derivedValues).values({ id: randomUUID(), ...entry, createdAt: now, updatedAt: now });
-    }
-  }
+  await syncDerivedValues();
 
   if (await isEmpty(races)) {
     const raceData = [

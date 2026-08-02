@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { evaluateFormula } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 const ATTRIBUTES = ['MUT', 'KLU', 'INT', 'CHA', 'HIN', 'MYS', 'FF', 'GEW', 'KON', 'KRA'] as const
 type AttributeKey = (typeof ATTRIBUTES)[number]
@@ -32,13 +35,34 @@ interface AttributeStepProps {
 type RollDetail = { dice: number[]; sum: number; droppedIndex: number }
 
 export default function AttributeStep({ onValid }: AttributeStepProps) {
-  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
   const [pool, setPool] = useState<(number | null)[]>(Array(ATTRIBUTES.length).fill(null))
   const [slotAssignments, setSlotAssignments] = useState<Partial<Record<AttributeKey, number>>>({})
   const [rollsDetail, setRollsDetail] = useState<(RollDetail | null)[]>(Array(ATTRIBUTES.length).fill(null))
+  const [derivedDefs, setDerivedDefs] = useState<{ name: string; description: string; formel: string }[]>([])
   const initializedRef = useRef(false)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/library/derived-values`)
+      .then((r) => r.json())
+      .then((data: { name: string; description: string | null; config: string | null }[]) => {
+        setDerivedDefs(
+          data.map((d) => {
+            let formel = ''
+            if (d.config) {
+              try {
+                const cfg = JSON.parse(d.config)
+                if (typeof cfg.formel === 'string') formel = cfg.formel
+              } catch {}
+            }
+            return { name: d.name, description: d.description ?? '', formel }
+          }),
+        )
+      })
+      .catch(() => reportApiError('Abgeleitete Werte konnten nicht geladen werden'))
+  }, [])
 
   const poolFilled = pool.every((v) => v !== null)
 
@@ -195,6 +219,19 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
     .filter((i) => assignedTo[i] !== undefined)
     .sort((a, b) => ATTRIBUTES.indexOf(assignedTo[a]) - ATTRIBUTES.indexOf(assignedTo[b]))
 
+  const attributeMap: Record<string, number> = {}
+  for (const a of ATTRIBUTES) {
+    const s = slotAssignments[a]
+    if (s !== undefined && pool[s] !== null) attributeMap[a] = pool[s] as number
+  }
+  const groessenklasse = stepDeltas.rasse?.groessenklasse ?? 3
+  const derivedResults = derivedDefs.map((d) => {
+    const result = d.formel
+      ? evaluateFormula(d.formel, { attribute: attributeMap, groessenklasse })
+      : { value: null, display: '—' }
+    return { ...d, result }
+  })
+
   return (
     <div style={styles.container}>
       <div style={styles.section}>
@@ -287,6 +324,20 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
           })}
         </div>
       </div>
+
+      {derivedDefs.length > 0 && (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>Abgeleitete Werte</h3>
+          <div style={styles.derivedGrid}>
+            {derivedResults.map((d, i) => (
+              <div key={i} style={styles.derivedSlot} title={d.description}>
+                <span style={styles.derivedName}>{d.name}</span>
+                <span style={styles.derivedValue}>{d.result.display}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -442,5 +493,31 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-primary)',
     border: '2px solid var(--success)',
     background: 'var(--bg-success-subtle)',
+  },
+  derivedGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+    gap: 12,
+  },
+  derivedSlot: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    background: 'var(--bg-secondary)',
+    borderRadius: 8,
+    cursor: 'help',
+  },
+  derivedName: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+    textAlign: 'center',
+  },
+  derivedValue: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: 'var(--accent)',
   },
 }
