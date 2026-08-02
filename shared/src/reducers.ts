@@ -75,10 +75,50 @@ const abstammungReducer: Reducer = (stats, delta) => {
   }
 }
 
-const kulturReducer: Reducer = (stats, delta) => ({
-  ...stats,
-  kultur: delta as KulturDelta,
-})
+const kulturReducer: Reducer = (stats, delta) => {
+  const kulturDelta = delta as KulturDelta
+  const kulturConfig = kulturDelta.kulturConfig as Record<string, string> | undefined
+  const currentSkills = (stats.skills ?? {}) as Record<string, number>
+  const currentStaerken = (stats.staerken ?? []) as string[]
+  
+  const kulturSkills: Record<string, number> = {}
+  const kulturStaerken: string[] = []
+  
+  if (kulturConfig) {
+    // Skills aus talente, waffenTalente, magieSchulen
+    for (const key of ['talente', 'waffenTalente', 'magieSchulen']) {
+      try {
+        const arr = JSON.parse(kulturConfig[key] || '[]') as Array<{ id: string; punkte: number }>
+        for (const item of arr) {
+          if (item.punkte > 0) {
+            kulturSkills[item.id] = (kulturSkills[item.id] ?? 0) + item.punkte
+          }
+        }
+      } catch (error) {
+        console.error(`Fehler beim Parsen von kulturConfig.${key}:`, error)
+      }
+    }
+    
+    // Stärken mit anzahl
+    try {
+      const staerkenArr = JSON.parse(kulturConfig.staerken || '[]') as Array<{ id: string; anzahl: number }>
+      for (const item of staerkenArr) {
+        for (let i = 0; i < item.anzahl; i++) {
+          kulturStaerken.push(item.id)
+        }
+      }
+    } catch (error) {
+      console.error('Fehler beim Parsen von kulturConfig.staerken:', error)
+    }
+  }
+  
+  return {
+    ...stats,
+    kultur: kulturDelta,
+    skills: mergeSkills(currentSkills, kulturSkills),
+    staerken: concatArrays(currentStaerken, kulturStaerken),
+  }
+}
 
 const kindheitReducer: Reducer = (stats, delta) => {
   const { skills: deltaSkills = {}, staerke } = delta as {
@@ -151,12 +191,14 @@ const HobbybedarfReducer: Reducer = (stats, delta) => {
 };
 
 const zauberReducer: Reducer = (stats, delta) => {
-  const { pflicht = [] } = delta as {
+  const { pflicht = [], spells = [] } = delta as {
     pflicht: { skillId: string; meisterschaft: { id: string; name: string } }[]
+    spells: { spellId: string; spellName: string; schoolId: string; schoolName: string; grade: number }[]
   }
   return {
     ...stats,
     meisterschaften: pflicht.map((p) => p.meisterschaft),
+    spells,
   };
 };
 
@@ -213,23 +255,23 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     ...(steps.rasse?.statblock.vorteile ?? []),
     ...(steps.rasse?.statblock.nachteile ?? []),
     ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
-    ...(steps.ausbildung?.staerken ?? []),
-    ...(steps.Hobbybedarf?.staerken ?? []),
+    ...(state.staerken ?? []),
   ]
 
   return {
     version: FINAL_CHARACTER_VERSION,
     name,
-    schicksal: steps.schicksal?.name ?? null,
-    rasse: steps.rasse?.name ?? null,
+    schicksal: steps.schicksal ?? null,
+    rasse: steps.rasse ?? null,
     groessenklasse: steps.rasse?.groessenklasse ?? 3,
-    kultur: steps.kultur?.kulturName ?? null,
+    kultur: steps.kultur ?? null,
     attribute: (state.attribute ?? {}) as FinalCharacter['attribute'],
     derived: (state.derived ?? ZERO_DERIVED) as DerivedValues,
     skills: (state.skills ?? {}) as Record<string, number>,
     staerken,
     ressourcen: (state.ressourcen ?? {}) as Record<string, number>,
     meisterschaften: steps.Zauber?.pflicht?.map((p) => p.meisterschaft) ?? [],
+    spells: steps.Zauber?.spells ?? [],
     xp: 15,
   };
 }

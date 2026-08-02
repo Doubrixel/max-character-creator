@@ -21,6 +21,8 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  const selectedRasseId = stepDeltas.rasse?.id
+
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL || ''
     fetch(`${API_BASE}/api/library/cultures`)
@@ -57,7 +59,19 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
     })
   }
 
-  const selectedKultur = kulturen.find((k) => k.id === selectedId)
+  const filteredKulturen = kulturen.filter(k => {
+    if (!selectedRasseId) return true
+    if (!k.config) return false
+    try {
+      const config = JSON.parse(k.config)
+      const gaengigFuer = config.gaengigFuer || []
+      return gaengigFuer.includes(selectedRasseId)
+    } catch {
+      return false
+    }
+  })
+
+  const selectedKultur = filteredKulturen.find((k) => k.id === selectedId)
 
   if (loading) {
     return <div style={styles.loading}>Lade Kulturen...</div>
@@ -66,7 +80,7 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
   return (
     <div style={styles.container}>
       <div style={styles.grid}>
-        {kulturen.map((k) => (
+        {filteredKulturen.map((k) => (
           <button
             key={k.id}
             style={{
@@ -81,8 +95,8 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
             )}
           </button>
         ))}
-        {kulturen.length === 0 && (
-          <div style={styles.empty}>Keine Kulturen in der Bibliothek vorhanden</div>
+        {filteredKulturen.length === 0 && (
+          <div style={styles.empty}>Keine Kulturen verfügbar für die gewählte Rasse</div>
         )}
       </div>
       {selectedKultur && (

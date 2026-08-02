@@ -40,6 +40,22 @@ function encodeConfigArray(arr: string[]): string {
   return JSON.stringify(arr)
 }
 
+function toRoman(num: number): string {
+  const romanNumerals: [number, string][] = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ]
+  let result = ''
+  for (const [value, symbol] of romanNumerals) {
+    while (num >= value) {
+      result += symbol
+      num -= value
+    }
+  }
+  return result
+}
+
 export default function LibraryTable({ type }: LibraryTableProps) {
   const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<LibraryEntry[]>([])
@@ -57,6 +73,8 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [rasseName, setRasseName] = useState('')
   const [rasseConfig, setRasseConfig] = useState<Record<string, string>>({})
   const [races, setRaces] = useState<LibraryEntry[]>([])
+  const [skills, setSkills] = useState<{ id: string; name: string; type: string }[]>([])
+  const [strengths, setStrengths] = useState<{ id: string; name: string }[]>([])
 
   const schema = TYPE_SCHEMAS[type]
   const fields = schema?.fields ?? []
@@ -73,6 +91,8 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   useEffect(() => {
     if (type === 'cultures') {
       fetch(`${API_BASE}/api/library/races`).then(r => r.json()).then(setRaces).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
+      fetch(`${API_BASE}/api/library/skills`).then(r => r.json()).then((data: { id: string; name: string; type: string }[]) => setSkills(data)).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
+      fetch(`${API_BASE}/api/library/strengths`).then(r => r.json()).then((data: { id: string; name: string }[]) => setStrengths(data)).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
     }
   }, [type])
 
@@ -254,7 +274,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       const schulenRaw = fields['Schulen'] || ''
       const schulenParts = schulenRaw.split(',').map(s => s.trim()).filter(Boolean)
       const schulen: { id: string; name: string; wert: number }[] = []
-      let maxWert = 0
 
       for (const part of schulenParts) {
         const match = part.match(/^(.+?)\s+(\d+)$/)
@@ -265,7 +284,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
           const mapped = SCHOOL_SHORT_MAP[shortName]
           if (mapped) {
             schulen.push({ id: mapped.id, name: mapped.name, wert })
-            if (wert > maxWert) maxWert = wert
           }
         }
       }
@@ -281,7 +299,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         wirkungsdauer: fields['Wirkungsdauer'] || '',
         wirkungsbereich: fields['Wirkungsbereich'] || '',
         erfolgsgrade: erfolgsgradeLines.join('\n'),
-        level: String(maxWert),
       }
 
       results.push({ name, description: fields['Wirkung'] || '', config })
@@ -525,6 +542,139 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                     )
                   })}
                 </div>
+              ) : field.type === 'skillPoints' ? (
+                <div>
+                  <div style={styles.pointsList}>
+                    {(() => {
+                      let arr: { id: string; name: string; punkte: number }[] = []
+                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      const filteredSkills = field.key === 'magieSchulen'
+                        ? skills.filter(s => s.type === 'magie')
+                        : field.key === 'waffenTalente'
+                          ? skills.filter(s => s.type === 'kampf')
+                          : skills.filter(s => s.type === 'fertigkeit')
+                      return arr.map((item, idx) => (
+                        <div key={idx} style={styles.pointsRow}>
+                          <select
+                            style={{ ...styles.input, flex: 2 }}
+                            value={item.id}
+                            onChange={e => {
+                              const newId = e.target.value
+                              const skill = skills.find(s => s.id === newId)
+                              const newArr = [...arr]
+                              newArr[idx] = { id: newId, name: skill?.name || newId, punkte: item.punkte }
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          >
+                            <option value="">Skill wählen...</option>
+                            {filteredSkills.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <input
+                            style={{ ...styles.input, flex: 1, textAlign: 'center' }}
+                            type="number"
+                            min={0}
+                            max={18}
+                            placeholder="Punkte"
+                            value={item.punkte}
+                            onChange={e => {
+                              const newArr = [...arr]
+                              newArr[idx] = { ...item, punkte: parseInt(e.target.value, 10) || 0 }
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={styles.removeBtn}
+                            onClick={() => {
+                              const newArr = arr.filter((_, i) => i !== idx)
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                  <button
+                    type="button"
+                    style={styles.addEntryBtn}
+                    onClick={() => {
+                      let arr: { id: string; name: string; punkte: number }[] = []
+                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      arr.push({ id: '', name: '', punkte: 0 })
+                      setField(field.key, JSON.stringify(arr))
+                    }}
+                  >
+                    + Eintrag hinzufügen
+                  </button>
+                </div>
+              ) : field.type === 'strengthPoints' ? (
+                <div>
+                  <div style={styles.pointsList}>
+                    {(() => {
+                      let arr: { id: string; name: string; anzahl: number }[] = []
+                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      return arr.map((item, idx) => (
+                        <div key={idx} style={styles.pointsRow}>
+                          <select
+                            style={{ ...styles.input, flex: 2 }}
+                            value={item.id}
+                            onChange={e => {
+                              const newId = e.target.value
+                              const strength = strengths.find(s => s.id === newId)
+                              const newArr = [...arr]
+                              newArr[idx] = { id: newId, name: strength?.name || newId, anzahl: item.anzahl }
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          >
+                            <option value="">Stärke wählen...</option>
+                            {strengths.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <input
+                            style={{ ...styles.input, flex: 1, textAlign: 'center' }}
+                            type="number"
+                            min={0}
+                            max={5}
+                            placeholder="Anzahl"
+                            value={item.anzahl}
+                            onChange={e => {
+                              const newArr = [...arr]
+                              newArr[idx] = { ...item, anzahl: parseInt(e.target.value, 10) || 0 }
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={styles.removeBtn}
+                            onClick={() => {
+                              const newArr = arr.filter((_, i) => i !== idx)
+                              setField(field.key, JSON.stringify(newArr))
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                  <button
+                    type="button"
+                    style={styles.addEntryBtn}
+                    onClick={() => {
+                      let arr: { id: string; name: string; anzahl: number }[] = []
+                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      arr.push({ id: '', name: '', anzahl: 0 })
+                      setField(field.key, JSON.stringify(arr))
+                    }}
+                  >
+                    + Eintrag hinzufügen
+                  </button>
+                </div>
               ) : field.type === 'checkbox' ? (
                 <label style={styles.checkboxLabel}>
                   <input
@@ -565,7 +715,29 @@ export default function LibraryTable({ type }: LibraryTableProps) {
             let summary = ''
             try {
               const cfg = entry.config ? JSON.parse(entry.config) : {}
-              const vals = Object.values(cfg).filter(v => v && v !== '' && v !== '[]')
+              const vals = Object.entries(cfg).map(([k, v]) => {
+                if (!v || v === '' || v === '[]') return null
+                try {
+                  const parsed = JSON.parse(v as string)
+                  if (Array.isArray(parsed)) {
+                    if (k === 'staerken') {
+                      return parsed.filter((s: { anzahl: number }) => s.anzahl > 0)
+                        .map((s: { name: string; anzahl: number }) => s.anzahl > 1 ? `${s.name} ${toRoman(s.anzahl)}` : s.name)
+                        .join(', ')
+                    }
+                    if (k === 'talente' || k === 'waffenTalente' || k === 'magieSchulen') {
+                      return parsed.filter((s: { punkte: number }) => s.punkte > 0)
+                        .map((s: { name: string; punkte: number }) => `${s.name} ${s.punkte}`)
+                        .join(', ')
+                    }
+                    if (k === 'gaengigFuer') {
+                      return parsed.length > 0 ? `${parsed.length} Rasse(n)` : null
+                    }
+                    return null
+                  }
+                } catch {}
+                return v
+              }).filter(Boolean)
               summary = vals.slice(0, 3).join(' · ')
             } catch {}
             return (
@@ -683,6 +855,22 @@ const styles: Record<string, React.CSSProperties> = {
   schoolValueName: {
     fontSize: 13, color: 'var(--text-primary)',
   },
+  pointsList: {
+    display: 'flex', flexDirection: 'column', gap: 8,
+  },
+  pointsRow: {
+    display: 'flex', gap: 8, alignItems: 'center',
+  },
+  removeBtn: {
+    background: 'var(--danger)', border: 'none', color: '#fff',
+    borderRadius: 4, width: 28, height: 28, cursor: 'pointer',
+    fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  addEntryBtn: {
+    background: 'transparent', border: '1px dashed var(--border)',
+    borderRadius: 6, padding: '8px 16px', cursor: 'pointer',
+    fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, width: '100%',
+  },
   chipContainer: {
     display: 'flex', flexWrap: 'wrap', gap: 6,
   },
@@ -711,7 +899,7 @@ const styles: Record<string, React.CSSProperties> = {
   list: { display: 'flex', flexDirection: 'column', gap: 8 },
   empty: { color: 'var(--text-tertiary)', fontSize: 14 },
   row: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
     background: 'var(--bg-secondary)', border: '1px solid var(--border)',
     borderRadius: 8, padding: '12px 16px',
   },
@@ -719,7 +907,9 @@ const styles: Record<string, React.CSSProperties> = {
   rowName: { fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' },
   rowDesc: {
     fontSize: 13, color: 'var(--text-secondary)', marginTop: 2,
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    whiteSpace: 'normal', wordWrap: 'break-word',
+    maxHeight: '4.5em', overflow: 'hidden',
+    display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
   },
   rowConfig: {
     fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4,

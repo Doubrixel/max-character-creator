@@ -79,8 +79,17 @@ export interface PflichtMeisterschaft {
   meisterschaft: PickedItem
 }
 
+export interface PickedSpell {
+  spellId: string
+  spellName: string
+  schoolId: string
+  schoolName: string
+  grade: number
+}
+
 export interface ZauberDelta {
   pflicht: PflichtMeisterschaft[]
+  spells: PickedSpell[]
 }
 
 export interface NameDelta {

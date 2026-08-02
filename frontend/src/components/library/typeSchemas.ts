@@ -1,7 +1,7 @@
 export interface FieldSchema {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'raceSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox' | 'schoolValues'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'raceSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox' | 'schoolValues' | 'skillPoints' | 'strengthPoints'
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -21,12 +21,10 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
     label: 'Kulturen',
     fields: [
       { key: 'gaengigFuer', label: 'Gängig für', type: 'raceSelect' },
-      { key: 'verfuegbareTalente', label: 'Verfügbare Talente', type: 'skillSelect', placeholder: 'Talente auswählen...' },
-      { key: 'verfuegbareWaffen', label: 'Verfügbare Waffenskills', type: 'skillSelect', placeholder: 'Waffenskills auswählen...' },
-      { key: 'verfuegbareMagie', label: 'Verfügbare Magieschulen', type: 'skillSelect', placeholder: 'Magieschulen auswählen...' },
-      { key: 'verfuegbareStaerken', label: 'Verfügbare Stärken', type: 'text', placeholder: 'zaeh,schnell,scharfsinn,charisma' },
-      { key: 'meisterschaften', label: 'Kultur-Meisterschaften', type: 'text', placeholder: 'meister-hieb,meisterschuss' },
-      { key: 'skillBudget', label: 'Skill-Punkte (Kultur)', type: 'number', placeholder: '20' },
+      { key: 'talente', label: 'Talente', type: 'skillPoints' },
+      { key: 'waffenTalente', label: 'Waffentalente', type: 'skillPoints' },
+      { key: 'magieSchulen', label: 'Magieschulen', type: 'skillPoints' },
+      { key: 'staerken', label: 'Stärken', type: 'strengthPoints' },
     ],
   },
   trainings: {
@@ -62,7 +60,6 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
       { key: 'wirkungsdauer', label: 'Wirkungsdauer', type: 'text', placeholder: 'z.B. kanalisiert, sofort' },
       { key: 'wirkungsbereich', label: 'Wirkungsbereich', type: 'text', placeholder: 'z.B. 5 m' },
       { key: 'erfolgsgrade', label: 'Erfolgsgrade', type: 'textarea', placeholder: '• ...\n• ...' },
-      { key: 'level', label: 'Level', type: 'number', placeholder: '0' },
     ],
   },
   resources: {
