@@ -4,10 +4,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend/package.json backend/
+COPY shared/package.json shared/
 RUN npm ci
 
 COPY frontend/ frontend/
 COPY backend/ backend/
+COPY shared/ shared/
 RUN npm run build --workspace=frontend
 
 FROM node:20-alpine AS runner
@@ -16,11 +18,13 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend/package.json backend/
+COPY shared/package.json shared/
 RUN npm ci
 
 COPY --from=builder /app/frontend/dist frontend/dist
 COPY --from=builder /app/backend/src backend/src
 COPY --from=builder /app/backend/drizzle backend/drizzle
+COPY --from=builder /app/shared shared
 
 RUN mkdir -p /app/data
 

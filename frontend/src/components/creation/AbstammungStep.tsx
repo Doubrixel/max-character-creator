@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
-import { socialClasses, choiceKey, choiceLabel } from '../../shared/herkunft'
+import { socialClasses, choiceKey, choiceLabel } from '@mcc/shared'
 
 interface AbstammungStepProps {
   onValid: (valid: boolean) => void

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { db } from '../db'
 import { characters, characterXpLog, characterSteps, spells } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
-import { recalculateStats } from '../reducers'
+import { recalculateStats } from '@mcc/shared'
 
 const app = new Hono()
 

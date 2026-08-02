@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
-import { recalculateStats, recalculateStatsUpTo } from '../shared/reducers'
+import { recalculateStats, recalculateStatsUpTo } from '@mcc/shared'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
