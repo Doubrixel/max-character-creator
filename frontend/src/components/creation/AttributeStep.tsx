@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 
 const ATTRIBUTES = ['MUT', 'KLU', 'INT', 'CHA', 'HIN', 'MYS', 'FF', 'GEW', 'KON', 'KRA'] as const
@@ -28,71 +28,53 @@ interface AttributeStepProps {
   onValid: (valid: boolean) => void
 }
 
+type RollDetail = { dice: number[]; sum: number }
+
 export default function AttributeStep({ onValid }: AttributeStepProps) {
   const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
 
-  const [rolls, setRolls] = useState<number[]>([])
-  const [assignments, setAssignments] = useState<Partial<Record<AttributeKey, number>>>({})
-  const [manualInputs, setManualInputs] = useState<Record<string, string>>(
-    Object.fromEntries(ATTRIBUTES.map((a) => [a, '']))
-  )
-  const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null)
-  const [rollsDetail, setRollsDetail] = useState<{ dice: number[]; sum: number }[]>([])
+  const [pool, setPool] = useState<(number | null)[]>(Array(ATTRIBUTES.length).fill(null))
+  const [slotAssignments, setSlotAssignments] = useState<Partial<Record<AttributeKey, number>>>({})
+  const [rollsDetail, setRollsDetail] = useState<(RollDetail | null)[]>(Array(ATTRIBUTES.length).fill(null))
   const initializedRef = useRef(false)
 
-  const simplePool = useMemo(() => {
-    const result: { value: number; originalIndex: number }[] = []
-    const usedIndices = new Set<number>()
+  const poolFilled = pool.every((v) => v !== null)
 
-    for (const attr of ATTRIBUTES) {
-      const assignedVal = assignments[attr]
-      if (assignedVal !== undefined) {
-        for (let i = 0; i < rolls.length; i++) {
-          if (rolls[i] === assignedVal && !usedIndices.has(i)) {
-            usedIndices.add(i)
-            break
-          }
-        }
-      }
-    }
+  const allAssigned = ATTRIBUTES.every((attr) => {
+    const slot = slotAssignments[attr]
+    return slot !== undefined && pool[slot] !== null
+  })
 
-    for (let i = 0; i < rolls.length; i++) {
-      if (!usedIndices.has(i)) {
-        result.push({ value: rolls[i], originalIndex: i })
-      }
-    }
-
-    return result
-  }, [rolls, assignments])
-
-  const allAssigned = ATTRIBUTES.every((a) => assignments[a] !== undefined)
+  const valid = poolFilled && allAssigned
 
   useEffect(() => {
-    onValid(allAssigned)
-  }, [allAssigned, onValid])
+    onValid(valid)
+  }, [valid, onValid])
 
   useEffect(() => {
     if (initializedRef.current) return
     initializedRef.current = true
 
-    const savedAttrs = (stepData as { attribute?: Record<string, number> } | null)?.attribute ?? {}
-    const savedRolls = (stepData as { rolls?: number[] } | null)?.rolls ?? []
+    const saved = stepData as {
+      attribute?: Record<string, number>
+      rolls?: (number | null)[]
+      slotAssignments?: Record<string, number>
+    } | null
 
-    if (savedRolls.length === 10) {
-      setRolls(savedRolls)
-    } else {
-      setRolls([])
+    const savedRolls = saved?.rolls ?? []
+    if (savedRolls.length === ATTRIBUTES.length) {
+      setPool(savedRolls)
     }
-    if (Object.keys(savedAttrs).length > 0) {
-      setAssignments(savedAttrs as Partial<Record<AttributeKey, number>>)
-      setManualInputs(
-        Object.fromEntries(ATTRIBUTES.map((a) => [a, savedAttrs[a] !== undefined ? String(savedAttrs[a]) : '']))
-      )
-    } else {
-      setAssignments({})
-      setManualInputs(Object.fromEntries(ATTRIBUTES.map((a) => [a, ''])))
+
+    const savedSlots = saved?.slotAssignments ?? {}
+    const restored: Partial<Record<AttributeKey, number>> = {}
+    for (const [attr, slot] of Object.entries(savedSlots)) {
+      if (ATTRIBUTES.includes(attr as AttributeKey) && typeof slot === 'number') {
+        restored[attr as AttributeKey] = slot
+      }
     }
+    setSlotAssignments(restored)
   }, [stepData])
 
   useEffect(() => {
@@ -100,117 +82,118 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   }, [])
 
   useEffect(() => {
-    if (Object.keys(assignments).length > 0) {
-      updateStepDelta('attribute', {
-        attribute: assignments,
-        rolls,
-      })
-    }
-  }, [assignments, rolls])
-
-  const handleAutoRoll = () => {
-    const newRolls: number[] = []
-    const newDetail: { dice: number[]; sum: number }[] = []
-    for (let i = 0; i < 10; i++) {
-      const result = roll4d6DropLowest()
-      newRolls.push(result.sum)
-      newDetail.push(result)
-    }
-    setRolls(newRolls)
-    setRollsDetail(newDetail)
-    setAssignments({})
-    setManualInputs(Object.fromEntries(ATTRIBUTES.map((a) => [a, ''])))
-    setSelectedPoolIndex(null)
-  }
-
-  const handlePoolClick = (index: number) => {
-    if (selectedPoolIndex === index) {
-      setSelectedPoolIndex(null)
-    } else {
-      setSelectedPoolIndex(index)
-    }
-  }
-
-  const handleAttributeClick = (attr: AttributeKey) => {
-    if (assignments[attr] !== undefined) {
-      const next = { ...assignments }
-      delete next[attr]
-      setAssignments(next)
-      setManualInputs((prev) => ({ ...prev, [attr]: '' }))
-      setSelectedPoolIndex(null)
-      return
-    }
-
-    if (selectedPoolIndex !== null) {
-      const poolEntry = simplePool.find((p) => p.originalIndex === selectedPoolIndex)
-      if (poolEntry) {
-        const next = { ...assignments, [attr]: poolEntry.value }
-        setAssignments(next)
-        setManualInputs((prev) => ({ ...prev, [attr]: String(poolEntry.value) }))
-        setSelectedPoolIndex(null)
+    const attribute: Record<string, number> = {}
+    const slotMap: Record<string, number> = {}
+    for (const attr of ATTRIBUTES) {
+      const slot = slotAssignments[attr]
+      if (slot !== undefined && pool[slot] !== null) {
+        attribute[attr] = pool[slot] as number
+        slotMap[attr] = slot
       }
     }
+    updateStepDelta('attribute', { attribute, rolls: pool, slotAssignments: slotMap })
+  }, [pool, slotAssignments])
+
+  const handleAutoRoll = () => {
+    const newPool: (number | null)[] = []
+    const newDetail: (RollDetail | null)[] = []
+    for (let i = 0; i < ATTRIBUTES.length; i++) {
+      const result = roll4d6DropLowest()
+      newPool.push(result.sum)
+      newDetail.push(result)
+    }
+    setPool(newPool)
+    setRollsDetail(newDetail)
+    setSlotAssignments({})
   }
 
-  const handleManualInput = (attr: AttributeKey, value: string) => {
-    const num = parseInt(value, 10)
-    if (value === '') {
-      setManualInputs((prev) => ({ ...prev, [attr]: '' }))
-      const next = { ...assignments }
-      delete next[attr]
-      setAssignments(next)
+  const handlePoolChange = (index: number, value: string) => {
+    const raw = value.trim()
+    if (raw === '') {
+      setPool((prev) => {
+        const next = [...prev]
+        next[index] = null
+        return next
+      })
+      setRollsDetail((prev) => {
+        const next = [...prev]
+        next[index] = null
+        return next
+      })
+      setSlotAssignments((prev) => {
+        const next = { ...prev }
+        for (const attr of ATTRIBUTES) {
+          if (next[attr] === index) delete next[attr]
+        }
+        return next
+      })
       return
     }
+    const num = parseInt(raw, 10)
     if (isNaN(num)) return
     const clamped = Math.max(3, Math.min(18, num))
-    setManualInputs((prev) => ({ ...prev, [attr]: String(clamped) }))
-    setAssignments((prev) => ({ ...prev, [attr]: clamped }))
+    setPool((prev) => {
+      const next = [...prev]
+      next[index] = clamped
+      return next
+    })
+    setRollsDetail((prev) => {
+      const next = [...prev]
+      next[index] = null
+      return next
+    })
   }
 
-  const validateManualInput = (value: string): string => {
-    const num = parseInt(value, 10)
-    if (isNaN(num)) return ''
-    if (num < 3) return '3'
-    if (num > 18) return '18'
-    return String(num)
+  const handleSlotAssign = (attr: AttributeKey, value: string) => {
+    if (value === '') {
+      setSlotAssignments((prev) => {
+        const next = { ...prev }
+        delete next[attr]
+        return next
+      })
+      return
+    }
+    const slot = parseInt(value, 10)
+    if (isNaN(slot) || pool[slot] === null) return
+    setSlotAssignments((prev) => {
+      const next = { ...prev }
+      for (const a of ATTRIBUTES) {
+        if (a !== attr && next[a] === slot) delete next[a]
+      }
+      next[attr] = slot
+      return next
+    })
   }
 
   return (
     <div style={styles.container}>
       <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Attributswerte erwürfeln (4d6, höchste 3)</h3>
-        <button onClick={handleAutoRoll} style={styles.autoRollButton}>
-          Auto-Würfel
-        </button>
-      </div>
-
-      {rolls.length === 10 && (
-        <>
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Würfel-Pool</h3>
-            <p style={styles.poolHint}>
-              {selectedPoolIndex !== null
-                ? 'Klicke auf ein Attribut, um den Wert zuzuordnen'
-                : 'Klicke auf einen Wert, dann auf ein Attribut'}
-            </p>
-            <div style={styles.poolGrid}>
-              {simplePool.map((entry) => (
-                <button
-                  key={entry.originalIndex}
-                  onClick={() => handlePoolClick(entry.originalIndex)}
-                  style={{
-                    ...styles.poolValue,
-                    ...(selectedPoolIndex === entry.originalIndex ? styles.poolValueSelected : {}),
-                  }}
-                >
-                  {entry.value}
-                </button>
-              ))}
-            </div>
-            {rollsDetail.length === 10 && (
-              <div style={styles.rollsDetail}>
-                {rollsDetail.map((detail, i) => (
-                  <div key={i} style={styles.rollDetailItem}>
+        <div style={styles.poolHeader}>
+          <h3 style={styles.sectionTitle}>Werte-Pool</h3>
+          <button onClick={handleAutoRoll} style={styles.autoRollButton}>
+            Auto-Würfel (4d6, höchste 3)
+          </button>
+        </div>
+        <p style={styles.poolHint}>
+          Trage selbst gewürfelte Werte ein (3–18) oder nutze Auto-Würfel. Jeder Wert kann nur einem Attribut zugeordnet werden.
+        </p>
+        <div style={styles.poolGrid}>
+          {pool.map((val, i) => {
+            const detail = rollsDetail[i]
+            return (
+              <div key={i} style={styles.poolSlot}>
+                <span style={styles.poolSlotLabel}>Wert {i + 1}</span>
+                <input
+                  type="number"
+                  min={3}
+                  max={18}
+                  value={val === null ? '' : String(val)}
+                  onChange={(e) => handlePoolChange(i, e.target.value)}
+                  style={styles.poolInput}
+                  placeholder="—"
+                />
+                {detail && (
+                  <div style={styles.rollDetailItem}>
                     <span style={styles.rollDice}>
                       {detail.dice.map((d, j) => (
                         <span
@@ -224,53 +207,49 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                         </span>
                       ))}
                     </span>
-                    <span style={styles.rollSum}>= {detail.sum}</span>
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            )
+          })}
+        </div>
+      </div>
 
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Attribute zuordnen</h3>
-            <div style={styles.attributesGrid}>
-              {ATTRIBUTES.map((attr) => {
-                const assigned = assignments[attr]
-                const isAssigned = assigned !== undefined
-                const isSelected = selectedPoolIndex !== null && !isAssigned
-                return (
-                  <div key={attr} style={styles.attributeSlot}>
-                    <div style={styles.attributeHeader}>
-                      <span style={styles.attributeKey}>{attr}</span>
-                      <span style={styles.attributeName}>{ATTRIBUTE_NAMES[attr]}</span>
-                    </div>
-                    <div
-                      onClick={() => handleAttributeClick(attr)}
-                      style={{
-                        ...styles.attributeValue,
-                        ...(isAssigned ? styles.attributeValueAssigned : {}),
-                        ...(isSelected ? styles.attributeValueSelectable : {}),
-                      }}
-                    >
-                      {isAssigned ? assigned : (isSelected ? '?' : '—')}
-                    </div>
-                    <input
-                      type="number"
-                      min={3}
-                      max={18}
-                      value={manualInputs[attr]}
-                      onChange={(e) => handleManualInput(attr, validateManualInput(e.target.value))}
-                      style={styles.manualInput}
-                      placeholder="3-18"
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-        </>
-      )}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>Attribute zuordnen</h3>
+        <div style={styles.attributesGrid}>
+          {ATTRIBUTES.map((attr) => {
+            const slot = slotAssignments[attr]
+            const assignedValue = slot !== undefined && pool[slot] !== null ? pool[slot] : null
+            return (
+              <div key={attr} style={styles.attributeSlot}>
+                <div style={styles.attributeHeader}>
+                  <span style={styles.attributeKey}>{attr}</span>
+                  <span style={styles.attributeName}>{ATTRIBUTE_NAMES[attr]}</span>
+                </div>
+                <select
+                  value={slot !== undefined ? String(slot) : ''}
+                  onChange={(e) => handleSlotAssign(attr, e.target.value)}
+                  style={styles.attributeSelect}
+                >
+                  <option value="">—</option>
+                  {pool.map((v, i) => (
+                    v === null ? null : <option key={i} value={String(i)}>Wert {i + 1} · {v}</option>
+                  ))}
+                </select>
+                <span
+                  style={{
+                    ...styles.attributeValue,
+                    ...(assignedValue !== null ? styles.attributeValueAssigned : {}),
+                  }}
+                >
+                  {assignedValue !== null ? assignedValue : '—'}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -288,97 +267,100 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 20,
   },
   sectionTitle: {
-    margin: '0 0 16px 0',
+    margin: 0,
     fontSize: 18,
     color: 'var(--text-primary)',
   },
+  poolHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
   autoRollButton: {
-    padding: '12px 24px',
-    fontSize: 16,
+    padding: '10px 18px',
+    fontSize: 14,
     fontWeight: 700,
     background: 'var(--accent)',
     color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: 8,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   poolHint: {
     fontSize: 13,
     color: 'var(--text-secondary)',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   poolGrid: {
-    display: 'flex',
-    flexWrap: 'wrap',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
     gap: 10,
   },
-  poolValue: {
-    width: 48,
-    height: 48,
-    fontSize: 20,
-    fontWeight: 700,
+  poolSlot: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
     background: 'var(--bg-secondary)',
+    borderRadius: 8,
+  },
+  poolSlotLabel: {
+    fontSize: 11,
+    color: 'var(--text-secondary)',
+  },
+  poolInput: {
+    width: 56,
+    padding: '6px 8px',
+    fontSize: 18,
+    fontWeight: 700,
+    textAlign: 'center',
+    background: 'var(--bg-primary)',
     color: 'var(--text-primary)',
     border: '2px solid var(--border)',
-    borderRadius: 8,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  poolValueSelected: {
-    border: '2px solid var(--accent)',
-    background: 'var(--bg-tertiary)',
-  },
-  rollsDetail: {
-    marginTop: 16,
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 8,
+    borderRadius: 6,
   },
   rollDetailItem: {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-    padding: '4px 8px',
-    background: 'var(--bg-secondary)',
+    padding: '2px 6px',
+    background: 'var(--bg-primary)',
     borderRadius: 6,
-    fontSize: 12,
+    fontSize: 11,
   },
   rollDice: {
     display: 'flex',
     gap: 2,
   },
   rollDie: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'var(--bg-primary)',
+    background: 'var(--bg-tertiary)',
     borderRadius: 4,
-    fontSize: 11,
+    fontSize: 10,
     color: 'var(--text-primary)',
   },
   rollDieDropped: {
     opacity: 0.3,
     textDecoration: 'line-through',
   },
-  rollSum: {
-    fontWeight: 700,
-    color: 'var(--success)',
-    marginLeft: 4,
-  },
   attributesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
     gap: 12,
   },
   attributeSlot: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     padding: 12,
     background: 'var(--bg-secondary)',
     borderRadius: 8,
@@ -398,6 +380,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     color: 'var(--text-secondary)',
   },
+  attributeSelect: {
+    width: '100%',
+    padding: '6px 8px',
+    fontSize: 13,
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+  },
   attributeValue: {
     width: 44,
     height: 44,
@@ -409,27 +400,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-muted)',
     border: '2px dashed var(--border)',
     borderRadius: 8,
-    cursor: 'default',
   },
   attributeValueAssigned: {
     color: 'var(--text-primary)',
     border: '2px solid var(--success)',
     background: 'var(--bg-success-subtle)',
-    cursor: 'pointer',
-  },
-  attributeValueSelectable: {
-    border: '2px dashed var(--accent)',
-    cursor: 'pointer',
-    color: 'var(--accent)',
-  },
-  manualInput: {
-    width: 60,
-    padding: '4px 8px',
-    fontSize: 13,
-    textAlign: 'center',
-    background: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border)',
-    borderRadius: 4,
   },
 }

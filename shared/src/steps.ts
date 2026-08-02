@@ -58,7 +58,8 @@ export interface AusbildungDelta {
 
 export interface AttributeDelta {
   attribute: Record<string, number>
-  rolls: number[]
+  rolls: (number | null)[]
+  slotAssignments?: Record<string, number>
 }
 
 export interface MeisterschaftDelta {
