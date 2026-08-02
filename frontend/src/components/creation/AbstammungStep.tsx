@@ -110,14 +110,14 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
             <button style={styles.rollButton} onClick={handleRollClass}>🎲 Würfeln</button>
           </div>
           <div style={styles.grid3}>
-            {socialClasses.map((sc) => (
+            {socialClasses.map((sc, i) => (
               <button
                 key={sc.id}
                 style={{ ...styles.classCard, ...(classId === sc.id ? styles.classCardSelected : {}) }}
                 onClick={() => handleClassSelect(sc.id)}
               >
+                <span style={styles.originNum}>{i + 1}</span>
                 <span style={styles.className}>{sc.name}</span>
-                <span style={styles.classCount}>1–6</span>
               </button>
             ))}
           </div>
@@ -268,11 +268,6 @@ const styles: Record<string, React.CSSProperties> = {
   className: {
     fontSize: 15,
     fontWeight: 600,
-  },
-  classCount: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    marginTop: 4,
   },
   originNum: {
     fontSize: 20,
