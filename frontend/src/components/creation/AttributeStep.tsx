@@ -153,16 +153,34 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
       })
       return
     }
-    const slot = parseInt(value, 10)
-    if (isNaN(slot) || pool[slot] === null) return
-    setSlotAssignments((prev) => {
-      const next = { ...prev }
-      for (const a of ATTRIBUTES) {
-        if (a !== attr && next[a] === slot) delete next[a]
-      }
-      next[attr] = slot
-      return next
-    })
+    const targetSlot = parseInt(value, 10)
+    if (isNaN(targetSlot) || pool[targetSlot] === null) return
+    const currentSlot = slotAssignments[attr]
+    const validCurrent = currentSlot !== undefined && pool[currentSlot] !== null ? currentSlot : undefined
+    if (targetSlot === validCurrent) return
+    const ownerOfTarget = ATTRIBUTES.find((a) => a !== attr && slotAssignments[a] === targetSlot)
+    if (validCurrent !== undefined && ownerOfTarget !== undefined) {
+      setSlotAssignments((prev) => {
+        const next = { ...prev }
+        delete next[ownerOfTarget]
+        next[attr] = targetSlot
+        next[ownerOfTarget] = validCurrent
+        return next
+      })
+    } else {
+      setSlotAssignments((prev) => {
+        const next = { ...prev }
+        if (ownerOfTarget !== undefined) delete next[ownerOfTarget]
+        next[attr] = targetSlot
+        return next
+      })
+    }
+  }
+
+  const assignedTo: Record<number, AttributeKey> = {}
+  for (const a of ATTRIBUTES) {
+    const s = slotAssignments[a]
+    if (s !== undefined && pool[s] !== null) assignedTo[s] = a
   }
 
   return (
@@ -228,14 +246,25 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                   <span style={styles.attributeName}>{ATTRIBUTE_NAMES[attr]}</span>
                 </div>
                 <select
-                  value={slot !== undefined ? String(slot) : ''}
+                  value={slot !== undefined && pool[slot] !== null ? String(slot) : ''}
                   onChange={(e) => handleSlotAssign(attr, e.target.value)}
                   style={styles.attributeSelect}
                 >
                   <option value="">—</option>
-                  {pool.map((v, i) => (
-                    v === null ? null : <option key={i} value={String(i)}>Wert {i + 1} · {v}</option>
-                  ))}
+                  {pool.map((v, i) =>
+                    v === null || assignedTo[i] !== undefined ? null : (
+                      <option key={i} value={String(i)}>{v}</option>
+                    ),
+                  )}
+                  {pool.some((v, i) => v !== null && assignedTo[i] !== undefined) && (
+                    <optgroup label="────">
+                      {pool.map((v, i) =>
+                        v === null || assignedTo[i] === undefined ? null : (
+                          <option key={i} value={String(i)}>{assignedTo[i]} {v}</option>
+                        ),
+                      )}
+                    </optgroup>
+                  )}
                 </select>
                 <span
                   style={{
