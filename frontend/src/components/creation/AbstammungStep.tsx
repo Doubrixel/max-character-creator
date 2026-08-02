@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
-import { socialClasses, choiceKey, choiceLabel } from '@mcc/shared'
+import { socialClasses, choiceKey, choiceLabel, type Origin } from '@mcc/shared'
 
 interface AbstammungStepProps {
   onValid: (valid: boolean) => void
 }
 
 type Phase = 'class' | 'origin' | 'choices'
+
+function autoRowSelections(origin: Origin): Record<number, string> {
+  const result: Record<number, string> = {}
+  origin.rows.forEach((row, idx) => {
+    if (row.length === 1) result[idx] = choiceKey(row[0])
+  })
+  return result
+}
 
 export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
@@ -22,9 +30,13 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     initializedRef.current = true
     const d = stepData as Record<string, unknown> | null
     if (d) {
-      setClassId((d.classId as string) ?? null)
-      setOriginId((d.originId as string) ?? null)
-      setRowSelections((d.rowSelections as Record<number, string>) ?? {})
+      const cId = (d.classId as string) ?? null
+      const oId = (d.originId as string) ?? null
+      const loaded = (d.rowSelections as Record<number, string>) ?? {}
+      const origin = socialClasses.find((c) => c.id === cId)?.origins.find((o) => o.id === oId) ?? null
+      setClassId(cId)
+      setOriginId(oId)
+      setRowSelections(origin ? { ...autoRowSelections(origin), ...loaded } : loaded)
     }
   }, [stepData])
 
@@ -36,7 +48,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   const phase: Phase = !classId ? 'class' : !originId ? 'origin' : 'choices'
 
   const allRowsSelected = currentOrigin
-    ? currentOrigin.rows.every((row, idx) => row.length === 0 || rowSelections[idx] !== undefined)
+    ? currentOrigin.rows.every((row, idx) => row.length === 0 || row.length === 1 || rowSelections[idx] !== undefined)
     : false
 
   useEffect(() => {
@@ -63,9 +75,11 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   }
 
   const handleOriginSelect = (id: string) => {
+    const or = currentClass?.origins.find((o) => o.id === id) ?? null
+    const auto = or ? autoRowSelections(or) : {}
     setOriginId(id)
-    setRowSelections({})
-    persist(classId, id, {})
+    setRowSelections(auto)
+    persist(classId, id, auto)
   }
 
   const handleRowChoice = (rowIdx: number, key: string) => {
@@ -148,13 +162,20 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
             {currentOrigin.rows.map((row, rowIdx) => {
               if (row.length === 0) return null
               const selected = rowSelections[rowIdx]
+              const isAuto = row.length === 1
               return (
                 <div key={rowIdx} style={styles.rowBlock}>
-                  <div style={styles.rowLabel}>Zeile {rowIdx + 1}</div>
                   <div style={styles.rowOptions}>
                     {row.map((choice) => {
                       const key = choiceKey(choice)
                       const isSelected = selected === key
+                      if (isAuto) {
+                        return (
+                          <span key={key} style={{ ...styles.choiceChip, ...styles.choiceChipAuto }}>
+                            {choiceLabel(choice)}
+                          </span>
+                        )
+                      }
                       return (
                         <button
                           key={key}
@@ -270,14 +291,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     padding: '14px 18px',
   },
-  rowLabel: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
   rowOptions: {
     display: 'flex',
     gap: 10,
@@ -298,5 +311,12 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid var(--accent)',
     background: 'var(--bg-tertiary)',
     boxShadow: '0 0 8px var(--shadow-accent)',
+  },
+  choiceChipAuto: {
+    background: 'var(--bg-tertiary)',
+    border: '2px solid var(--accent)',
+    color: 'var(--text-primary)',
+    cursor: 'default',
+    fontWeight: 600,
   },
 }
