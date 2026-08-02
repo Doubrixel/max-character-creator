@@ -22,6 +22,8 @@ export interface SocialClass {
 export function sk(name: string, value = 3): ChoiceItem { return { type: 'skill', name, value } }
 export function res(name: string, value = 1): ChoiceItem { return { type: 'resource', name, value } }
 
+export const GENERIC_SKILL_NAMES = ['Kampf', 'Magie'] as const
+
 export function choiceKey(choice: Choice): string {
   return choice.map((c) => `${c.name}:${c.value}`).join('+')
 }
@@ -163,7 +165,7 @@ export const socialClasses: SocialClass[] = [
   {
     id: 'gelehrter', name: 'Gelehrter', origins: [
       { id: 'mediziner', name: 'Mediziner', rows: [
-        [[sk('Heilkunde')], [sk('Heilungsmagie')]],
+        [[sk('Heilkunde')], [sk('Magie')]],
         [[sk('Naturkunde')], [sk('Empathie')]],
         [[res('Geld')], [res('Ruf')]],
         [[res('Geld', 2)], [res('Organisation', 2)]],
@@ -198,8 +200,8 @@ export const socialClasses: SocialClass[] = [
         [[res('Kontakt', 2)], [res('Organisation'), res('Geld')]],
       ]},
       { id: 'magier', name: 'Magier', rows: [
-        [[sk('Heilungsmagie')], [sk('Arkane Kunde')]],
-        [[sk('Geschichten und Mythen')], [sk('Heilungsmagie')]],
+        [[sk('Magie')], [sk('Arkane Kunde')]],
+        [[sk('Geschichten und Mythen')], [sk('Magie')]],
         [[res('Kontakt')], [res('Organisation')]],
         [[res('Artefakt', 2)], [res('Geld', 2)]],
         [[res('Kontakt', 2)], [res('Artefakt', 2)]],
@@ -231,7 +233,7 @@ export const socialClasses: SocialClass[] = [
       ]},
       { id: 'gildenmeister', name: 'Gildenmeister', rows: [
         [[sk('Kampf')], [sk('Arkane Kunde')]],
-        [[sk('Anführen')], [sk('Heilungsmagie')]],
+        [[sk('Anführen')], [sk('Magie')]],
         [[res('Organisation')], [res('Kontakt')]],
         [[res('Organisation', 2)], [res('Geld', 2)]],
         [[res('Kontakt'), res('Organisation')], [res('Geld'), res('Artefakt')]],
@@ -277,7 +279,7 @@ export const socialClasses: SocialClass[] = [
       ]},
       { id: 'herzog', name: 'Herzog', rows: [
         [[sk('Anführen')], [sk('Länderkunde')]],
-        [[sk('Kampf')], [sk('Heilungsmagie')]],
+        [[sk('Kampf')], [sk('Magie')]],
         [[res('Ruf'), res('Geld')], [res('Ruf'), res('Kontakt')]],
         [[res('Ruf'), res('Geld')], [res('Ruf'), res('Begleiter')]],
         [[res('Begleiter', 2)], [res('Artefakt', 2)]],

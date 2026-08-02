@@ -1,4 +1,4 @@
-import { parseChoiceKey } from './herkunft'
+import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
 import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
@@ -45,15 +45,20 @@ const rasseReducer: Reducer = (stats, delta) => ({
 })
 
 const abstammungReducer: Reducer = (stats, delta) => {
-  const { rowSelections } = delta as { rowSelections: Record<number, string> }
+  const { rowSelections, specializations = {} } = delta as {
+    rowSelections: Record<number, string>
+    specializations?: Record<number, string>
+  }
   const herkunftSkills: Record<string, number> = {}
   const herkunftResources: Record<string, number> = {}
 
-  for (const choiceStr of Object.values(rowSelections)) {
+  for (const [rowIdxStr, choiceStr] of Object.entries(rowSelections)) {
+    const rowIdx = Number(rowIdxStr)
     const items = parseChoiceKey(choiceStr)
     for (const item of items) {
       if (item.type === 'skill') {
-        const id = skillNameToId(item.name)
+        const generic = (GENERIC_SKILL_NAMES as readonly string[]).includes(item.name)
+        const id = generic ? (specializations[rowIdx] ?? skillNameToId(item.name)) : skillNameToId(item.name)
         herkunftSkills[id] = (herkunftSkills[id] ?? 0) + item.value
       } else {
         herkunftResources[item.name] = (herkunftResources[item.name] ?? 0) + item.value

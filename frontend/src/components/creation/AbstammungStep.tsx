@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
-import { socialClasses, choiceKey, choiceLabel, type Origin } from '@mcc/shared'
+import {
+  socialClasses,
+  choiceKey,
+  choiceLabel,
+  GENERIC_SKILL_NAMES,
+  type Origin,
+  type Choice,
+} from '@mcc/shared'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 interface AbstammungStepProps {
   onValid: (valid: boolean) => void
@@ -16,14 +25,42 @@ function autoRowSelections(origin: Origin): Record<number, string> {
   return result
 }
 
+function genericItemOf(choice: Choice | undefined): { name: string; value: number } | null {
+  if (!choice) return null
+  const item = choice.find((c) => c.type === 'skill' && (GENERIC_SKILL_NAMES as readonly string[]).includes(c.name))
+  return item ? { name: item.name, value: item.value } : null
+}
+
 export default function AbstammungStep({ onValid }: AbstammungStepProps) {
-  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const initializedRef = useRef(false)
 
   const [classId, setClassId] = useState<string | null>(null)
   const [originId, setOriginId] = useState<string | null>(null)
   const [rowSelections, setRowSelections] = useState<Record<number, string>>({})
+  const [specializations, setSpecializations] = useState<Record<number, string>>({})
+  const [combatSkills, setCombatSkills] = useState<{ id: string; name: string }[]>([])
+  const [magicSkills, setMagicSkills] = useState<{ id: string; name: string }[]>([])
+  const [skillsLoading, setSkillsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/library/skills`)
+      .then((r) => r.json())
+      .then((data: Array<{ id: string; name: string; config: string | null }>) => {
+        const parsed = data.map((s) => {
+          const cfg = s.config ? JSON.parse(s.config) : {}
+          return { id: s.id, name: s.name, kategorie: cfg.kategorie as string }
+        })
+        setCombatSkills(parsed.filter((s) => s.kategorie === 'kampf').map((s) => ({ id: s.id, name: s.name })))
+        setMagicSkills(parsed.filter((s) => s.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
+        setSkillsLoading(false)
+      })
+      .catch(() => {
+        setSkillsLoading(false)
+        reportApiError('Bibliotheksdaten konnten nicht geladen werden')
+      })
+  }, [])
 
   useEffect(() => {
     if (initializedRef.current) return
@@ -33,10 +70,12 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       const cId = (d.classId as string) ?? null
       const oId = (d.originId as string) ?? null
       const loaded = (d.rowSelections as Record<number, string>) ?? {}
+      const loadedSpec = (d.specializations as Record<number, string>) ?? {}
       const origin = socialClasses.find((c) => c.id === cId)?.origins.find((o) => o.id === oId) ?? null
       setClassId(cId)
       setOriginId(oId)
       setRowSelections(origin ? { ...autoRowSelections(origin), ...loaded } : loaded)
+      setSpecializations(loadedSpec)
     }
   }, [stepData])
 
@@ -51,11 +90,30 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     ? currentOrigin.rows.every((row, idx) => row.length === 0 || row.length === 1 || rowSelections[idx] !== undefined)
     : false
 
-  useEffect(() => {
-    onValid(phase === 'choices' && allRowsSelected)
-  }, [phase, allRowsSelected, onValid])
+  const allSpecialized = currentOrigin
+    ? currentOrigin.rows.every((row, idx) => {
+        const selected = rowSelections[idx]
+        if (selected === undefined) return true
+        const choice = row.find((c) => choiceKey(c) === selected)
+        return genericItemOf(choice) === null || specializations[idx] !== undefined
+      })
+    : false
 
-  const persist = (cId: string | null, oId: string | null, rs: Record<number, string>) => {
+  const magicUnique = (() => {
+    const chosen = new Set<string>()
+    for (const sid of Object.values(specializations)) {
+      if (!magicSkills.some((m) => m.id === sid)) continue
+      if (chosen.has(sid)) return false
+      chosen.add(sid)
+    }
+    return true
+  })()
+
+  useEffect(() => {
+    onValid(phase === 'choices' && allRowsSelected && allSpecialized && magicUnique)
+  }, [phase, allRowsSelected, allSpecialized, magicUnique, onValid])
+
+  const persist = (cId: string | null, oId: string | null, rs: Record<number, string>, spec: Record<number, string>) => {
     const cl = socialClasses.find((c) => c.id === cId) ?? null
     const or = cl?.origins.find((o) => o.id === oId) ?? null
     updateStepDelta('abstammung', {
@@ -64,6 +122,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
       originId: oId,
       originName: or?.name ?? null,
       rowSelections: rs,
+      specializations: spec,
     })
   }
 
@@ -71,7 +130,8 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     setClassId(id)
     setOriginId(null)
     setRowSelections({})
-    persist(id, null, {})
+    setSpecializations({})
+    persist(id, null, {}, {})
   }
 
   const handleOriginSelect = (id: string) => {
@@ -79,13 +139,24 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     const auto = or ? autoRowSelections(or) : {}
     setOriginId(id)
     setRowSelections(auto)
-    persist(classId, id, auto)
+    setSpecializations({})
+    persist(classId, id, auto, {})
   }
 
   const handleRowChoice = (rowIdx: number, key: string) => {
+    const choice = currentOrigin?.rows[rowIdx]?.find((c) => choiceKey(c) === key)
+    const spec = { ...specializations }
+    if (genericItemOf(choice) === null) delete spec[rowIdx]
     const next = { ...rowSelections, [rowIdx]: key }
     setRowSelections(next)
-    persist(classId, originId, next)
+    setSpecializations(spec)
+    persist(classId, originId, next, spec)
+  }
+
+  const handleRowSpecialization = (rowIdx: number, skillId: string) => {
+    const spec = { ...specializations, [rowIdx]: skillId }
+    setSpecializations(spec)
+    persist(classId, originId, rowSelections, spec)
   }
 
   const rollD6 = () => Math.floor(Math.random() * 6) + 1
@@ -163,6 +234,10 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
               if (row.length === 0) return null
               const selected = rowSelections[rowIdx]
               const isAuto = row.length === 1
+              const selectedChoice = selected ? row.find((c) => choiceKey(c) === selected) : undefined
+              const genericItem = genericItemOf(selectedChoice)
+              const isKampf = genericItem?.name === 'Kampf'
+              const options = isKampf ? combatSkills : magicSkills
               return (
                 <div key={rowIdx} style={styles.rowBlock}>
                   <div style={styles.rowOptions}>
@@ -187,6 +262,38 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
                       )
                     })}
                   </div>
+                  {genericItem && (
+                    <div style={styles.specializationWrap}>
+                      <span style={styles.specializationLabel}>
+                        {isKampf
+                          ? `Welches Kampftalent erhält +${genericItem.value}?`
+                          : `Welche Magieschule erhält +${genericItem.value}?`}
+                      </span>
+                      {skillsLoading ? (
+                        <span style={styles.specializationHint}>Lade Talente...</span>
+                      ) : options.length === 0 ? (
+                        <span style={styles.specializationHint}>Keine Talente verfügbar</span>
+                      ) : (
+                        <select
+                          value={specializations[rowIdx] ?? ''}
+                          onChange={(e) => handleRowSpecialization(rowIdx, e.target.value)}
+                          style={styles.specializationSelect}
+                        >
+                          <option value="">-- Bitte wählen --</option>
+                          {options.map((opt) => {
+                            const takenElsewhere = !isKampf && Object.entries(specializations).some(
+                              ([rid, sid]) => Number(rid) !== rowIdx && sid === opt.id,
+                            )
+                            return (
+                              <option key={opt.id} value={opt.id} disabled={takenElsewhere}>
+                                {opt.name}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -290,6 +397,32 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: 10,
     flexWrap: 'wrap',
+  },
+  specializationWrap: {
+    marginTop: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  specializationLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+  },
+  specializationHint: {
+    fontSize: 13,
+    color: 'var(--text-tertiary)',
+    fontStyle: 'italic',
+  },
+  specializationSelect: {
+    padding: '8px 12px',
+    fontSize: 14,
+    background: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
+    borderRadius: 8,
+    cursor: 'pointer',
+    alignSelf: 'flex-start',
   },
   choiceChip: {
     padding: '8px 18px',

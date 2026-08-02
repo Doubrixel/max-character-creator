@@ -34,6 +34,7 @@ export interface AbstammungDelta {
   originId: string | null
   originName: string | null
   rowSelections: Record<number, string>
+  specializations?: Record<number, string>
 }
 
 export interface KulturDelta {
