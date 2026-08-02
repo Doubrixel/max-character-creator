@@ -184,6 +184,17 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
     if (s !== undefined && pool[s] !== null) assignedTo[s] = a
   }
 
+  const filledSlots: number[] = []
+  for (let i = 0; i < pool.length; i++) {
+    if (pool[i] !== null) filledSlots.push(i)
+  }
+  const freeSlots = filledSlots
+    .filter((i) => assignedTo[i] === undefined)
+    .sort((a, b) => (pool[b] as number) - (pool[a] as number))
+  const takenSlots = filledSlots
+    .filter((i) => assignedTo[i] !== undefined)
+    .sort((a, b) => ATTRIBUTES.indexOf(assignedTo[a]) - ATTRIBUTES.indexOf(assignedTo[b]))
+
   return (
     <div style={styles.container}>
       <div style={styles.section}>
@@ -252,18 +263,14 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                   style={styles.attributeSelect}
                 >
                   <option value="">—</option>
-                  {pool.map((v, i) =>
-                    v === null || assignedTo[i] !== undefined ? null : (
-                      <option key={i} value={String(i)}>{v}</option>
-                    ),
-                  )}
-                  {pool.some((v, i) => v !== null && assignedTo[i] !== undefined) && (
+                  {freeSlots.map((i) => (
+                    <option key={i} value={String(i)}>{pool[i]}</option>
+                  ))}
+                  {takenSlots.length > 0 && (
                     <optgroup label="────">
-                      {pool.map((v, i) =>
-                        v === null || assignedTo[i] === undefined ? null : (
-                          <option key={i} value={String(i)}>{assignedTo[i]} {v}</option>
-                        ),
-                      )}
+                      {takenSlots.map((i) => (
+                        <option key={i} value={String(i)}>{assignedTo[i]} {pool[i]}</option>
+                      ))}
                     </optgroup>
                   )}
                 </select>
