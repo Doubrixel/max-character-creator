@@ -117,7 +117,6 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
   }, [])
 
   const fertigkeitenUsed = Object.entries(skills)
-    .filter(([id]) => !magicSchools.some((m) => m.id === id))
     .reduce((sum, [id, v]) => sum + Math.max(0, v - (baseSkills[id] ?? 0)), 0)
 
   const fertigkeitenAvailable = FERTIGKEITEN_POINTS - fertigkeitenUsed
@@ -169,7 +168,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       if (current + 1 > MAGIC_MAX_TOTAL) return
     }
 
-    if (!isMagic && fertigkeitenAvailable <= 0) return
+    if (fertigkeitenAvailable <= 0) return
 
     const next = { ...skills, [id]: current + 1 }
     setSkills(next)
@@ -261,10 +260,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
           {items.map((item) => {
             const value = skills[item.id] ?? 0
             const max = getSkillMax(item.id)
-            const isMagic = magicSchools.some((m) => m.id === item.id)
-            const canInc = isMagic
-              ? value < max
-              : fertigkeitenAvailable > 0 && value < max
+            const canInc = fertigkeitenAvailable > 0 && value < max
             const canDec = value > (baseSkills[item.id] ?? 0)
             return (
               <tr key={item.id}>

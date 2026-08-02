@@ -151,7 +151,12 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     saveDelta(next)
   }
 
-  const getSkillMax = (_id: string): number => {
+  const getSkillMax = (id: string): number => {
+    if (magicSchools.some((m) => m.id === id)) {
+      const hasOtherAt3 = magicSchools.some((m) => m.id !== id && (skillDelta[m.id] ?? 0) >= 3)
+      const cap = hasOtherAt3 ? 2 : 3
+      return (baseSkills[id] ?? 0) + cap
+    }
     return 6;
   }
 
