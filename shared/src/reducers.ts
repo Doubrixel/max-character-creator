@@ -251,9 +251,10 @@ const ZERO_DERIVED: DerivedValues = { LP: 0, FK: 0, SP: 0, VTD: 0, KW: 0, GW: 0,
 export function buildFinalCharacter(name: string, steps: StepDeltas): FinalCharacter {
   const state = recalculateStats(steps)
 
+  const rassenVorteile = steps.rasse?.statblock.vorteile ?? []
+  const rassenNachteile = steps.rasse?.statblock.nachteile ?? []
+
   const staerken = [
-    ...(steps.rasse?.statblock.vorteile ?? []),
-    ...(steps.rasse?.statblock.nachteile ?? []),
     ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
     ...(state.staerken ?? []),
   ]
@@ -268,6 +269,8 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     attribute: (state.attribute ?? {}) as FinalCharacter['attribute'],
     derived: (state.derived ?? ZERO_DERIVED) as DerivedValues,
     skills: (state.skills ?? {}) as Record<string, number>,
+    rassenVorteile,
+    rassenNachteile,
     staerken,
     ressourcen: (state.ressourcen ?? {}) as Record<string, number>,
     meisterschaften: steps.Zauber?.pflicht?.map((p) => p.meisterschaft) ?? [],

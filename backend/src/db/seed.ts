@@ -83,10 +83,10 @@ const SKILL_SEED: Array<{ name: string; kategorie: string; a1: string; a2: strin
 ];
 
 const STRENGTH_SEED = [
-  { id: 'staerke_zaeh', name: 'Zäh', description: '+1 Widerstand gegen physische Angriffe', config: '{}' },
-  { id: 'staerke_schnell', name: 'Schnell', description: '+1 Initiative in der ersten Kampfrunde', config: '{}' },
-  { id: 'staerke_scharfsinn', name: 'Scharfsinn', description: '+1 auf alle Wahrnehmungsproben', config: '{}' },
-  { id: 'staerke_charisma', name: 'Charisma', description: '+1 auf soziale Proben', config: '{}' },
+  { name: 'Zäh', description: '+1 Widerstand gegen physische Angriffe', config: '{}' },
+  { name: 'Schnell', description: '+1 Initiative in der ersten Kampfrunde', config: '{}' },
+  { name: 'Scharfsinn', description: '+1 auf alle Wahrnehmungsproben', config: '{}' },
+  { name: 'Charisma', description: '+1 auf soziale Proben', config: '{}' },
 ];
 
 const DERIVED_VALUE_SEED = [
@@ -157,7 +157,7 @@ export async function seedIfNeeded(): Promise<void> {
 
   if (await isEmpty(races)) {
     const raceData = [
-      { name: 'Mensch', config: JSON.stringify({ vorteile: ['Anpassungsfähig'], nachteile: ['Keine'], groessenklasse: 3 }) },
+      { name: 'Mensch', config: JSON.stringify({ vorteile: ['Anpassungsfähig'], nachteile: [], groessenklasse: 3 }) },
       { name: 'Elf', config: JSON.stringify({ vorteile: ['Nachtsicht'], nachteile: ['Empfindlich gegen Eisen'], groessenklasse: 2 }) },
     ];
     for (const entry of raceData) {
@@ -216,7 +216,7 @@ export async function seedIfNeeded(): Promise<void> {
 
   if (await isEmpty(strengths)) {
     for (const s of STRENGTH_SEED) {
-      await db.insert(strengths).values({ ...s, createdAt: now, updatedAt: now });
+      await db.insert(strengths).values({ id: randomUUID(), ...s, createdAt: now, updatedAt: now });
     }
   }
 

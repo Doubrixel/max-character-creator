@@ -1,14 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useAppContext } from '../../context/AppContext'
+import { useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
-
-interface LibraryEntry {
-  id: string
-  name: string
-  description: string | null
-  config: string | null
-}
 
 interface RasseFormProps {
   editingId: string | null
@@ -18,13 +10,18 @@ interface RasseFormProps {
   onCancel: () => void
 }
 
-function parseIdArray(raw: string | null): string[] {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed
-  } catch {}
-  return raw.split(',').map(s => s.trim()).filter(Boolean)
+function parseNames(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map(x => String(x)).map(s => s.trim()).filter(Boolean)
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.map(x => String(x)).map(s => s.trim()).filter(Boolean)
+    } catch {}
+    return raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+  }
+  return []
 }
 
 export default function RasseForm({
@@ -34,43 +31,11 @@ export default function RasseForm({
   onSaved,
   onCancel,
 }: RasseFormProps) {
-  const { reportApiError } = useAppContext()
   const [name, setName] = useState(initialName)
-  const [beschreibung, setBeschreibung] = useState(initialConfig.beschreibung ?? '')
-  const [groessenklasse, setGroessenklasse] = useState(initialConfig.groessenklasse ?? '')
-  const [selectedStaerken, setSelectedStaerken] = useState<string[]>(parseIdArray(initialConfig.staerken))
-  const [selectedSchwaechen, setSelectedSchwaechen] = useState<string[]>(parseIdArray(initialConfig.schwaechen))
-
-  const [allStaerken, setAllStaerken] = useState<LibraryEntry[]>([])
-  const [allSchwaechen, setAllSchwaechen] = useState<LibraryEntry[]>([])
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/library/strengths`)
-      .then(r => r.json())
-      .then((data: LibraryEntry[]) => {
-        setAllStaerken(data.filter(e => {
-          try {
-            const cfg = e.config ? JSON.parse(e.config) : {}
-            return !(cfg.kategorie === 'rasse' && cfg.unterkategorie === 'nachteil')
-          } catch { return true }
-        }))
-        setAllSchwaechen(data.filter(e => {
-          try {
-            const cfg = e.config ? JSON.parse(e.config) : {}
-            return cfg.kategorie === 'rasse' && cfg.unterkategorie === 'nachteil'
-          } catch { return false }
-        }))
-      })
-      .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
-  }, [])
-
-  const toggleStaerke = (id: string) => {
-    setSelectedStaerken(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  const toggleSchwaeche = (id: string) => {
-    setSelectedSchwaechen(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
+  const [beschreibung, setBeschreibung] = useState(String(initialConfig.beschreibung ?? ''))
+  const [groessenklasse, setGroessenklasse] = useState(String(initialConfig.groessenklasse ?? ''))
+  const [vorteile, setVorteile] = useState<string[]>(parseNames(initialConfig.vorteile))
+  const [nachteile, setNachteile] = useState<string[]>(parseNames(initialConfig.nachteile))
 
   const handleSubmit = async () => {
     if (!name.trim()) return
@@ -80,8 +45,8 @@ export default function RasseForm({
       config: JSON.stringify({
         beschreibung: beschreibung.trim(),
         groessenklasse: parseInt(groessenklasse) || undefined,
-        staerken: selectedStaerken,
-        schwaechen: selectedSchwaechen,
+        vorteile,
+        nachteile,
       }),
     }
     if (editingId) {
@@ -98,65 +63,6 @@ export default function RasseForm({
       })
     }
     onSaved()
-  }
-
-  const renderPickTable = (
-    label: string,
-    allEntries: LibraryEntry[],
-    selectedIds: string[],
-    onToggle: (id: string) => void,
-  ) => {
-    const selected = selectedIds
-      .map(id => allEntries.find(e => e.id === id))
-      .filter(Boolean) as LibraryEntry[]
-    const available = allEntries.filter(e => !selectedIds.includes(e.id))
-
-    return (
-      <div style={styles.pickSection}>
-        <label style={styles.label}>{label}</label>
-        {selected.length > 0 && (
-          <table style={styles.table}>
-            <tbody>
-              {selected.map(entry => (
-                <tr key={entry.id} style={styles.tableRow}>
-                  <td style={styles.tableCellName}>{entry.name}</td>
-                  <td style={styles.tableCellAction}>
-                    <button
-                      style={styles.removeBtn}
-                      onClick={() => onToggle(entry.id)}
-                    >
-                      −
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {available.length > 0 && (
-          <table style={styles.table}>
-            <tbody>
-              {available.map(entry => (
-                <tr key={entry.id} style={styles.tableRow}>
-                  <td style={styles.tableCellName}>{entry.name}</td>
-                  <td style={styles.tableCellAction}>
-                    <button
-                      style={styles.addBtn}
-                      onClick={() => onToggle(entry.id)}
-                    >
-                      +
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {allEntries.length === 0 && (
-          <div style={styles.emptyHint}>Keine Einträge in der Bibliothek vorhanden.</div>
-        )}
-      </div>
-    )
   }
 
   return (
@@ -192,9 +98,25 @@ export default function RasseForm({
           rows={3}
         />
       </div>
-      <div style={styles.pickColumns}>
-        {renderPickTable('Stärken', allStaerken, selectedStaerken, toggleStaerke)}
-        {renderPickTable('Schwächen', allSchwaechen, selectedSchwaechen, toggleSchwaeche)}
+      <div style={styles.formRow}>
+        <label style={styles.label}>Vorteile</label>
+        <textarea
+          style={styles.textarea}
+          placeholder={'Nachtsicht\nSchnelle Heilung'}
+          value={vorteile.join('\n')}
+          onChange={e => setVorteile(e.target.value.split(/\r?\n/))}
+          rows={3}
+        />
+      </div>
+      <div style={styles.formRow}>
+        <label style={styles.label}>Nachteile</label>
+        <textarea
+          style={styles.textarea}
+          placeholder={'Empfindlich gegen Eisen\nLangsam'}
+          value={nachteile.join('\n')}
+          onChange={e => setNachteile(e.target.value.split(/\r?\n/))}
+          rows={3}
+        />
       </div>
       <div style={styles.formActions}>
         <button style={styles.cancelBtn} onClick={onCancel}>Abbrechen</button>
@@ -222,41 +144,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)',
     outline: 'none', resize: 'vertical', width: '100%',
-  },
-  pickColumns: {
-    display: 'flex', gap: 24,
-  },
-  pickSection: {
-    flex: 1, display: 'flex', flexDirection: 'column', gap: 6,
-  },
-  table: {
-    width: '100%', borderCollapse: 'collapse',
-    background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6,
-    overflow: 'hidden',
-  },
-  tableRow: {
-    borderBottom: '1px solid var(--border)',
-  },
-  tableCellName: {
-    padding: '8px 12px', fontSize: 13, color: 'var(--text-primary)',
-  },
-  tableCellAction: {
-    padding: '4px 8px', textAlign: 'right' as const, width: 40,
-  },
-  addBtn: {
-    background: 'var(--accent)', border: 'none', color: '#fff',
-    borderRadius: 4, width: 24, height: 24, cursor: 'pointer',
-    fontSize: 16, fontWeight: 700, display: 'inline-flex',
-    alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-  },
-  removeBtn: {
-    background: 'var(--danger)', border: 'none', color: '#fff',
-    borderRadius: 4, width: 24, height: 24, cursor: 'pointer',
-    fontSize: 16, fontWeight: 700, display: 'inline-flex',
-    alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-  },
-  emptyHint: {
-    fontSize: 12, color: 'var(--text-tertiary)', fontStyle: 'italic',
   },
   formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {

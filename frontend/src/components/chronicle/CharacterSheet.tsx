@@ -157,12 +157,34 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const staerken = (state.staerken ?? []) as string[]
   const resources = (state.ressourcen ?? {}) as Record<string, number>
 
+  // Neue Charaktere (seit Trennung) speichern Vorteile/Nachteile separat.
+  // Alte Charaktere haben alles gemischt in staerken -> Backward-Compatibility.
+  const hasSeparateRassenStrengths = Array.isArray(state.rassenVorteile) || Array.isArray(state.rassenNachteile)
+  const rassenVorteile = (state.rassenVorteile ?? []) as string[]
+  const rassenNachteile = (state.rassenNachteile ?? []) as string[]
+
+  const displayedRassenVorteile = rassenVorteile.filter(v => v && v.toLowerCase() !== 'keine')
+  const displayedRassenNachteile = rassenNachteile.filter(v => v && v.toLowerCase() !== 'keine')
+
+  const resolveStaerkeId = (raw: string): string => {
+    const value = (raw ?? '').trim()
+    if (!value || value.toLowerCase() === 'keine') return ''
+    if (strengthMap[value]) return value
+    // Fallback: alte Seed-Slugs (staerke_zaeh, ...) per Name-Slug auflösen
+    const slug = value.toLowerCase().replace(/^staerke_/, '').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '_')
+    for (const [id, s] of Object.entries(strengthMap)) {
+      const nameSlug = s.name.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '_')
+      if (nameSlug === slug) return id
+    }
+    return value
+  }
+
   const displayedStaerken = (() => {
     const counts = new Map<string, { id: string; name: string; count: number }>()
     const order: string[] = []
     for (const raw of staerken) {
-      const id = (raw ?? '').trim()
-      if (!id || id.toLowerCase() === 'keine') continue
+      const id = resolveStaerkeId(raw)
+      if (!id) continue
       // Try to find the strength in strengthMap, fallback to using the raw ID
       const name = strengthNames[id] ?? strengthMap[id]?.name ?? id
       const existing = counts.get(id)
@@ -179,6 +201,11 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
       return { id: data.id, displayName }
     })
   })()
+
+  // Bei alten Charakteren stecken die Rassen-Vorteile/-Nachteile noch im staerken-Array:
+  // dann dort gar nicht doppelt als eigene Sections zeigen.
+  const effectiveRassenVorteile = hasSeparateRassenStrengths ? displayedRassenVorteile : []
+  const effectiveRassenNachteile = hasSeparateRassenStrengths ? displayedRassenNachteile : []
 
   // Extract data from delta objects
   const schicksalRaw = state.schicksal as { id?: string; name?: string; ruleText?: string } | null
@@ -322,6 +349,26 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
                     <span style={styles.skillValue}>{val}</span>
                   </div>
                 ))}
+            </div>
+          </Section>
+        )}
+
+        {effectiveRassenVorteile.length > 0 && (
+          <Section title="Rassen-Vorteile">
+            <div style={styles.tagList}>
+              {effectiveRassenVorteile.map((name, i) => (
+                <span key={i} style={styles.tag}>{name}</span>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {effectiveRassenNachteile.length > 0 && (
+          <Section title="Rassen-Nachteile">
+            <div style={styles.tagList}>
+              {effectiveRassenNachteile.map((name, i) => (
+                <span key={i} style={styles.tag}>{name}</span>
+              ))}
             </div>
           </Section>
         )}

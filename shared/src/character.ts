@@ -51,6 +51,8 @@ export interface FinalCharacter {
   attribute: AttributeValues
   derived: DerivedValues
   skills: Record<string, number>
+  rassenVorteile: string[]
+  rassenNachteile: string[]
   staerken: string[]
   ressourcen: Record<string, number>
   meisterschaften: PickedItem[]
