@@ -15,8 +15,6 @@ export default function RasseStep({ onValid }: RasseStepProps) {
   const [races, setRaces] = useState<Race[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalRace, setModalRace] = useState<Race | null>(null)
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -64,14 +62,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     const race = races.find((r) => r.id === id)
     if (race) {
       updateStepDelta('rasse', { id: race.id, name: race.name, groessenklasse: race.groessenklasse, statblock: race.statblock })
-      setModalRace(race)
-      setModalOpen(true)
     }
-  }
-
-  const closeModal = () => {
-    setModalOpen(false)
-    setModalRace(null)
   }
 
   const selectedRace = races.find((r) => r.id === selected)
@@ -120,45 +111,6 @@ export default function RasseStep({ onValid }: RasseStepProps) {
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
-      )}
-      {modalOpen && modalRace && (
-        <div style={styles.modalOverlay} onClick={closeModal}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button style={styles.modalClose} onClick={closeModal}>
-              ✕
-            </button>
-            <h2 style={styles.modalTitle}>
-              {modalRace.icon} {modalRace.name}
-            </h2>
-            <div style={styles.modalBody}>
-              <div style={styles.modalSection}>
-                <h3 style={styles.sectionTitle}>Spezieslaw</h3>
-                <div style={styles.scrollableText}>{modalRace.speciesLaw}</div>
-              </div>
-              <div style={styles.modalSection}>
-                <h3 style={styles.sectionTitle}>Statblock</h3>
-                <div style={styles.statblock}>
-                  <h4 style={styles.statblockTitle}>Vorteile</h4>
-                  <ul style={styles.statList}>
-                    {modalRace.statblock.vorteile.map((v, i) => (
-                      <li key={i} style={styles.statItem}>
-                        {v}
-                      </li>
-                    ))}
-                  </ul>
-                  <h4 style={styles.statblockTitle}>Nachteile</h4>
-                  <ul style={styles.statList}>
-                    {modalRace.statblock.nachteile.map((n, i) => (
-                      <li key={i} style={styles.statItem}>
-                        {n}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -250,63 +202,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     color: 'var(--detail-text)',
     marginBottom: 4,
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'var(--overlay)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    background: 'var(--bg-modal)',
-    borderRadius: 12,
-    padding: 24,
-    maxWidth: 600,
-    maxHeight: '80vh',
-    width: '90%',
-    overflow: 'auto',
-    position: 'relative',
-  },
-  modalClose: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    background: 'none',
-    border: 'none',
-    fontSize: 20,
-    cursor: 'pointer',
-    color: 'var(--text-muted)',
-  },
-  modalTitle: {
-    margin: '0 0 16px 0',
-    fontSize: 22,
-    color: 'var(--detail-title)',
-  },
-  modalBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 20,
-  },
-  modalSection: {},
-  sectionTitle: {
-    margin: '0 0 8px 0',
-    fontSize: 16,
-    color: 'var(--detail-title)',
-  },
-  scrollableText: {
-    fontSize: 14,
-    lineHeight: 1.6,
-    color: 'var(--detail-text)',
-    maxHeight: 250,
-    overflowY: 'auto',
-    padding: 12,
-    background: 'var(--bg-detail)',
-    borderRadius: 8,
   },
 }
