@@ -18,7 +18,7 @@ const STEP_LABELS: Record<StepKey, string> = {
   kindheit: 'Kindheit',
   ausbildung: 'Ausbildung',
   attribute: 'Attribute',
-  meisterschaft: 'Meisterschaften & Spells',
+  meisterschaft: 'Meisterschaft',
 }
 
 const steps = STEP_ORDER.map(key => ({ key, label: STEP_LABELS[key] }))

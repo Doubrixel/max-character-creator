@@ -32,15 +32,10 @@ export interface CharacterState {
   skills?: Record<string, number>
   staerke?: string
   staerken?: string[]
-  kulturMeisterschaft?: string
   ressourcen?: Record<string, number>
-  magic?: Record<string, number>
   attribute?: AttributeValues
   derived?: DerivedValues
-  meisterschaften?: string[]
-  bonusMeisterschaften?: string[]
   resources?: Record<string, number>
-  spells?: string[]
 }
 
 export const FINAL_CHARACTER_VERSION = 1
@@ -56,8 +51,6 @@ export interface FinalCharacter {
   derived: DerivedValues
   skills: Record<string, number>
   staerken: string[]
-  meisterschaften: string[]
-  spells: string[]
   ressourcen: Record<string, number>
   xp: number
 }

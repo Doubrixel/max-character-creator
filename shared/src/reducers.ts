@@ -81,7 +81,7 @@ const kulturReducer: Reducer = (stats, delta) => ({
 })
 
 const kindheitReducer: Reducer = (stats, delta) => {
-  const { skills: deltaSkills = {}, staerke, meisterschaft } = delta as {
+  const { skills: deltaSkills = {}, staerke } = delta as {
     skills: Record<string, number>
     staerke: string
     meisterschaft: string
@@ -91,16 +91,14 @@ const kindheitReducer: Reducer = (stats, delta) => {
     ...stats,
     skills: mergeSkills(currentSkills, deltaSkills),
     staerke,
-    kulturMeisterschaft: meisterschaft,
   };
 };
 
 const ausbildungReducer: Reducer = (stats, delta) => {
-  const { skills: deltaSkills = {}, staerken = [], ressourcen = {}, magic } = delta as {
+  const { skills: deltaSkills = {}, staerken = [], ressourcen = {} } = delta as {
     skills: Record<string, number>
     staerken: string[]
     ressourcen: Record<string, number>
-    magic: Record<string, number>
   }
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
   const currentStaerken = (stats.staerken ?? []) as string[];
@@ -110,7 +108,6 @@ const ausbildungReducer: Reducer = (stats, delta) => {
     skills: mergeSkills(currentSkills, deltaSkills),
     staerken: concatArrays(currentStaerken, staerken),
     ressourcen: mergeSkills(currentRessourcen, ressourcen),
-    magic,
   };
 };
 
@@ -138,30 +135,19 @@ const attributeReducer: Reducer = (stats, delta) => {
 };
 
 const meisterschaftReducer: Reducer = (stats, delta) => {
-  const {
-    meisterschaften = [],
-    bonusMeisterschaften = [],
-    talents = {},
-    resources = {},
-    spells,
-  } = delta as {
-    meisterschaften: string[]
-    bonusMeisterschaften: string[]
-    talents: Record<string, number>
-    resources: Record<string, number>
-    spells: string[]
+  const { skills: deltaSkills = {}, staerken = [], ressourcen = {} } = delta as {
+    skills: Record<string, number>
+    staerken: string[]
+    ressourcen: Record<string, number>
   }
-  const currentMeisterschaften = (stats.meisterschaften ?? []) as string[];
-  const currentBonus = (stats.bonusMeisterschaften ?? []) as string[];
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
-  const currentResources = (stats.resources ?? {}) as Record<string, number>;
+  const currentStaerken = (stats.staerken ?? []) as string[];
+  const currentRessourcen = (stats.ressourcen ?? {}) as Record<string, number>;
   return {
     ...stats,
-    meisterschaften: concatArrays(currentMeisterschaften, meisterschaften),
-    bonusMeisterschaften: concatArrays(currentBonus, bonusMeisterschaften),
-    skills: mergeSkills(currentSkills, talents),
-    resources: mergeSkills(currentResources, resources),
-    spells,
+    skills: mergeSkills(currentSkills, deltaSkills),
+    staerken: concatArrays(currentStaerken, staerken),
+    ressourcen: mergeSkills(currentRessourcen, ressourcen),
   };
 };
 
@@ -212,6 +198,7 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     ...(steps.rasse?.statblock.nachteile ?? []),
     ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
     ...(steps.ausbildung?.staerken ?? []),
+    ...(steps.meisterschaft?.staerken ?? []),
   ]
 
   return {
@@ -225,11 +212,6 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     derived: (state.derived ?? ZERO_DERIVED) as DerivedValues,
     skills: (state.skills ?? {}) as Record<string, number>,
     staerken,
-    meisterschaften: [
-      ...(state.meisterschaften ?? []),
-      ...(state.bonusMeisterschaften ?? []),
-    ],
-    spells: state.spells ?? [],
     ressourcen: mergeSkills(
       (state.ressourcen ?? {}) as Record<string, number>,
       (state.resources ?? {}) as Record<string, number>,

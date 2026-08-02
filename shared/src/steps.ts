@@ -54,7 +54,6 @@ export interface AusbildungDelta {
   skills: Record<string, number>
   staerken: string[]
   ressourcen: Record<string, number>
-  magic: Record<string, number>
 }
 
 export interface AttributeDelta {
@@ -64,11 +63,9 @@ export interface AttributeDelta {
 }
 
 export interface MeisterschaftDelta {
-  meisterschaften: string[]
-  bonusMeisterschaften: string[]
-  talents: Record<string, number>
-  resources: Record<string, number>
-  spells: string[]
+  skills: Record<string, number>
+  staerken: string[]
+  ressourcen: Record<string, number>
 }
 
 export type StepDeltaMap = {

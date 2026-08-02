@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { db } from '../db'
-import { characters, characterXpLog, characterSteps, spells } from '../db/schema'
+import { characters, characterXpLog, characterSteps } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
   recalculateStats,
@@ -10,7 +10,6 @@ import {
   StepDeltas,
   StepKey,
   CharacterState,
-  MeisterschaftDelta,
 } from '@mcc/shared'
 
 const app = new Hono()
@@ -251,100 +250,6 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
   const newState: CharacterState = recalculateStats(allDeltas)
 
   return c.json({ step: updatedStep, state: newState })
-})
-
-app.post('/api/characters/:id/steps/:step/validate', async (c) => {
-  const id = c.req.param('id')
-  const step = c.req.param('step')
-  if (!isStepKey(step)) return c.json({ error: 'Unknown step' }, 400)
-
-  const allSteps = await db.select()
-    .from(characterSteps)
-    .where(eq(characterSteps.characterId, id))
-
-  const allDeltas: StepDeltas = {}
-  for (const row of allSteps) {
-    const stepKey = row.stepKey
-    if (!stepKey || !isStepKey(stepKey)) continue
-    allDeltas[stepKey] = row.delta ? JSON.parse(row.delta) : {}
-  }
-
-  const VALID_SKILLS = [
-    'nahkampf', 'distanz', 'schild', 'akrobatik', 'schleichen',
-    'wahrnehmung', 'ueberleben', 'wissen', 'elementar', 'heilung',
-  ]
-
-  const MEISTERSCHAFT_SKILL_MAP: Record<string, string> = {
-    'm_nah_1': 'nahkampf', 'm_nah_2': 'nahkampf',
-    'm_dis_1': 'distanz', 'm_dis_2': 'distanz',
-    'm_akr_1': 'akrobatik', 'm_akr_2': 'akrobatik',
-    'm_sch_1': 'schleichen', 'm_sch_2': 'schleichen',
-    'm_wah_1': 'wahrnehmung', 'm_wah_2': 'wahrnehmung',
-    'm_wis_1': 'wissen', 'm_wis_2': 'wissen',
-    'm_ele_1': 'elementar', 'm_ele_2': 'elementar',
-    'm_hei_1': 'heilung', 'm_hei_2': 'heilung',
-  }
-
-  const currentIdx = STEP_ORDER.indexOf(step)
-  const warnings: Array<{ step: StepKey, errors: string[] }> = []
-
-  for (let s = currentIdx + 1; s < STEP_ORDER.length; s++) {
-    const stepKey = STEP_ORDER[s]
-    const delta = allDeltas[stepKey]
-    if (!delta) continue
-
-    const deltasBeforeRaw: Record<string, unknown> = {}
-    for (let i = 0; i < s; i++) {
-      const beforeKey = STEP_ORDER[i]
-      if (allDeltas[beforeKey]) deltasBeforeRaw[beforeKey] = allDeltas[beforeKey]
-    }
-    const deltasBefore = deltasBeforeRaw as StepDeltas
-    const stateBefore = recalculateStats(deltasBefore)
-    const errors: string[] = []
-
-    if (stepKey === 'kindheit' || stepKey === 'ausbildung') {
-      const deltaSkills = ((delta as { skills?: Record<string, number> }).skills ?? {})
-      for (const key of Object.keys(deltaSkills)) {
-        if (!VALID_SKILLS.includes(key)) {
-          errors.push(`${key} ist kein gültiger Skill`)
-        }
-      }
-    }
-
-    if (stepKey === 'meisterschaft') {
-      const meisterschaftDelta = delta as MeisterschaftDelta
-      const stateSkills = (stateBefore.skills ?? {}) as Record<string, number>
-      for (const mId of meisterschaftDelta.meisterschaften) {
-        const skill = MEISTERSCHAFT_SKILL_MAP[mId]
-        if (skill) {
-          const wert = stateSkills[skill] ?? 0
-          if (wert < 6) {
-            errors.push(`Meisterschaft ${mId} erfordert Skill ${skill} mit Wert 6, aktuell ${wert}`)
-          }
-        }
-      }
-
-      for (const spellId of meisterschaftDelta.spells) {
-        const spellRows = await db.select().from(spells).where(eq(spells.id, spellId))
-        if (spellRows.length > 0) {
-          const config = spellRows[0].config ? JSON.parse(spellRows[0].config) : {}
-          const school = config.school as string | undefined
-          if (school) {
-            const schoolValue = (stateBefore.skills as Record<string, number> | undefined)?.[school] ?? 0
-            if (schoolValue <= 0) {
-              errors.push(`Spell ${spellId} erfordert Magie-Schule mit Wert > 0`)
-            }
-          }
-        }
-      }
-    }
-
-    if (errors.length > 0) {
-      warnings.push({ step: stepKey, errors })
-    }
-  }
-
-  return c.json({ valid: warnings.length === 0, warnings })
 })
 
 export default app

@@ -21,29 +21,6 @@ const ATTRIBUTE_NAMES: Record<string, string> = {
   KRA: 'Körperkraft',
 }
 
-const MEISTERSCHAFT_NAMES: Record<string, string> = {
-  m_nah_1: 'Klingensturm', m_nah_2: 'Meisterparade',
-  m_dis_1: 'Scharfschütze', m_dis_2: 'Schnellfeuer',
-  m_akr_1: 'Luftsprung', m_akr_2: 'Fallmeister',
-  m_sch_1: 'Unsichtbar', m_sch_2: 'Schattenritt',
-  m_wah_1: 'Adlerauge', m_wah_2: 'Gefahrensinn',
-  m_wis_1: 'Gelehrter', m_wis_2: 'Analytiker',
-  m_ele_1: 'Elementarbeherrschung', m_ele_2: 'Sturmrufer',
-  m_hei_1: 'Wundheiler', m_hei_2: 'Reinigung',
-  m_ueb_1: 'Wegweiser', m_ueb_2: 'Jäger',
-  'meister-hieb': 'Meisterhieb', meisterschuss: 'Meisterschuss',
-  'arkaner-strom': 'Arkaner Strom',
-}
-
-const SPELL_NAMES: Record<string, string> = {
-  sp_el_0_1: 'Funken', sp_el_0_2: 'Eisblitz',
-  sp_el_1_1: 'Feuerball', sp_el_1_2: 'Eiswand',
-  sp_el_2_1: 'Meteor', sp_el_2_2: 'Blitzschlag',
-  sp_he_0_1: 'Leichtes Heilen', sp_he_0_2: 'Reinigen',
-  sp_he_1_1: 'Wunden schließen', sp_he_1_2: 'Schutzschild',
-  sp_he_2_1: 'Massenheilung', sp_he_2_2: 'Wiederbelebung',
-}
-
 export default function CharacterSheet({ characterId, onDelete }: CharacterSheetProps) {
   const { reportApiError } = useAppContext()
   const [state, setState] = useState<Record<string, unknown> | null>(null)
@@ -83,8 +60,6 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const attribute = (state.attribute ?? {}) as Record<string, number>
   const derived = (state.derived ?? {}) as Record<string, number>
   const staerken = (state.staerken ?? []) as string[]
-  const meisterschaften = [...(state.meisterschaften ?? []) as string[], ...(state.bonusMeisterschaften ?? []) as string[]]
-  const spells = (state.spells ?? []) as string[]
   const resources = (state.ressourcen ?? state.resources ?? {}) as Record<string, number>
 
   const rasseRaw = state.rasse
@@ -179,26 +154,6 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
           <div style={styles.tagList}>
             {staerken.map((s, i) => (
               <span key={i} style={styles.tag}>{s}</span>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {meisterschaften.length > 0 && (
-        <Section title="Meisterschaften">
-          <div style={styles.tagList}>
-            {meisterschaften.map((m, i) => (
-              <span key={i} style={styles.tag}>{MEISTERSCHAFT_NAMES[m] ?? m}</span>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {spells.length > 0 && (
-        <Section title="Spells">
-          <div style={styles.tagList}>
-            {spells.map((s, i) => (
-              <span key={i} style={styles.tag}>{SPELL_NAMES[s] ?? s}</span>
             ))}
           </div>
         </Section>
