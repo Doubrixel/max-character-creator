@@ -47,7 +47,6 @@ export interface KulturDelta {
 export interface KindheitDelta {
   skills: Record<string, number>
   staerke: string
-  meisterschaft: string
 }
 
 export interface AusbildungDelta {

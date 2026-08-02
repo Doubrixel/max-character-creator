@@ -35,7 +35,6 @@ export interface CharacterState {
   ressourcen?: Record<string, number>
   attribute?: AttributeValues
   derived?: DerivedValues
-  resources?: Record<string, number>
 }
 
 export const FINAL_CHARACTER_VERSION = 1

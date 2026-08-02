@@ -60,7 +60,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const attribute = (state.attribute ?? {}) as Record<string, number>
   const derived = (state.derived ?? {}) as Record<string, number>
   const staerken = (state.staerken ?? []) as string[]
-  const resources = (state.ressourcen ?? state.resources ?? {}) as Record<string, number>
+  const resources = (state.ressourcen ?? {}) as Record<string, number>
 
   const rasseRaw = state.rasse
   const rasseName = typeof rasseRaw === 'string'

@@ -71,7 +71,7 @@ const abstammungReducer: Reducer = (stats, delta) => {
     ...stats,
     abstammung: delta as AbstammungDelta,
     skills: mergeSkills((stats.skills ?? {}) as Record<string, number>, herkunftSkills),
-    resources: mergeSkills((stats.resources ?? {}) as Record<string, number>, herkunftResources),
+    ressourcen: mergeSkills((stats.ressourcen ?? {}) as Record<string, number>, herkunftResources),
   }
 }
 
@@ -84,7 +84,6 @@ const kindheitReducer: Reducer = (stats, delta) => {
   const { skills: deltaSkills = {}, staerke } = delta as {
     skills: Record<string, number>
     staerke: string
-    meisterschaft: string
   }
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
   return {
@@ -212,10 +211,7 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     derived: (state.derived ?? ZERO_DERIVED) as DerivedValues,
     skills: (state.skills ?? {}) as Record<string, number>,
     staerken,
-    ressourcen: mergeSkills(
-      (state.ressourcen ?? {}) as Record<string, number>,
-      (state.resources ?? {}) as Record<string, number>,
-    ),
+    ressourcen: (state.ressourcen ?? {}) as Record<string, number>,
     xp: 15,
   };
 }

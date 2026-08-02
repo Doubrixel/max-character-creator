@@ -46,7 +46,7 @@ export default function PointDistributionStep({
   const { computeBaseStats, stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
-  const baseResources = (computeBaseStats(currentStep).resources ?? {}) as Record<string, number>
+  const baseResources = (computeBaseStats(currentStep).ressourcen ?? {}) as Record<string, number>
 
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
