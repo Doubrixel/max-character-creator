@@ -24,17 +24,31 @@ const ATTRIBUTE_NAMES: Record<string, string> = {
 export default function CharacterSheet({ characterId, onDelete }: CharacterSheetProps) {
   const { reportApiError } = useAppContext()
   const [state, setState] = useState<Record<string, unknown> | null>(null)
+  const [strengthNames, setStrengthNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/characters/${characterId}/state`)
-      .then(async r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
+    Promise.all([
+      fetch(`${API_BASE}/api/characters/${characterId}/state`)
+        .then(async r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        }),
+      fetch(`${API_BASE}/api/library/strengths`)
+        .then(async r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        }),
+    ])
+      .then(([charData, strengthsData]: [{ state: Record<string, unknown> }, { id: string; name: string }[]]) => {
+        setState(charData.state)
+        const map: Record<string, string> = {}
+        for (const s of strengthsData) map[s.id] = s.name
+        setStrengthNames(map)
+        setLoading(false)
       })
-      .then(d => { setState(d.state); setLoading(false) })
       .catch(() => {
         setLoadError(true)
         setLoading(false)
@@ -61,6 +75,27 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const derived = (state.derived ?? {}) as Record<string, number>
   const staerken = (state.staerken ?? []) as string[]
   const resources = (state.ressourcen ?? {}) as Record<string, number>
+
+  const displayedStaerken = (() => {
+    const counts = new Map<string, number>()
+    const order: string[] = []
+    for (const raw of staerken) {
+      const value = (raw ?? '').trim()
+      if (!value || value.toLowerCase() === 'keine') continue
+      const name = strengthNames[value] ?? value
+      const existing = counts.get(name)
+      if (existing === undefined) {
+        counts.set(name, 1)
+        order.push(name)
+      } else {
+        counts.set(name, existing + 1)
+      }
+    }
+    return order.map((name) => {
+      const count = counts.get(name) ?? 1
+      return count > 1 ? `${name} ${toRoman(count)}` : name
+    })
+  })()
 
   const rasseRaw = state.rasse
   const rasseName = typeof rasseRaw === 'string'
@@ -149,10 +184,10 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         </Section>
       )}
 
-      {staerken.length > 0 && (
+      {displayedStaerken.length > 0 && (
         <Section title="Stärken">
           <div style={styles.tagList}>
-            {staerken.map((s, i) => (
+            {displayedStaerken.map((s, i) => (
               <span key={i} style={styles.tag}>{s}</span>
             ))}
           </div>
@@ -200,6 +235,19 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
       )}
     </div>
   )
+}
+
+function toRoman(n: number): string {
+  const numerals: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
+  let result = ''
+  let rest = n
+  for (const [value, symbol] of numerals) {
+    while (rest >= value) {
+      result += symbol
+      rest -= value
+    }
+  }
+  return result
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
