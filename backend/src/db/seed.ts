@@ -98,6 +98,7 @@ const DERIVED_VALUE_SEED = [
   { name: 'Geistiger Widerstand', description: 'Widerstand gegen geistige Effekte und Kontrolle', formel: '12 + MUT + KON' },
   { name: 'Schadensschwelle', description: 'Ab diesem Schaden wird der Charakter beeinträchtigt', formel: 'GK - 3 + KON' },
   { name: 'Initiative', description: 'Reihenfolge im Kampf; 1d10 wird gewürfelt', formel: '20 - INT - GE - 1d10' },
+  { name: 'GK', description: 'Größenklasse der Rasse', formel: 'GK' },
 ];
 
 async function syncDerivedValues() {

@@ -28,6 +28,10 @@ function roll4d6DropLowest(): { dice: number[]; sum: number; droppedIndex: numbe
   return { dice, sum, droppedIndex }
 }
 
+function formatModifier(value: number): string {
+  return value > 0 ? `+${value}` : String(value)
+}
+
 interface AttributeStepProps {
   onValid: (valid: boolean) => void
 }
@@ -219,15 +223,15 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
     .filter((i) => assignedTo[i] !== undefined)
     .sort((a, b) => ATTRIBUTES.indexOf(assignedTo[a]) - ATTRIBUTES.indexOf(assignedTo[b]))
 
-  const attributeMap: Record<string, number> = {}
+  const attributeModifiers: Record<string, number> = {}
   for (const a of ATTRIBUTES) {
     const s = slotAssignments[a]
-    if (s !== undefined && pool[s] !== null) attributeMap[a] = pool[s] as number
+    if (s !== undefined && pool[s] !== null) attributeModifiers[a] = Math.floor(((pool[s] as number) - 12) / 2)
   }
   const groessenklasse = stepDeltas.rasse?.groessenklasse ?? 3
   const derivedResults = derivedDefs.map((d) => {
     const result = d.formel
-      ? evaluateFormula(d.formel, { attribute: attributeMap, groessenklasse })
+      ? evaluateFormula(d.formel, { attribute: attributeModifiers, groessenklasse })
       : { value: null, display: '—' }
     return { ...d, result }
   })
@@ -319,6 +323,11 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                 >
                   {assignedValue !== null ? assignedValue : '—'}
                 </span>
+                {assignedValue !== null && (
+                  <span style={styles.attributeModifier}>
+                    {formatModifier(Math.floor((assignedValue - 12) / 2))}
+                  </span>
+                )}
               </div>
             )
           })}
@@ -332,6 +341,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
             {derivedResults.map((d, i) => (
               <div key={i} style={styles.derivedSlot} title={d.description}>
                 <span style={styles.derivedName}>{d.name}</span>
+                {d.formel && <span style={styles.derivedFormula}>{d.formel}</span>}
                 <span style={styles.derivedValue}>{d.result.display}</span>
               </div>
             ))}
@@ -494,6 +504,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid var(--success)',
     background: 'var(--bg-success-subtle)',
   },
+  attributeModifier: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--text-tertiary)',
+  },
   derivedGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
@@ -513,6 +528,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     color: 'var(--text-primary)',
+    textAlign: 'center',
+  },
+  derivedFormula: {
+    fontSize: 11,
+    color: 'var(--text-tertiary)',
+    fontStyle: 'italic',
     textAlign: 'center',
   },
   derivedValue: {
