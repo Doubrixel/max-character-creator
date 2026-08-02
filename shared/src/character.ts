@@ -1,4 +1,4 @@
-import type { SchicksalDelta, RasseDelta, AbstammungDelta, KulturDelta } from './steps'
+import type { SchicksalDelta, RasseDelta, AbstammungDelta, KulturDelta, PickedItem } from './steps'
 
 export interface AttributeValues {
   MUT?: number
@@ -33,6 +33,9 @@ export interface CharacterState {
   staerke?: string
   staerken?: string[]
   ressourcen?: Record<string, number>
+  meisterschaften?: PickedItem[]
+  zauber?: PickedItem[]
+  name?: string
   attribute?: AttributeValues
   derived?: DerivedValues
 }
@@ -51,5 +54,7 @@ export interface FinalCharacter {
   skills: Record<string, number>
   staerken: string[]
   ressourcen: Record<string, number>
+  meisterschaften: PickedItem[]
+  zauber: PickedItem[]
   xp: number
 }

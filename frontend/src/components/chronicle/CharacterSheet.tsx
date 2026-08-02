@@ -159,6 +159,26 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         </Section>
       )}
 
+      {((state.meisterschaften ?? []) as { id: string; name: string }[]).length > 0 && (
+        <Section title="Meisterschaften">
+          <div style={styles.tagList}>
+            {((state.meisterschaften ?? []) as { id: string; name: string }[]).map((m, i) => (
+              <span key={i} style={styles.tag}>{m.name}</span>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {((state.zauber ?? []) as { id: string; name: string }[]).length > 0 && (
+        <Section title="Zauber">
+          <div style={styles.tagList}>
+            {((state.zauber ?? []) as { id: string; name: string }[]).map((s, i) => (
+              <span key={i} style={styles.tag}>{s.name}</span>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {Object.keys(resources).length > 0 && (
         <Section title="Ressourcen">
           <div style={styles.skillGrid}>

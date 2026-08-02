@@ -6,7 +6,9 @@ export const STEP_ORDER = [
   'kindheit',
   'ausbildung',
   'attribute',
-  'meisterschaft',
+  'Hobbybedarf',
+  'Zauber',
+  'Name',
 ] as const
 
 export type StepKey = typeof STEP_ORDER[number]
@@ -61,10 +63,24 @@ export interface AttributeDelta {
   slotAssignments?: Record<string, number>
 }
 
-export interface MeisterschaftDelta {
+export interface HobbybedarfDelta {
   skills: Record<string, number>
   staerken: string[]
   ressourcen: Record<string, number>
+}
+
+export interface PickedItem {
+  id: string
+  name: string
+}
+
+export interface ZauberDelta {
+  meisterschaften: PickedItem[]
+  zauber: PickedItem[]
+}
+
+export interface NameDelta {
+  name: string
 }
 
 export type StepDeltaMap = {
@@ -75,7 +91,9 @@ export type StepDeltaMap = {
   kindheit: KindheitDelta
   ausbildung: AusbildungDelta
   attribute: AttributeDelta
-  meisterschaft: MeisterschaftDelta
+  Hobbybedarf: HobbybedarfDelta
+  Zauber: ZauberDelta
+  Name: NameDelta
 }
 
 export type StepDeltas = Partial<StepDeltaMap>

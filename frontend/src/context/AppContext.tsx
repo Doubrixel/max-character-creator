@@ -69,10 +69,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const finalizeCharacter = async (): Promise<boolean> => {
     try {
+      const name = (stepDeltas.Name as { name?: string } | undefined)?.name?.trim() || DEFAULT_NAME
       const res = await fetch(`${API_BASE}/api/characters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: DEFAULT_NAME, steps: stepDeltas }),
+        body: JSON.stringify({ name, steps: stepDeltas }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       await res.json()

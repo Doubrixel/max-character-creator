@@ -133,7 +133,7 @@ const attributeReducer: Reducer = (stats, delta) => {
   };
 };
 
-const meisterschaftReducer: Reducer = (stats, delta) => {
+const HobbybedarfReducer: Reducer = (stats, delta) => {
   const { skills: deltaSkills = {}, staerken = [], ressourcen = {} } = delta as {
     skills: Record<string, number>
     staerken: string[]
@@ -150,6 +150,23 @@ const meisterschaftReducer: Reducer = (stats, delta) => {
   };
 };
 
+const zauberReducer: Reducer = (stats, delta) => {
+  const { meisterschaften = [], zauber = [] } = delta as {
+    meisterschaften: { id: string; name: string }[]
+    zauber: { id: string; name: string }[]
+  }
+  return {
+    ...stats,
+    meisterschaften,
+    zauber,
+  };
+};
+
+const nameReducer: Reducer = (stats, delta) => ({
+  ...stats,
+  name: (delta as { name: string }).name,
+})
+
 export const reducers: Record<StepKey, Reducer> = {
   schicksal: schicksalReducer,
   rasse: rasseReducer,
@@ -158,7 +175,9 @@ export const reducers: Record<StepKey, Reducer> = {
   kindheit: kindheitReducer,
   ausbildung: ausbildungReducer,
   attribute: attributeReducer,
-  meisterschaft: meisterschaftReducer,
+  Hobbybedarf: HobbybedarfReducer,
+  Zauber: zauberReducer,
+  Name: nameReducer,
 };
 
 export function recalculateStats(deltas: StepDeltas): CharacterState {
@@ -197,7 +216,7 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     ...(steps.rasse?.statblock.nachteile ?? []),
     ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
     ...(steps.ausbildung?.staerken ?? []),
-    ...(steps.meisterschaft?.staerken ?? []),
+    ...(steps.Hobbybedarf?.staerken ?? []),
   ]
 
   return {
@@ -212,6 +231,8 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     skills: (state.skills ?? {}) as Record<string, number>,
     staerken,
     ressourcen: (state.ressourcen ?? {}) as Record<string, number>,
+    meisterschaften: steps.Zauber?.meisterschaften ?? [],
+    zauber: steps.Zauber?.zauber ?? [],
     xp: 15,
   };
 }

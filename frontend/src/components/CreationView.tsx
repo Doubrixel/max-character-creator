@@ -7,7 +7,9 @@ import KulturSelectStep from './creation/KulturSelectStep'
 import KindheitStep from './creation/KindheitStep'
 import AusbildungStep from './creation/AusbildungStep'
 import AttributeStep from './creation/AttributeStep'
-import MeisterschaftStep from './creation/MeisterschaftStep'
+import HobbybedarfStep from './creation/HobbybedarfStep'
+import ZauberStep from './creation/ZauberStep'
+import NameStep from './creation/NameStep'
 import { STEP_ORDER, StepKey } from '@mcc/shared'
 
 const STEP_LABELS: Record<StepKey, string> = {
@@ -18,7 +20,9 @@ const STEP_LABELS: Record<StepKey, string> = {
   kindheit: 'Kindheit',
   ausbildung: 'Ausbildung',
   attribute: 'Attribute',
-  meisterschaft: 'Meisterschaft',
+  Hobbybedarf: 'Hobbybedarf',
+  Zauber: 'Meisterschaften & Zauber',
+  Name: 'Name',
 }
 
 const steps = STEP_ORDER.map(key => ({ key, label: STEP_LABELS[key] }))
@@ -75,8 +79,12 @@ export default function CreationView() {
         return <AusbildungStep onValid={setCanProceed} />
       case 'attribute':
         return <AttributeStep onValid={setCanProceed} />
-      case 'meisterschaft':
-        return <MeisterschaftStep onValid={setCanProceed} />
+      case 'Hobbybedarf':
+        return <HobbybedarfStep onValid={setCanProceed} />
+      case 'Zauber':
+        return <ZauberStep onValid={setCanProceed} />
+      case 'Name':
+        return <NameStep onValid={setCanProceed} />
     }
   }
 

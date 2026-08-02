@@ -19,7 +19,7 @@ interface StrengthItem {
 }
 
 interface PointDistributionStepProps {
-  stepKey: 'ausbildung' | 'meisterschaft'
+  stepKey: 'ausbildung' | 'Hobbybedarf'
   onValid: (valid: boolean) => void
   skillPoints: number
   skillPointLabel: string
