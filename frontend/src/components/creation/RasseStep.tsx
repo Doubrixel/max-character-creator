@@ -15,6 +15,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
   const [races, setRaces] = useState<Race[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -57,6 +58,15 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     onValid(selected !== null)
   }, [selected, onValid])
 
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [fullscreen])
+
   const handleSelect = (id: string) => {
     setSelected(id)
     const race = races.find((r) => r.id === id)
@@ -89,11 +99,22 @@ export default function RasseStep({ onValid }: RasseStepProps) {
         ))}
       </div>
       {selectedRace && (
-        <div style={styles.detailPanel}>
-          <h3 style={styles.detailTitle}>
-            {selectedRace.icon} {selectedRace.name}
-          </h3>
-          <p style={styles.detailText}>{selectedRace.speciesLaw.substring(0, 200)}...</p>
+        <div style={{ ...styles.detailPanel, ...(fullscreen ? styles.detailPanelFullscreen : {}) }}>
+          <div style={styles.detailHeader}>
+            <h3 style={styles.detailTitle}>
+              {selectedRace.icon} {selectedRace.name}
+            </h3>
+            <button
+              style={styles.fullscreenButton}
+              onClick={() => setFullscreen((f) => !f)}
+              aria-label={fullscreen ? 'Vollbild schließen' : 'Vollbild anzeigen'}
+            >
+              {fullscreen ? '🗕 Verkleinern' : '⛶ Vollbild'}
+            </button>
+          </div>
+          <p style={styles.detailText}>
+            {fullscreen ? selectedRace.speciesLaw : selectedRace.speciesLaw.length > 200 ? `${selectedRace.speciesLaw.substring(0, 200)}...` : selectedRace.speciesLaw}
+          </p>
           <div style={styles.statblock}>
             <h4 style={styles.statblockTitle}>Vorteile</h4>
             <ul style={styles.statList}>
@@ -170,10 +191,41 @@ const styles: Record<string, React.CSSProperties> = {
   detailPanel: {
     width: '25%',
     background: 'var(--bg-detail)',
-    border: '1px solid var(--border-light)',
+    border: '1px solid var(--border)',
     borderRadius: 8,
     padding: 16,
     alignSelf: 'start',
+    transition: 'background 0.2s',
+  },
+  detailPanelFullscreen: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 'auto',
+    height: 'auto',
+    maxWidth: 'none',
+    borderRadius: 0,
+    alignSelf: 'auto',
+    overflowY: 'auto',
+    zIndex: 1000,
+  },
+  detailHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  fullscreenButton: {
+    flexShrink: 0,
+    background: 'var(--bg-secondary)',
+    color: 'var(--detail-text)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '4px 10px',
+    cursor: 'pointer',
+    fontSize: 13,
   },
   detailTitle: {
     margin: '0 0 12px 0',

@@ -157,7 +157,7 @@ const styles: Record<string, React.CSSProperties> = {
   detailPanel: {
     width: '25%',
     background: 'var(--bg-detail)',
-    border: '1px solid var(--border-light)',
+    border: '1px solid var(--border)',
     borderRadius: 8,
     padding: 16,
     alignSelf: 'start',
