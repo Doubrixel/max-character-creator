@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { evaluateFormula } from '@mcc/shared'
+import { evaluateFormula, attributeModifier } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -226,7 +226,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   const attributeModifiers: Record<string, number> = {}
   for (const a of ATTRIBUTES) {
     const s = slotAssignments[a]
-    if (s !== undefined && pool[s] !== null) attributeModifiers[a] = Math.floor(((pool[s] as number) - 12) / 2)
+    if (s !== undefined && pool[s] !== null) attributeModifiers[a] = attributeModifier(pool[s] as number)
   }
   const groessenklasse = stepDeltas.rasse?.groessenklasse ?? 3
   const derivedResults = derivedDefs.map((d) => {
@@ -325,7 +325,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                 </span>
                 {assignedValue !== null && (
                   <span style={styles.attributeModifier}>
-                    {formatModifier(Math.floor((assignedValue - 12) / 2))}
+                    {formatModifier(attributeModifier(assignedValue))}
                   </span>
                 )}
               </div>

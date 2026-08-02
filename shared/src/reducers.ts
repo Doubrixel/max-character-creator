@@ -1,4 +1,5 @@
 import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
+import { attributeModifier } from './attributes'
 import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
@@ -116,17 +117,18 @@ const ausbildungReducer: Reducer = (stats, delta) => {
 const attributeReducer: Reducer = (stats, delta) => {
   const { attribute = {} } = delta as { attribute: Record<string, number> }
   const attr = attribute;
+  const mod = (k: string) => attributeModifier(attr[k] ?? 0);
   const rasseData = (stats.rasse ?? {}) as Record<string, unknown>;
   const gk = (rasseData.groessenklasse as number) ?? 3;
   const derived = {
-    LP: (gk + (attr.KON ?? 0)) * 5,
-    FK: ((attr.MYS ?? 0) + (attr.MYS ?? 0)) * 3,
-    SP: ((attr.HIN ?? 0) + (attr.HIN ?? 0)) * 3,
-    VTD: 12 + (attr.GEW ?? 0) + (attr.INT ?? 0) + (5 - gk) * 2,
-    KW: 12 + (attr.KRA ?? 0) + (attr.KON ?? 0),
-    GW: 12 + (attr.MUT ?? 0) + (attr.KON ?? 0),
-    SS: gk - 3 + (attr.KON ?? 0),
-    INI: 20 - (attr.INT ?? 0) - (attr.GEW ?? 0),
+    LP: (gk + mod('KON')) * 5,
+    FK: (mod('MYS') + mod('MYS')) * 3,
+    SP: (mod('HIN') + mod('HIN')) * 3,
+    VTD: 12 + mod('GEW') + mod('INT') + (5 - gk) * 2,
+    KW: 12 + mod('KRA') + mod('KON'),
+    GW: 12 + mod('MUT') + mod('KON'),
+    SS: gk - 3 + mod('KON'),
+    INI: 20 - mod('INT') - mod('GEW'),
   };
   return {
     ...stats,
