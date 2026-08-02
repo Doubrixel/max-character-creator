@@ -1,7 +1,7 @@
 export interface FieldSchema {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'raceSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox'
+  type: 'text' | 'textarea' | 'number' | 'select' | 'skillSelect' | 'raceSelect' | 'libraryPick' | 'statblock' | 'prerequisite' | 'checkbox' | 'schoolValues'
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -52,11 +52,17 @@ export const TYPE_SCHEMAS: Record<string, { label: string; fields: FieldSchema[]
   spells: {
     label: 'Spells',
     fields: [
-      { key: 'level', label: 'Level', type: 'select', options: ['0', '1', '2'], required: true },
-      { key: 'schule', label: 'Magieschule', type: 'skillSelect', placeholder: 'Magieschule auswählen...' },
-      { key: 'kosten', label: 'Kosten', type: 'text', placeholder: 'z.B. 2 MP' },
-      { key: 'effekt', label: 'Effekt', type: 'textarea', required: true },
-      { key: 'maxSchulenwert', label: 'Max Schulenwert zum Lernen', type: 'number', placeholder: 'z.B. 1 für Lvl 0' },
+      { key: 'typus', label: 'Typus', type: 'text', placeholder: 'z.B. Objekt, Kontrolle' },
+      { key: 'schwierigkeit', label: 'Schwierigkeit', type: 'text', placeholder: 'z.B. 15, KW' },
+      { key: 'kosten', label: 'Kosten', type: 'text', placeholder: 'z.B. K1, K16V4' },
+      { key: 'zauberdauer', label: 'Zauberdauer', type: 'text', placeholder: 'z.B. 1 Tick, 5 Minuten' },
+      { key: 'reichweite', label: 'Reichweite', type: 'text', placeholder: 'z.B. Berührung, Zauberer' },
+      { key: 'artefakt', label: 'Artefakt', type: 'select', options: ['Spruch', 'Ritus'] },
+      { key: 'schulen', label: 'Schulen', type: 'schoolValues' },
+      { key: 'wirkungsdauer', label: 'Wirkungsdauer', type: 'text', placeholder: 'z.B. kanalisiert, sofort' },
+      { key: 'wirkungsbereich', label: 'Wirkungsbereich', type: 'text', placeholder: 'z.B. 5 m' },
+      { key: 'erfolgsgrade', label: 'Erfolgsgrade', type: 'textarea', placeholder: '• ...\n• ...' },
+      { key: 'level', label: 'Level', type: 'number', placeholder: '0' },
     ],
   },
   resources: {
@@ -164,3 +170,48 @@ export const MAGIC_SCHOOL_OPTIONS = [
   { id: 'elementar', name: 'Elementarmagie' },
   { id: 'heilung', name: 'Heilungsmagie' },
 ]
+
+export const FULL_MAGIC_SKILLS = [
+  { id: 'bannmagie', name: 'Bannmagie' },
+  { id: 'beherrschungsmagie', name: 'Beherrschungsmagie' },
+  { id: 'bewegungsmagie', name: 'Bewegungsmagie' },
+  { id: 'erkenntnismagie', name: 'Erkenntnismagie' },
+  { id: 'felsmagie', name: 'Felsmagie' },
+  { id: 'feuermagie', name: 'Feuermagie' },
+  { id: 'heilungsmagie', name: 'Heilungsmagie' },
+  { id: 'illusionsmagie', name: 'Illusionsmagie' },
+  { id: 'kampfmagie', name: 'Kampfmagie' },
+  { id: 'lichtmagie', name: 'Lichtmagie' },
+  { id: 'naturmagie', name: 'Naturmagie' },
+  { id: 'raummagie', name: 'Raummagie' },
+  { id: 'schattenmagie', name: 'Schattenmagie' },
+  { id: 'schicksalsmagie', name: 'Schicksalsmagie' },
+  { id: 'schutzmagie', name: 'Schutzmagie' },
+  { id: 'staerkungsmagie', name: 'Stärkungsmagie' },
+  { id: 'todesmagie', name: 'Todesmagie' },
+  { id: 'verwandlungsmagie', name: 'Verwandlungsmagie' },
+  { id: 'wassermagie', name: 'Wassermagie' },
+  { id: 'windmagie', name: 'Windmagie' },
+]
+
+export const SCHOOL_SHORT_MAP: Record<string, { id: string; name: string }> = {
+  'Bann': { id: 'bannmagie', name: 'Bannmagie' },
+  'Beherrschung': { id: 'beherrschungsmagie', name: 'Beherrschungsmagie' },
+  'Bewegung': { id: 'bewegungsmagie', name: 'Bewegungsmagie' },
+  'Erkenntnis': { id: 'erkenntnismagie', name: 'Erkenntnismagie' },
+  'Fels': { id: 'felsmagie', name: 'Felsmagie' },
+  'Feuer': { id: 'feuermagie', name: 'Feuermagie' },
+  'Heilung': { id: 'heilungsmagie', name: 'Heilungsmagie' },
+  'Illusion': { id: 'illusionsmagie', name: 'Illusionsmagie' },
+  'Kampf': { id: 'kampfmagie', name: 'Kampfmagie' },
+  'Licht': { id: 'lichtmagie', name: 'Lichtmagie' },
+  'Natur': { id: 'naturmagie', name: 'Naturmagie' },
+  'Schatten': { id: 'schattenmagie', name: 'Schattenmagie' },
+  'Schicksal': { id: 'schicksalsmagie', name: 'Schicksalsmagie' },
+  'Schutz': { id: 'schutzmagie', name: 'Schutzmagie' },
+  'Stärkung': { id: 'staerkungsmagie', name: 'Stärkungsmagie' },
+  'Tod': { id: 'todesmagie', name: 'Todesmagie' },
+  'Verwandlung': { id: 'verwandlungsmagie', name: 'Verwandlungsmagie' },
+  'Wasser': { id: 'wassermagie', name: 'Wassermagie' },
+  'Wind': { id: 'windmagie', name: 'Windmagie' },
+}

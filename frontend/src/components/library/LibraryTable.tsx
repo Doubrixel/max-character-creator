@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, type FieldSchema } from './typeSchemas'
+import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, FULL_MAGIC_SKILLS, SCHOOL_SHORT_MAP, type FieldSchema } from './typeSchemas'
 import RasseForm from './RasseForm'
 import { useAppContext } from '../../context/AppContext'
 
@@ -172,6 +172,125 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     return results
   }
 
+  const parseSpellsFile = (content: string): { name: string; description: string; config: Record<string, string> }[] => {
+    const results: { name: string; description: string; config: Record<string, string> }[] = []
+    const lines = content.split('\n')
+    let i = 0
+
+    const gradToSchulenwert = (grad: number): number => {
+      if (grad === 0) return 1
+      return grad * 3
+    }
+
+    while (i < lines.length) {
+      const line = lines[i]
+      const titleMatch = line.match(/^\*\*(.+?)\s*\((Spruch|Ritus)\)\*\*/)
+      if (!titleMatch) {
+        i++
+        continue
+      }
+
+      const name = titleMatch[1].trim()
+      const artefakt = titleMatch[2]
+      const blockStart = i + 1
+      let blockEnd = blockStart
+
+      while (blockEnd < lines.length) {
+        const nextLine = lines[blockEnd]
+        if (nextLine.match(/^\*\*.+\((Spruch|Ritus)\)\*\*/)) break
+        blockEnd++
+      }
+
+      const blockLines = lines.slice(blockStart, blockEnd)
+      const fields: Record<string, string> = {}
+      const erfolgsgradeLines: string[] = []
+
+      let j = 0
+      while (j < blockLines.length) {
+        const bLine = blockLines[j]
+        const fieldMatch = bLine.match(/^(Schulen|Typus|Schwierigkeit|Kosten|Zauberdauer|Reichweite|Wirkungsdauer|Wirkungsbereich):\s*(.*)$/)
+        if (fieldMatch) {
+          fields[fieldMatch[1]] = fieldMatch[2].trim()
+          j++
+          continue
+        }
+        if (bLine.match(/^Wirkung:\s*/)) {
+          const wirkungLines: string[] = [bLine.replace(/^Wirkung:\s*/, '').trim()]
+          j++
+          while (j < blockLines.length) {
+            const nextLine = blockLines[j]
+            if (nextLine.match(/^(Wirkungsdauer|Wirkungsbereich|Erfolgsgrade):/) || nextLine.match(/^---$/)) break
+            if (nextLine.trim() === '') {
+              j++
+              continue
+            }
+            wirkungLines.push(nextLine.trim())
+            j++
+          }
+          fields['Wirkung'] = wirkungLines.join('\n')
+          continue
+        }
+        if (bLine.match(/^Erfolgsgrade:\s*/)) {
+          j++
+          while (j < blockLines.length) {
+            const nextLine = blockLines[j]
+            if (nextLine.trim().startsWith('•')) {
+              erfolgsgradeLines.push(nextLine.trim())
+              j++
+            } else {
+              break
+            }
+          }
+          continue
+        }
+        j++
+      }
+
+      if (erfolgsgradeLines.length === 0) {
+        i = blockEnd
+        continue
+      }
+
+      const schulenRaw = fields['Schulen'] || ''
+      const schulenParts = schulenRaw.split(',').map(s => s.trim()).filter(Boolean)
+      const schulen: { id: string; name: string; wert: number }[] = []
+      let maxWert = 0
+
+      for (const part of schulenParts) {
+        const match = part.match(/^(.+?)\s+(\d+)$/)
+        if (match) {
+          const shortName = match[1]
+          const grad = parseInt(match[2], 10)
+          const wert = gradToSchulenwert(grad)
+          const mapped = SCHOOL_SHORT_MAP[shortName]
+          if (mapped) {
+            schulen.push({ id: mapped.id, name: mapped.name, wert })
+            if (wert > maxWert) maxWert = wert
+          }
+        }
+      }
+
+      const config: Record<string, string> = {
+        typus: fields['Typus'] || '',
+        schwierigkeit: fields['Schwierigkeit'] || '',
+        kosten: fields['Kosten'] || '',
+        zauberdauer: fields['Zauberdauer'] || '',
+        reichweite: fields['Reichweite'] || '',
+        artefakt,
+        schulen: JSON.stringify(schulen),
+        wirkungsdauer: fields['Wirkungsdauer'] || '',
+        wirkungsbereich: fields['Wirkungsbereich'] || '',
+        erfolgsgrade: erfolgsgradeLines.join('\n'),
+        level: String(maxWert),
+      }
+
+      results.push({ name, description: fields['Wirkung'] || '', config })
+      i = blockEnd
+    }
+
+    return results
+  }
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -179,7 +298,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     setImportResult(null)
     try {
       const content = await file.text()
-      const parsed = parseStaerkenFile(content)
+      const parsed = type === 'spells' ? parseSpellsFile(content) : parseStaerkenFile(content)
       let imported = 0
       let skipped = 0
       const existingNames = new Set(entries.map((en) => en.name.toLowerCase()))
@@ -230,7 +349,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       <div style={styles.header}>
         <span style={styles.count}>{entries.length} Einträge</span>
         <div style={styles.headerActions}>
-          {type === 'strengths' && (
+          {(type === 'strengths' || type === 'spells') && (
             <label style={styles.importBtn}>
               <input
                 type="file"
@@ -370,6 +489,42 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                   value={configFields[field.key] ?? ''}
                   onChange={e => setField(field.key, e.target.value)}
                 />
+              ) : field.type === 'schoolValues' ? (
+                <div style={styles.schoolValuesContainer}>
+                  {FULL_MAGIC_SKILLS.map(skill => {
+                    let schulenArr: { id: string; name: string; wert: number }[] = []
+                    try {
+                      schulenArr = JSON.parse(configFields[field.key] || '[]')
+                    } catch { schulenArr = [] }
+                    const current = schulenArr.find(s => s.id === skill.id)
+                    const wert = current?.wert ?? 0
+                    return (
+                      <div key={skill.id} style={styles.schoolValueRow}>
+                        <span style={styles.schoolValueName}>{skill.name}</span>
+                        <input
+                          style={{ ...styles.input, width: 60, textAlign: 'center' }}
+                          type="number"
+                          min={0}
+                          max={99}
+                          value={wert}
+                          onChange={e => {
+                            const newWert = parseInt(e.target.value, 10) || 0
+                            let arr: { id: string; name: string; wert: number }[] = []
+                            try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                            const idx = arr.findIndex(s => s.id === skill.id)
+                            if (newWert > 0) {
+                              if (idx >= 0) arr[idx].wert = newWert
+                              else arr.push({ id: skill.id, name: skill.name, wert: newWert })
+                            } else if (idx >= 0) {
+                              arr.splice(idx, 1)
+                            }
+                            setField(field.key, JSON.stringify(arr))
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
               ) : field.type === 'checkbox' ? (
                 <label style={styles.checkboxLabel}>
                   <input
@@ -516,6 +671,17 @@ const styles: Record<string, React.CSSProperties> = {
   checkboxLabel: {
     display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text-primary)',
     cursor: 'pointer',
+  },
+  schoolValuesContainer: {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8,
+  },
+  schoolValueRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '6px 10px',
+  },
+  schoolValueName: {
+    fontSize: 13, color: 'var(--text-primary)',
   },
   chipContainer: {
     display: 'flex', flexWrap: 'wrap', gap: 6,
