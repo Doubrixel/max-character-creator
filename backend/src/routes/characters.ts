@@ -2,7 +2,15 @@ import { Hono } from 'hono'
 import { db } from '../db'
 import { characters, characterXpLog, characterSteps, spells } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
-import { recalculateStats } from '@mcc/shared'
+import {
+  recalculateStats,
+  isStepKey,
+  STEP_ORDER,
+  StepDeltas,
+  StepKey,
+  CharacterState,
+  MeisterschaftDelta,
+} from '@mcc/shared'
 
 const app = new Hono()
 
@@ -47,16 +55,20 @@ app.get('/api/characters/:id', async (c) => {
 
 app.get('/api/characters/:id/state', async (c) => {
   const id = c.req.param('id')
-  const upTo = parseInt(c.req.query('upTo') ?? '7', 10)
+  const upToParam = c.req.query('upTo')
+  const upTo: StepKey | undefined = upToParam && isStepKey(upToParam) ? upToParam : undefined
+  const upToIdx = upTo ? STEP_ORDER.indexOf(upTo) : STEP_ORDER.length - 1
 
   const allSteps = await db.select()
     .from(characterSteps)
     .where(eq(characterSteps.characterId, id))
 
-  const deltas: Record<number, Record<string, unknown>> = {}
+  const deltas: StepDeltas = {}
   for (const row of allSteps) {
-    if (row.stepNumber! <= upTo) {
-      deltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+    if (!row.stepKey) continue
+    const idx = STEP_ORDER.indexOf(row.stepKey)
+    if (idx >= 0 && idx <= upToIdx) {
+      deltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
     }
   }
 
@@ -135,11 +147,12 @@ app.post('/api/characters/:id/xp', async (c) => {
 
 app.get('/api/characters/:id/steps/:step', async (c) => {
   const id = c.req.param('id')
-  const step = parseInt(c.req.param('step'), 10)
+  const step = c.req.param('step')
+  if (!isStepKey(step)) return c.json({ error: 'Unknown step' }, 400)
 
   const result = await db.select()
     .from(characterSteps)
-    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepKey, step)))
 
   if (result.length === 0) {
     return c.json({ delta: {} })
@@ -150,13 +163,14 @@ app.get('/api/characters/:id/steps/:step', async (c) => {
 
 app.post('/api/characters/:id/steps/:step', async (c) => {
   const id = c.req.param('id')
-  const step = parseInt(c.req.param('step'), 10)
+  const step = c.req.param('step')
+  if (!isStepKey(step)) return c.json({ error: 'Unknown step' }, 400)
   const body = await c.req.json()
   const now = Date.now()
 
   const existing = await db.select()
     .from(characterSteps)
-    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+    .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepKey, step)))
 
   let updatedStep
   if (existing.length > 0) {
@@ -165,14 +179,14 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
         delta: JSON.stringify(body.delta),
         updatedAt: now,
       })
-      .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepNumber, step)))
+      .where(and(eq(characterSteps.characterId, id), eq(characterSteps.stepKey, step)))
       .returning()
     updatedStep = updatedStep[0]
   } else {
     updatedStep = await db.insert(characterSteps).values({
       id: crypto.randomUUID(),
       characterId: id,
-      stepNumber: step,
+      stepKey: step,
       delta: JSON.stringify(body.delta),
       updatedAt: now,
     }).returning()
@@ -183,27 +197,28 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
     .from(characterSteps)
     .where(eq(characterSteps.characterId, id))
 
-  const allDeltas: Record<number, Record<string, unknown>> = {}
+  const allDeltas: StepDeltas = {}
   for (const row of allSteps) {
-    allDeltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+    if (row.stepKey) allDeltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
   }
 
-  const newState = recalculateStats(allDeltas)
+  const newState: CharacterState = recalculateStats(allDeltas)
 
   return c.json({ step: updatedStep, state: newState })
 })
 
 app.post('/api/characters/:id/steps/:step/validate', async (c) => {
   const id = c.req.param('id')
-  const step = parseInt(c.req.param('step'), 10)
+  const step = c.req.param('step')
+  if (!isStepKey(step)) return c.json({ error: 'Unknown step' }, 400)
 
   const allSteps = await db.select()
     .from(characterSteps)
     .where(eq(characterSteps.characterId, id))
 
-  const allDeltas: Record<number, Record<string, unknown>> = {}
+  const allDeltas: StepDeltas = {}
   for (const row of allSteps) {
-    allDeltas[row.stepNumber!] = row.delta ? JSON.parse(row.delta) : {}
+    if (row.stepKey) allDeltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
   }
 
   const VALID_SKILLS = [
@@ -222,21 +237,24 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
     'm_hei_1': 'heilung', 'm_hei_2': 'heilung',
   }
 
-  const warnings: Array<{ step: number, errors: string[] }> = []
+  const currentIdx = STEP_ORDER.indexOf(step)
+  const warnings: Array<{ step: StepKey, errors: string[] }> = []
 
-  for (let s = step + 1; s <= 8; s++) {
-    const delta = allDeltas[s]
+  for (let s = currentIdx + 1; s < STEP_ORDER.length; s++) {
+    const stepKey = STEP_ORDER[s]
+    const delta = allDeltas[stepKey]
     if (!delta) continue
 
-    const deltasBefore: Record<number, Record<string, unknown>> = {}
-    for (let i = 1; i < s; i++) {
-      if (allDeltas[i]) deltasBefore[i] = allDeltas[i]
+    const deltasBefore: StepDeltas = {}
+    for (let i = 0; i < s; i++) {
+      const beforeKey = STEP_ORDER[i]
+      if (allDeltas[beforeKey]) deltasBefore[beforeKey] = allDeltas[beforeKey]
     }
     const stateBefore = recalculateStats(deltasBefore)
     const errors: string[] = []
 
-    if (s === 5 || s === 6) {
-      const deltaSkills = (delta.skills ?? {}) as Record<string, number>
+    if (stepKey === 'kindheit' || stepKey === 'ausbildung') {
+      const deltaSkills = ((delta as { skills?: Record<string, number> }).skills ?? {})
       for (const key of Object.keys(deltaSkills)) {
         if (!VALID_SKILLS.includes(key)) {
           errors.push(`${key} ist kein gültiger Skill`)
@@ -244,10 +262,10 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
       }
     }
 
-    if (s === 8) {
-      const meisterschaften = (delta.meisterschaften ?? []) as string[]
+    if (stepKey === 'meisterschaft') {
+      const meisterschaftDelta = delta as MeisterschaftDelta
       const stateSkills = (stateBefore.skills ?? {}) as Record<string, number>
-      for (const mId of meisterschaften) {
+      for (const mId of meisterschaftDelta.meisterschaften) {
         const skill = MEISTERSCHAFT_SKILL_MAP[mId]
         if (skill) {
           const wert = stateSkills[skill] ?? 0
@@ -257,8 +275,7 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
         }
       }
 
-      const spellIds = (delta.spells ?? []) as string[]
-      for (const spellId of spellIds) {
+      for (const spellId of meisterschaftDelta.spells) {
         const spellRows = await db.select().from(spells).where(eq(spells.id, spellId))
         if (spellRows.length > 0) {
           const config = spellRows[0].config ? JSON.parse(spellRows[0].config) : {}
@@ -274,7 +291,7 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
     }
 
     if (errors.length > 0) {
-      warnings.push({ step: s, errors })
+      warnings.push({ step: stepKey, errors })
     }
   }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AppProvider } from './context/AppContext'
 import Sidebar from './components/Sidebar'
+import ErrorBanner from './components/ErrorBanner'
 import CreationView from './components/CreationView'
 import ChronicleView from './components/chronicle/ChronicleView'
 import LibraryView from './components/library/LibraryView'
@@ -25,6 +26,7 @@ function App() {
       <div style={styles.container}>
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <main style={styles.main}>
+          <ErrorBanner />
           <AppContent activeTab={activeTab} />
         </main>
       </div>

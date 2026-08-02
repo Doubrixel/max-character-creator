@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import CharacterSheet from './CharacterSheet'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -12,15 +13,19 @@ interface Character {
 }
 
 export default function ChronicleView() {
+  const { reportApiError } = useAppContext()
   const [characters, setCharacters] = useState<Character[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/characters`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then((data: Character[]) => setCharacters(data))
-      .catch(() => {})
+      .catch(() => reportApiError('Chronik konnte nicht geladen werden'))
   }, [])
 
   const handleDelete = async (id: string) => {
@@ -30,8 +35,11 @@ export default function ChronicleView() {
         setCharacters(prev => prev.filter(c => c.id !== id))
         setDeleteConfirm(null)
         if (selectedId === id) setSelectedId(null)
+      } else {
+        reportApiError('Löschen fehlgeschlagen')
       }
     } catch {
+      reportApiError('Löschen fehlgeschlagen')
     }
   }
 

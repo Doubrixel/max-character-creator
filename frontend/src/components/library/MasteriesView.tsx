@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { SKILL_OPTIONS } from './typeSchemas'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -156,6 +157,7 @@ function parseMeisterschaftenFile(content: string): ParsedMastery[] {
 }
 
 export default function MasteriesView() {
+  const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<MasteryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -183,7 +185,7 @@ export default function MasteriesView() {
         setEntries(sorted)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }
 
   useEffect(() => { load() }, [])

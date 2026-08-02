@@ -62,7 +62,7 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
     setSelected(id)
     const destiny = destinies.find((d) => d.id === id)
     if (destiny) {
-      updateStepDelta(1, { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
+      updateStepDelta('schicksal', { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
     }
   }
 

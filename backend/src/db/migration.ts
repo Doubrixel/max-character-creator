@@ -107,6 +107,48 @@ async function createWeaknessesTable() {
   console.log('Migration: weaknesses table created');
 }
 
+async function rebuildCharacterStepsWithStepKey() {
+  const hasStepNumber = await columnExists('character_steps', 'step_number');
+  const hasStepKey = await columnExists('character_steps', 'step_key');
+  if (hasStepKey && !hasStepNumber) return;
+
+  console.log('Migration: rebuilding character_steps with step_key');
+
+  const stepKeyByNumber = [
+    'schicksal', 'rasse', 'abstammung', 'kultur',
+    'kindheit', 'ausbildung', 'attribute', 'meisterschaft',
+  ];
+
+  await client.execute(`CREATE TABLE character_steps_new (
+    id text PRIMARY KEY NOT NULL,
+    character_id text NOT NULL,
+    step_key text NOT NULL,
+    delta text,
+    updated_at integer
+  )`);
+
+  if (hasStepNumber) {
+    for (let i = 1; i <= stepKeyByNumber.length; i++) {
+      await client.execute({
+        sql: `INSERT INTO character_steps_new (id, character_id, step_key, delta, updated_at)
+          SELECT id, character_id, ?, delta, updated_at FROM character_steps WHERE step_number = ?`,
+        args: [stepKeyByNumber[i - 1], i],
+      });
+    }
+  } else {
+    await client.execute(`INSERT INTO character_steps_new (id, character_id, step_key, delta, updated_at)
+      SELECT id, character_id, step_key, delta, updated_at FROM character_steps`);
+  }
+
+  await client.execute(`DROP TABLE character_steps`);
+  await client.execute(`ALTER TABLE character_steps_new RENAME TO character_steps`);
+  await client.execute(
+    `CREATE UNIQUE INDEX character_steps_character_id_step_key_unique ON character_steps (character_id, step_key)`
+  );
+
+  console.log('Migration: character_steps rebuilt (step_key + unique index)');
+}
+
 export async function runMigration() {
   await repairCharactersTable();
   await makeSkillsTypeNullable();
@@ -117,4 +159,6 @@ export async function runMigration() {
     await client.execute(`ALTER TABLE character_steps RENAME COLUMN data TO delta`);
     console.log('Migration: renamed data to delta in character_steps');
   }
+
+  await rebuildCharacterStepsWithStepKey();
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, type FieldSchema } from './typeSchemas'
 import RasseForm from './RasseForm'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -40,6 +41,7 @@ function encodeConfigArray(arr: string[]): string {
 }
 
 export default function LibraryTable({ type }: LibraryTableProps) {
+  const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<LibraryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -63,14 +65,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     fetch(`${API_BASE}/api/library/${type}`)
       .then(r => r.json())
       .then((data: LibraryEntry[]) => { setEntries(data); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }
 
   useEffect(() => { load() }, [type])
 
   useEffect(() => {
     if (type === 'cultures') {
-      fetch(`${API_BASE}/api/library/races`).then(r => r.json()).then(setRaces).catch(() => {})
+      fetch(`${API_BASE}/api/library/races`).then(r => r.json()).then(setRaces).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
     }
   }, [type])
 

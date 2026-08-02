@@ -1,5 +1,13 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
-import { recalculateStats, recalculateStatsUpTo } from '@mcc/shared'
+import {
+  recalculateStats,
+  recalculateStatsUpTo,
+  STEP_ORDER,
+  StepKey,
+  StepDeltas,
+  StepDeltaMap,
+  CharacterState,
+} from '@mcc/shared'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -8,39 +16,22 @@ export interface CharacterData {
   [key: string]: unknown
 }
 
-interface CharacterStats {
-  schicksal?: { id: string; name: string; ruleText: string }
-  rasse?: { id: string; name: string; groessenklasse?: number; statblock?: Record<string, unknown> }
-  abstammung?: { classId: string; className: string; originId: string; originName: string; rowSelections: Record<number, string> }
-  kultur?: { kulturId: string; kulturName: string; kulturDescription?: string; kulturConfig?: Record<string, unknown> }
-  skills?: Record<string, number>
-  staerke?: string
-  staerken?: string[]
-  kulturMeisterschaft?: string
-  ressourcen?: string[]
-  magic?: Record<string, number>
-  attribute?: { MUT?: number; KLU?: number; INT?: number; CHA?: number; HIN?: number; MYS?: number; FF?: number; GEW?: number; KON?: number; KRA?: number }
-  derived?: { LP: number; FK: number; SP: number; VTD: number; KW: number; GW: number; SS: number; INI: number }
-  meisterschaften?: string[]
-  bonusMeisterschaften?: string[]
-  resources?: Record<string, number>
-  spells?: string[]
-  [key: string]: unknown
-}
-
 interface AppContextType {
   characterId: string | null
-  currentStep: number
-  characterStats: CharacterStats
-  stepDeltas: Record<number, Record<string, unknown>>
-  computeBaseStats: (upToStep: number) => CharacterStats
+  currentStep: StepKey
+  characterStats: CharacterState
+  stepDeltas: StepDeltas
+  apiError: string | null
+  computeBaseStats: (upToStep: StepKey) => CharacterState
+  reportApiError: (message: string) => void
+  clearApiError: () => void
   setCharacterId: (id: string) => void
-  setCurrentStep: (step: number) => void
-  updateStepDelta: (step: number, delta: Record<string, unknown>) => void
-  saveStep: (step: number, delta: Record<string, unknown>) => Promise<void>
-  flushCurrentStep: () => Promise<void>
+  setCurrentStep: (step: StepKey) => void
+  updateStepDelta: <K extends StepKey>(step: K, delta: StepDeltaMap[K]) => void
+  saveStep: <K extends StepKey>(step: K, delta: StepDeltaMap[K]) => Promise<boolean>
+  flushCurrentStep: () => Promise<boolean>
   loadCharacter: (id: string) => Promise<void>
-  validateStep: (step: number) => Promise<{ valid: boolean; errors: string[] }>
+  validateStep: (step: StepKey) => Promise<{ valid: boolean; errors: string[] }>
   createCharacter: () => Promise<void>
   resetCharacter: () => void
 }
@@ -49,113 +40,143 @@ const AppContext = createContext<AppContextType | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [characterId, setCharacterIdState] = useState<string | null>(null)
-  const [currentStep, setCurrentStepState] = useState(1)
-  const [stepDeltas, setStepDeltas] = useState<Record<number, Record<string, unknown>>>({})
+  const [currentStep, setCurrentStepState] = useState<StepKey>('schicksal')
+  const [stepDeltas, setStepDeltas] = useState<StepDeltas>({})
+  const [apiError, setApiError] = useState<string | null>(null)
+
+  const reportApiError = (message: string) => {
+    setApiError(message)
+    console.error(message)
+  }
+
+  const clearApiError = () => {
+    setApiError(null)
+  }
 
   const characterStats = useMemo(() => {
-    return recalculateStats(stepDeltas) as CharacterStats
+    return recalculateStats(stepDeltas)
   }, [stepDeltas])
 
-  const computeBaseStats = (upToStep: number): CharacterStats => {
-    return recalculateStatsUpTo(stepDeltas, upToStep) as CharacterStats
+  const computeBaseStats = (upToStep: StepKey): CharacterState => {
+    return recalculateStatsUpTo(stepDeltas, upToStep)
   }
 
   const setCharacterId = (id: string) => {
     setCharacterIdState(id)
   }
 
-  const setCurrentStep = (step: number) => {
+  const setCurrentStep = (step: StepKey) => {
     setCurrentStepState(step)
   }
 
-  const updateStepDelta = (step: number, delta: Record<string, unknown>) => {
+  const updateStepDelta = <K extends StepKey>(step: K, delta: StepDeltaMap[K]) => {
     setStepDeltas(prev => ({ ...prev, [step]: delta }))
   }
 
-  const flushCurrentStep = async () => {
-    if (!characterId) return
+  const flushCurrentStep = async (): Promise<boolean> => {
+    if (!characterId) return true
     const delta = stepDeltas[currentStep]
-    if (!delta) return
+    if (!delta) return true
     try {
-      await fetch(`${API_BASE}/api/characters/${characterId}/steps/${currentStep}`, {
+      const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${currentStep}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delta }),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return true
     } catch (err) {
-      console.error('flushCurrentStep failed:', err)
+      reportApiError(`Speichern von Schritt "${currentStep}" fehlgeschlagen: ${err instanceof Error ? err.message : err}`)
+      return false
     }
   }
 
   const loadCharacter = async (characterId: string) => {
-    try {
-      const stepPromises = Array.from({ length: 7 }, (_, i) =>
-        fetch(`${API_BASE}/api/characters/${characterId}/steps/${i + 1}`)
-          .then(r => r.json())
-          .then(d => [i + 1, d.delta || {}] as const)
-          .catch(() => [i + 1, {}] as const)
-      )
-      const stepResults = await Promise.all(stepPromises)
-      const deltas: Record<number, Record<string, unknown>> = {}
-      for (const [step, delta] of stepResults) {
-        deltas[step] = delta
+    const stepResults = await Promise.all(STEP_ORDER.map(async (step): Promise<[StepKey, StepDeltaMap[StepKey]] | null> => {
+      try {
+        const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        return [step, data.delta || {}]
+      } catch (err) {
+        console.error(`loadCharacter failed for step "${step}":`, err)
+        return null
       }
-      setStepDeltas(deltas)
-    } catch (err) {
-      console.error('loadCharacter failed:', err)
+    }))
+
+    const failedCount = stepResults.filter(r => r === null).length
+    if (failedCount > 0) {
+      reportApiError(`${failedCount} von ${STEP_ORDER.length} Schritten konnten nicht geladen werden`)
     }
+
+    const deltas: StepDeltas = {}
+    for (const result of stepResults) {
+      if (result) deltas[result[0]] = result[1] as any
+    }
+    setStepDeltas(deltas)
   }
 
-  const saveStep = async (step: number, delta: Record<string, unknown>) => {
-    if (!characterId) return
+  const saveStep = async <K extends StepKey>(step: K, delta: StepDeltaMap[K]): Promise<boolean> => {
+    if (!characterId) return true
     try {
       const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delta }),
       })
-      if (!res.ok) throw new Error('Failed to save step')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       await res.json()
       setStepDeltas(prev => ({ ...prev, [step]: delta }))
+      return true
     } catch (err) {
-      console.error('saveStep failed:', err)
+      reportApiError(`Speichern von Schritt "${step}" fehlgeschlagen: ${err instanceof Error ? err.message : err}`)
+      return false
     }
   }
 
-  const validateStep = async (step: number): Promise<{ valid: boolean; errors: string[] }> => {
+  const validateStep = async (step: StepKey): Promise<{ valid: boolean; errors: string[] }> => {
     if (!characterId) return { valid: true, errors: [] }
     try {
       const res = await fetch(`${API_BASE}/api/characters/${characterId}/steps/${step}/validate`, {
         method: 'POST',
       })
-      if (!res.ok) return { valid: true, errors: [] }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch (err) {
-      console.error('validateStep failed:', err)
-      return { valid: true, errors: [] }
+      reportApiError(`Validierung fehlgeschlagen: ${err instanceof Error ? err.message : err}`)
+      return { valid: false, errors: ['Validierung konnte nicht ausgeführt werden'] }
     }
   }
 
   const createCharacter = async () => {
-    const res = await fetch(`${API_BASE}/api/characters`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Neuer Charakter' }),
-    })
-    const character = await res.json()
-    setCharacterIdState(character.id)
-    setStepDeltas({})
+    try {
+      const res = await fetch(`${API_BASE}/api/characters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Neuer Charakter' }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const character = await res.json()
+      setCharacterIdState(character.id)
+      setStepDeltas({})
+      setCurrentStepState('schicksal')
+    } catch (err) {
+      reportApiError(`Charakter konnte nicht erstellt werden: ${err instanceof Error ? err.message : err}`)
+    }
   }
 
   const resetCharacter = () => {
     setCharacterIdState(null)
-    setCurrentStepState(1)
+    setCurrentStepState('schicksal')
     setStepDeltas({})
   }
 
   useEffect(() => {
     fetch(`${API_BASE}/api/characters`)
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
       .then((characters: CharacterData[]) => {
         if (characters.length > 0) {
           const id = characters[0].id
@@ -163,7 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           loadCharacter(id)
         }
       })
-      .catch(() => {})
+      .catch(() => reportApiError('Charakterliste konnte nicht geladen werden'))
   }, [])
 
   return (
@@ -173,7 +194,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentStep,
         characterStats,
         stepDeltas,
+        apiError,
         computeBaseStats,
+        reportApiError,
+        clearApiError,
         setCharacterId,
         setCurrentStep,
         updateStepDelta,

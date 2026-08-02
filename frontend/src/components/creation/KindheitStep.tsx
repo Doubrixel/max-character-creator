@@ -30,7 +30,7 @@ interface KulturStepProps {
 }
 
 export default function KulturStep({ onValid }: KulturStepProps) {
-  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta } = useAppContext()
+  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
@@ -77,7 +77,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
           }
         }))
       })
-      .catch(() => {})
+      .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
       .finally(() => setSkillsLoading(false))
   }, [])
 
@@ -112,7 +112,7 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     for (const [k, v] of Object.entries(newDelta)) {
       if (v > 0) cleaned[k] = v
     }
-    updateStepDelta(5, { skills: cleaned, staerke: newStaerke ?? staerke, meisterschaft: newMeisterschaft ?? meisterschaft })
+    updateStepDelta('kindheit', { skills: cleaned, staerke: newStaerke ?? staerke, meisterschaft: newMeisterschaft ?? meisterschaft })
   }
 
   useEffect(() => {

@@ -40,10 +40,12 @@
 - **Lösung offen lassen** — Problem und Constraints definieren, aber Lösung dem Agenten überlassen
 
 ## Nächste Schritte
-1. **Bugfixing** (Priorität: BUG-02, BUG-06, BUG-07)
-2. **Manuelle Tests** (TC-28 bis TC-38) — Läuft parallel
-3. **Chronik-Tab** (Archiv, XP, Steigerung)
-4. **Bibliothek-Tab** (CRUD für alle Typen)
+1. **Manuelle Tests** (TC-01 bis TC-38) — Re-Test gegen aktuellen Stand
+2. **Chronik-Tab** (Archiv, XP, Steigerung)
+3. **Bibliothek-Tab** (CRUD für alle Typen)
+
+## Erledigte Refactors
+- **StepKey-Refactor (02-08-2026):** Schritt-Indizes (Zahlen 1–8) durch semantische Keys ersetzt (`shared/src/steps.ts` → `STEP_ORDER`), Reducer über `Record<StepKey, Reducer>` statt Array-Index, Backend-Persistenz auf `step_key` + Unique-Index. Behebt den Off-by-one-Drift strukturell (K2.1) und K4. Dev-DB wurde frisch aufgesetzt.
 
 ## Bekannte Fallstricke
 - **Polymorphe Tabellen** — SQLite不支持, separate Tabellen pro Library-Typ

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -12,6 +13,7 @@ interface StrengthEntry {
 }
 
 export default function StrengthsView() {
+  const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<StrengthEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -37,7 +39,7 @@ export default function StrengthsView() {
         setEntries(sorted)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }
 
   useEffect(() => { load() }, [])

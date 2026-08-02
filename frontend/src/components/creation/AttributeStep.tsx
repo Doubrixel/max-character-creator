@@ -101,7 +101,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
 
   useEffect(() => {
     if (Object.keys(assignments).length > 0) {
-      updateStepDelta(6, {
+      updateStepDelta('attribute', {
         attribute: assignments,
         rolls,
       })

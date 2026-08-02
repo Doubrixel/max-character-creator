@@ -13,7 +13,7 @@ interface KulturSelectStepProps {
 }
 
 export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
-  const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
+  const { stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const initializedRef = useRef(false)
 
@@ -29,7 +29,7 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
         setKulturen(data)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }, [])
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
 
   const handleSelect = (item: LibraryItem) => {
     setSelectedId(item.id)
-    updateStepDelta(4, {
+    updateStepDelta('kultur', {
       kulturId: item.id,
       kulturName: item.name,
       kulturDescription: item.description,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -33,6 +34,7 @@ export default function RasseForm({
   onSaved,
   onCancel,
 }: RasseFormProps) {
+  const { reportApiError } = useAppContext()
   const [name, setName] = useState(initialName)
   const [beschreibung, setBeschreibung] = useState(initialConfig.beschreibung ?? '')
   const [groessenklasse, setGroessenklasse] = useState(initialConfig.groessenklasse ?? '')
@@ -59,7 +61,7 @@ export default function RasseForm({
           } catch { return false }
         }))
       })
-      .catch(() => {})
+      .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
   }, [])
 
   const toggleStaerke = (id: string) => {

@@ -1,9 +1,17 @@
 import { parseChoiceKey } from './herkunft'
+import { CharacterState } from './character'
+import {
+  StepKey,
+  STEP_ORDER,
+  StepDeltas,
+  AnyStepDelta,
+  SchicksalDelta,
+  RasseDelta,
+  AbstammungDelta,
+  KulturDelta,
+} from './steps'
 
-type Reducer = (
-  currentStats: Record<string, unknown>,
-  delta: Record<string, unknown>,
-) => Record<string, unknown>;
+type Reducer = (currentStats: CharacterState, delta: AnyStepDelta) => CharacterState
 
 function skillNameToId(name: string): string {
   return name.toLowerCase()
@@ -26,18 +34,18 @@ function concatArrays<T>(current: T[] | undefined, incoming: T[] | undefined): T
   return [...(current ?? []), ...(incoming ?? [])];
 }
 
-const step1: Reducer = (stats, delta) => ({
+const schicksalReducer: Reducer = (stats, delta) => ({
   ...stats,
-  schicksal: delta,
+  schicksal: delta as SchicksalDelta,
 })
 
-const step2: Reducer = (stats, delta) => ({
+const rasseReducer: Reducer = (stats, delta) => ({
   ...stats,
-  rasse: delta,
-});
+  rasse: delta as RasseDelta,
+})
 
-const step3: Reducer = (stats, delta) => {
-  const rowSelections = (delta.rowSelections ?? {}) as Record<number, string>
+const abstammungReducer: Reducer = (stats, delta) => {
+  const { rowSelections } = delta as { rowSelections: Record<number, string> }
   const herkunftSkills: Record<string, number> = {}
   const herkunftResources: Record<string, number> = {}
 
@@ -55,46 +63,54 @@ const step3: Reducer = (stats, delta) => {
 
   return {
     ...stats,
-    abstammung: delta,
+    abstammung: delta as AbstammungDelta,
     skills: mergeSkills((stats.skills ?? {}) as Record<string, number>, herkunftSkills),
     resources: mergeSkills((stats.resources ?? {}) as Record<string, number>, herkunftResources),
   }
 }
 
-const step4: Reducer = (stats, delta) => ({
+const kulturReducer: Reducer = (stats, delta) => ({
   ...stats,
-  kultur: delta,
+  kultur: delta as KulturDelta,
 })
 
-const step5: Reducer = (stats, delta) => {
+const kindheitReducer: Reducer = (stats, delta) => {
+  const { skills: deltaSkills = {}, staerke, meisterschaft } = delta as {
+    skills: Record<string, number>
+    staerke: string
+    meisterschaft: string
+  }
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
-  const deltaSkills = (delta.skills ?? {}) as Record<string, number>;
   return {
     ...stats,
     skills: mergeSkills(currentSkills, deltaSkills),
-    staerke: delta.staerke,
-    kulturMeisterschaft: delta.meisterschaft,
+    staerke,
+    kulturMeisterschaft: meisterschaft,
   };
 };
 
-const step6: Reducer = (stats, delta) => {
+const ausbildungReducer: Reducer = (stats, delta) => {
+  const { skills: deltaSkills = {}, staerken = [], ressourcen = {}, magic } = delta as {
+    skills: Record<string, number>
+    staerken: string[]
+    ressourcen: Record<string, number>
+    magic: Record<string, number>
+  }
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
-  const deltaSkills = (delta.skills ?? {}) as Record<string, number>;
-  const currentStaerken = (stats.staerken ?? []) as unknown[];
-  const deltaStaerken = (delta.staerken ?? []) as unknown[];
-  const currentRessourcen = (stats.ressourcen ?? []) as unknown[];
-  const deltaRessourcen = (delta.ressourcen ?? []) as unknown[];
+  const currentStaerken = (stats.staerken ?? []) as string[];
+  const currentRessourcen = (stats.ressourcen ?? {}) as Record<string, number>;
   return {
     ...stats,
     skills: mergeSkills(currentSkills, deltaSkills),
-    staerken: concatArrays(currentStaerken, deltaStaerken),
-    ressourcen: concatArrays(currentRessourcen, deltaRessourcen),
-    magic: delta.magic,
+    staerken: concatArrays(currentStaerken, staerken),
+    ressourcen: mergeSkills(currentRessourcen, ressourcen),
+    magic,
   };
 };
 
-const step7: Reducer = (stats, delta) => {
-  const attr = (delta.attribute ?? {}) as Record<string, number>;
+const attributeReducer: Reducer = (stats, delta) => {
+  const { attribute = {} } = delta as { attribute: Record<string, number> }
+  const attr = attribute;
   const rasseData = (stats.rasse ?? {}) as Record<string, unknown>;
   const gk = (rasseData.groessenklasse as number) ?? 3;
   const derived = {
@@ -109,69 +125,71 @@ const step7: Reducer = (stats, delta) => {
   };
   return {
     ...stats,
-    attribute: delta.attribute,
+    attribute: attr,
     derived,
   };
 };
 
-const step8: Reducer = (stats, delta) => {
-  const currentMeisterschaften = (stats.meisterschaften ?? []) as unknown[];
-  const deltaMeisterschaften = (delta.meisterschaften ?? []) as unknown[];
-  const currentBonus = (stats.bonusMeisterschaften ?? []) as unknown[];
-  const deltaBonus = (delta.bonusMeisterschaften ?? []) as unknown[];
+const meisterschaftReducer: Reducer = (stats, delta) => {
+  const {
+    meisterschaften = [],
+    bonusMeisterschaften = [],
+    talents = {},
+    resources = {},
+    spells,
+  } = delta as {
+    meisterschaften: string[]
+    bonusMeisterschaften: string[]
+    talents: Record<string, number>
+    resources: Record<string, number>
+    spells: string[]
+  }
+  const currentMeisterschaften = (stats.meisterschaften ?? []) as string[];
+  const currentBonus = (stats.bonusMeisterschaften ?? []) as string[];
   const currentSkills = (stats.skills ?? {}) as Record<string, number>;
-  const deltaTalents = (delta.talents ?? {}) as Record<string, number>;
   const currentResources = (stats.resources ?? {}) as Record<string, number>;
-  const deltaResources = (delta.resources ?? {}) as Record<string, number>;
   return {
     ...stats,
-    meisterschaften: concatArrays(currentMeisterschaften, deltaMeisterschaften),
-    bonusMeisterschaften: concatArrays(currentBonus, deltaBonus),
-    skills: mergeSkills(currentSkills, deltaTalents),
-    resources: mergeSkills(currentResources, deltaResources),
-    spells: delta.spells,
+    meisterschaften: concatArrays(currentMeisterschaften, meisterschaften),
+    bonusMeisterschaften: concatArrays(currentBonus, bonusMeisterschaften),
+    skills: mergeSkills(currentSkills, talents),
+    resources: mergeSkills(currentResources, resources),
+    spells,
   };
 };
 
-export const reducers: Map<number, Reducer> = new Map([
-  [1, step1],
-  [2, step2],
-  [3, step3],
-  [4, step4],
-  [5, step5],
-  [6, step6],
-  [7, step7],
-  [8, step8],
-]);
+export const reducers: Record<StepKey, Reducer> = {
+  schicksal: schicksalReducer,
+  rasse: rasseReducer,
+  abstammung: abstammungReducer,
+  kultur: kulturReducer,
+  kindheit: kindheitReducer,
+  ausbildung: ausbildungReducer,
+  attribute: attributeReducer,
+  meisterschaft: meisterschaftReducer,
+};
 
-export function recalculateStats(
-  deltas: Record<number, Record<string, unknown>>,
-): Record<string, unknown> {
-  let stats: Record<string, unknown> = {};
-  for (let step = 1; step <= 8; step++) {
+export function recalculateStats(deltas: StepDeltas): CharacterState {
+  let stats: CharacterState = {};
+  for (const step of STEP_ORDER) {
     const delta = deltas[step];
     if (delta) {
-      const reducer = reducers.get(step);
-      if (reducer) {
-        stats = reducer(stats, delta);
-      }
+      stats = reducers[step](stats, delta);
     }
   }
   return stats;
 }
 
 export function recalculateStatsUpTo(
-  deltas: Record<number, Record<string, unknown>>,
-  upToStep: number,
-): Record<string, unknown> {
-  let stats: Record<string, unknown> = {};
-  for (let step = 1; step < upToStep; step++) {
+  deltas: StepDeltas,
+  upToStep: StepKey,
+): CharacterState {
+  let stats: CharacterState = {};
+  for (const step of STEP_ORDER) {
+    if (step === upToStep) break;
     const delta = deltas[step];
     if (delta) {
-      const reducer = reducers.get(step);
-      if (reducer) {
-        stats = reducer(stats, delta);
-      }
+      stats = reducers[step](stats, delta);
     }
   }
   return stats;

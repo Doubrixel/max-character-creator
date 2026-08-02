@@ -46,7 +46,7 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
   const persist = (cId: string | null, oId: string | null, rs: Record<number, string>) => {
     const cl = socialClasses.find((c) => c.id === cId) ?? null
     const or = cl?.origins.find((o) => o.id === oId) ?? null
-    updateStepDelta(3, {
+    updateStepDelta('abstammung', {
       classId: cId,
       className: cl?.name ?? null,
       originId: oId,

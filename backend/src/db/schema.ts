@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const characters = sqliteTable('characters', {
   id: text('id').primaryKey(),
@@ -15,10 +15,12 @@ export const characterSteps = sqliteTable('character_steps', {
   characterId: text('character_id')
     .notNull()
     .references(() => characters.id),
-  stepNumber: integer('step_number'),
+  stepKey: text('step_key').notNull(),
   delta: text('delta'),
   updatedAt: integer('updated_at'),
-});
+}, (table) => [
+  uniqueIndex('character_steps_character_id_step_key_unique').on(table.characterId, table.stepKey),
+]);
 
 export const races = sqliteTable('races', {
   id: text('id').primaryKey(),

@@ -28,7 +28,7 @@ interface AusbildungStepProps {
 }
 
 export default function AusbildungStep({ onValid }: AusbildungStepProps) {
-  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta } = useAppContext()
+  const { computeBaseStats, stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
   const baseResources = (computeBaseStats(currentStep).resources ?? {}) as Record<string, number>
@@ -64,7 +64,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
           return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1 }
         }))
       })
-      .catch(() => {})
+      .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
       .finally(() => setDataLoading(false))
   }, [])
 
@@ -87,7 +87,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     const saved = stepData as {
       skills?: Record<string, number>
       staerken?: string[]
-      resourceLevels?: Record<string, number>
+      ressourcen?: Record<string, number>
       magic?: Record<string, number>
     } | null
 
@@ -102,7 +102,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     const initialResources: Record<string, number> = {}
     for (const name of ALL_RESOURCES) {
       const base = baseResources[name] ?? 0
-      const mine = saved?.resourceLevels?.[name] ?? 0
+      const mine = saved?.ressourcen?.[name] ?? 0
       initialResources[name] = base + mine
     }
 
@@ -173,12 +173,12 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
 
     const next = { ...skills, [id]: current + 1 }
     setSkills(next)
-    const step5Only: Record<string, number> = {}
+    const stepStepOnly: Record<string, number> = {}
     for (const [sid, val] of Object.entries(next)) {
       const base = baseSkills[sid] ?? 0
-      if (val > base) step5Only[sid] = val - base
+      if (val > base) stepStepOnly[sid] = val - base
     }
-    updateStepDelta(5, { skills: step5Only, staerken, resourceLevels: stepResourceLevels(), magic: buildMagicValues(next) })
+    updateStepDelta('ausbildung', { skills: stepStepOnly, staerken, ressourcen: stepResourceLevels(), magic: buildMagicValues(next) })
   }
 
   const decrementSkill = (id: string) => {
@@ -186,24 +186,24 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
     if (current <= (baseSkills[id] ?? 0)) return
     const next = { ...skills, [id]: current - 1 }
     setSkills(next)
-    const step5Only: Record<string, number> = {}
+    const stepStepOnly: Record<string, number> = {}
     for (const [sid, val] of Object.entries(next)) {
       const base = baseSkills[sid] ?? 0
-      if (val > base) step5Only[sid] = val - base
+      if (val > base) stepStepOnly[sid] = val - base
     }
-    updateStepDelta(5, { skills: step5Only, staerken, resourceLevels: stepResourceLevels(), magic: buildMagicValues(next) })
+    updateStepDelta('ausbildung', { skills: stepStepOnly, staerken, ressourcen: stepResourceLevels(), magic: buildMagicValues(next) })
   }
 
   const handleStaerke = (id: string) => {
     if (staerken.includes(id)) {
       const next = staerken.filter((s) => s !== id)
       setStaerken(next)
-      updateStepDelta(5, { skills, staerken: next, resourceLevels: stepResourceLevels(), magic: buildMagicValues(skills) })
+      updateStepDelta('ausbildung', { skills, staerken: next, ressourcen: stepResourceLevels(), magic: buildMagicValues(skills) })
     } else {
       if (staerkenAvailable <= 0) return
       const next = [...staerken, id]
       setStaerken(next)
-      updateStepDelta(5, { skills, staerken: next, resourceLevels: stepResourceLevels(), magic: buildMagicValues(skills) })
+      updateStepDelta('ausbildung', { skills, staerken: next, ressourcen: stepResourceLevels(), magic: buildMagicValues(skills) })
     }
   }
 
@@ -228,7 +228,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const val = next[n] ?? 0
       if (val > base) stepOnly[n] = val - base
     }
-    updateStepDelta(5, { skills, staerken, resourceLevels: stepOnly, magic: buildMagicValues(skills) })
+    updateStepDelta('ausbildung', { skills, staerken, ressourcen: stepOnly, magic: buildMagicValues(skills) })
   }
 
   const decrementResource = (name: string) => {
@@ -243,7 +243,7 @@ export default function AusbildungStep({ onValid }: AusbildungStepProps) {
       const val = next[n] ?? 0
       if (val > b) stepOnly[n] = val - b
     }
-    updateStepDelta(5, { skills, staerken, resourceLevels: stepOnly, magic: buildMagicValues(skills) })
+    updateStepDelta('ausbildung', { skills, staerken, ressourcen: stepOnly, magic: buildMagicValues(skills) })
   }
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (

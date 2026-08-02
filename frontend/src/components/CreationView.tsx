@@ -8,17 +8,20 @@ import KindheitStep from './creation/KindheitStep'
 import AusbildungStep from './creation/AusbildungStep'
 import AttributeStep from './creation/AttributeStep'
 import MeisterschaftStep from './creation/MeisterschaftStep'
+import { STEP_ORDER, StepKey } from '@mcc/shared'
 
-const steps = [
-  'Schicksal',
-  'Rasse',
-  'Abstammung',
-  'Kultur',
-  'Kindheit',
-  'Ausbildung',
-  'Attribute',
-  'Meisterschaften & Spells',
-]
+const STEP_LABELS: Record<StepKey, string> = {
+  schicksal: 'Schicksal',
+  rasse: 'Rasse',
+  abstammung: 'Abstammung',
+  kultur: 'Kultur',
+  kindheit: 'Kindheit',
+  ausbildung: 'Ausbildung',
+  attribute: 'Attribute',
+  meisterschaft: 'Meisterschaften & Spells',
+}
+
+const steps = STEP_ORDER.map(key => ({ key, label: STEP_LABELS[key] }))
 
 export default function CreationView() {
   const { characterId, currentStep, setCurrentStep, createCharacter, resetCharacter, flushCurrentStep, stepDeltas } = useAppContext()
@@ -35,58 +38,52 @@ export default function CreationView() {
     )
   }
 
+  const currentIdx = STEP_ORDER.indexOf(currentStep)
+
   const handleNext = async () => {
-    if (currentStep < steps.length) {
-      await flushCurrentStep()
-      setCurrentStep(currentStep + 1)
+    if (currentIdx < steps.length - 1) {
+      const saved = await flushCurrentStep()
+      if (!saved) return
+      setCurrentStep(STEP_ORDER[currentIdx + 1])
     }
   }
 
   const handleBack = async () => {
-    if (currentStep > 1) {
-      await flushCurrentStep()
-      setCurrentStep(currentStep - 1)
+    if (currentIdx > 0) {
+      const saved = await flushCurrentStep()
+      if (!saved) return
+      setCurrentStep(STEP_ORDER[currentIdx - 1])
     }
   }
 
-  const handleStepClick = async (target: number) => {
+  const handleStepClick = async (target: StepKey) => {
     if (target === currentStep) return
     if (!stepDeltas[target]) return
-    await flushCurrentStep()
+    const saved = await flushCurrentStep()
+    if (!saved) return
     setCurrentStep(target)
   }
 
   const renderStepContent = () => {
-    if (currentStep === 1) {
-      return <SchicksalStep onValid={setCanProceed} />
+    const step = STEP_ORDER[currentIdx]
+    switch (step) {
+      case 'schicksal':
+        return <SchicksalStep onValid={setCanProceed} />
+      case 'rasse':
+        return <RasseStep onValid={setCanProceed} />
+      case 'abstammung':
+        return <AbstammungStep onValid={setCanProceed} />
+      case 'kultur':
+        return <KulturSelectStep onValid={setCanProceed} />
+      case 'kindheit':
+        return <KindheitStep onValid={setCanProceed} />
+      case 'ausbildung':
+        return <AusbildungStep onValid={setCanProceed} />
+      case 'attribute':
+        return <AttributeStep onValid={setCanProceed} />
+      case 'meisterschaft':
+        return <MeisterschaftStep onValid={setCanProceed} />
     }
-    if (currentStep === 2) {
-      return <RasseStep onValid={setCanProceed} />
-    }
-    if (currentStep === 3) {
-      return <AbstammungStep onValid={setCanProceed} />
-    }
-    if (currentStep === 4) {
-      return <KulturSelectStep onValid={setCanProceed} />
-    }
-    if (currentStep === 5) {
-      return <KindheitStep onValid={setCanProceed} />
-    }
-    if (currentStep === 6) {
-      return <AusbildungStep onValid={setCanProceed} />
-    }
-    if (currentStep === 7) {
-      return <AttributeStep onValid={setCanProceed} />
-    }
-    if (currentStep === 8) {
-      return <MeisterschaftStep onValid={setCanProceed} />
-    }
-    return (
-      <div style={styles.content}>
-        <h3 style={{ color: 'var(--text-primary)' }}>{steps[currentStep - 1]}</h3>
-        <p style={{ color: 'var(--text-tertiary)' }}>Schritt {currentStep} von {steps.length}</p>
-      </div>
-    )
   }
 
   return (
@@ -98,15 +95,14 @@ export default function CreationView() {
           </button>
         </div>
         <div style={styles.stepBar}>
-          {steps.map((step, i) => {
-            const stepNum = i + 1
-            const isActive = stepNum === currentStep
-            const isVisited = !!stepDeltas[stepNum]
-            const isReachable = stepNum <= currentStep || isVisited
+          {steps.map(({ key, label }, i) => {
+            const isActive = key === currentStep
+            const isVisited = !!stepDeltas[key]
+            const isReachable = i <= currentIdx || isVisited
             return (
               <span
-                key={i}
-                onClick={() => handleStepClick(stepNum)}
+                key={key}
+                onClick={() => handleStepClick(key)}
                 style={{
                   ...styles.step,
                   ...(isActive ? styles.stepActive : {}),
@@ -115,7 +111,7 @@ export default function CreationView() {
                   cursor: isReachable ? 'pointer' : 'default',
                 }}
               >
-                {stepNum}. {step}
+                {i + 1}. {label}
               </span>
             )
           })}
@@ -125,19 +121,19 @@ export default function CreationView() {
       </div>
       <div style={styles.navBar}>
         <button
-          style={{ ...styles.navButton, ...(currentStep === 1 ? styles.navButtonDisabled : {}) }}
+          style={{ ...styles.navButton, ...(currentIdx === 0 ? styles.navButtonDisabled : {}) }}
           onClick={handleBack}
-          disabled={currentStep === 1}
+          disabled={currentIdx === 0}
         >
           Zurück
         </button>
         <button
           style={{
             ...styles.navButton,
-            ...((currentStep === steps.length || !canProceed) ? styles.navButtonDisabled : {}),
+            ...((currentIdx === steps.length - 1 || !canProceed) ? styles.navButtonDisabled : {}),
           }}
           onClick={handleNext}
-          disabled={currentStep === steps.length || !canProceed}
+          disabled={currentIdx === steps.length - 1 || !canProceed}
         >
           Weiter
         </button>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -23,6 +24,7 @@ const KATEGORIE_LABELS: Record<string, string> = {
 }
 
 export default function SkillsView() {
+  const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<SkillEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -47,7 +49,7 @@ export default function SkillsView() {
         setEntries(sorted)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }
 
   useEffect(() => { load() }, [])

@@ -322,7 +322,7 @@ export default function MeisterschaftStep({ onValid }: MeisterschaftStepProps) {
       resources: br ? { [br]: 1 } : {},
       spells: Object.values(magicSpellsObj).filter(Boolean),
     }
-    updateStepDelta(7, data)
+    updateStepDelta('meisterschaft', data)
   }
 
   const handleFinalize = async () => {

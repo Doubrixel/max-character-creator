@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -44,25 +45,38 @@ const SPELL_NAMES: Record<string, string> = {
 }
 
 export default function CharacterSheet({ characterId, onDelete }: CharacterSheetProps) {
+  const { reportApiError } = useAppContext()
   const [state, setState] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/characters/${characterId}/state`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(d => { setState(d.state); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        setLoadError(true)
+        setLoading(false)
+        reportApiError('Charakter konnte nicht geladen werden')
+      })
   }, [characterId])
 
   const handleDelete = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/characters/${characterId}`, { method: 'DELETE' })
       if (res.ok) onDelete(characterId)
-    } catch {}
+      else reportApiError('Löschen fehlgeschlagen')
+    } catch {
+      reportApiError('Löschen fehlgeschlagen')
+    }
   }
 
   if (loading) return <div style={styles.loading}>Lade...</div>
+  if (loadError) return <div style={styles.error}>Charakter konnte nicht geladen werden.</div>
   if (!state) return <div style={styles.error}>Charakter nicht gefunden.</div>
 
   const skills = (state.skills ?? {}) as Record<string, number>
@@ -73,7 +87,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const spells = (state.spells ?? []) as string[]
   const resources = (state.resources ?? {}) as Record<string, number>
   const rasse = (state.rasse ?? {}) as { name?: string }
-  const abstammung = (state.abstammung ?? {}) as { heritage?: string }
+  const abstammung = (state.abstammung ?? {}) as { originName?: string }
 
   return (
     <div style={styles.sheet}>
@@ -90,10 +104,10 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
           <span>{rasse.name}</span>
         </div>
       )}
-      {abstammung.heritage && (
+      {abstammung.originName && (
         <div style={styles.infoRow}>
           <span style={styles.infoLabel}>Abstammung:</span>
-          <span>{abstammung.heritage}</span>
+          <span>{abstammung.originName}</span>
         </div>
       )}
 
