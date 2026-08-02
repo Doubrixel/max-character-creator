@@ -17,18 +17,19 @@ const ATTRIBUTE_NAMES: Record<AttributeKey, string> = {
   KRA: 'Körperkraft',
 }
 
-function roll4d6DropLowest(): { dice: number[]; sum: number } {
+function roll4d6DropLowest(): { dice: number[]; sum: number; droppedIndex: number } {
   const dice = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1)
   const sorted = [...dice].sort((a, b) => a - b)
   const sum = sorted[1] + sorted[2] + sorted[3]
-  return { dice, sum }
+  const droppedIndex = dice.indexOf(Math.min(...dice))
+  return { dice, sum, droppedIndex }
 }
 
 interface AttributeStepProps {
   onValid: (valid: boolean) => void
 }
 
-type RollDetail = { dice: number[]; sum: number }
+type RollDetail = { dice: number[]; sum: number; droppedIndex: number }
 
 export default function AttributeStep({ onValid }: AttributeStepProps) {
   const { stepDeltas, currentStep, updateStepDelta } = useAppContext()
@@ -218,7 +219,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                           key={j}
                           style={{
                             ...styles.rollDie,
-                            ...(j === 0 ? styles.rollDieDropped : {}),
+                            ...(j === detail.droppedIndex ? styles.rollDieDropped : {}),
                           }}
                         >
                           {d}
