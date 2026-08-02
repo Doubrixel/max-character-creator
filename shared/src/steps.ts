@@ -74,9 +74,13 @@ export interface PickedItem {
   name: string
 }
 
+export interface PflichtMeisterschaft {
+  skillId: string
+  meisterschaft: PickedItem
+}
+
 export interface ZauberDelta {
-  meisterschaften: PickedItem[]
-  zauber: PickedItem[]
+  pflicht: PflichtMeisterschaft[]
 }
 
 export interface NameDelta {

@@ -21,7 +21,7 @@ const STEP_LABELS: Record<StepKey, string> = {
   ausbildung: 'Ausbildung',
   attribute: 'Attribute',
   Hobbybedarf: 'Hobbybedarf',
-  Zauber: 'Meisterschaften & Zauber',
+  Zauber: 'Meisterschaften',
   Name: 'Name',
 }
 

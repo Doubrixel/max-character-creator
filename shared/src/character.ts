@@ -34,7 +34,6 @@ export interface CharacterState {
   staerken?: string[]
   ressourcen?: Record<string, number>
   meisterschaften?: PickedItem[]
-  zauber?: PickedItem[]
   name?: string
   attribute?: AttributeValues
   derived?: DerivedValues
@@ -55,6 +54,5 @@ export interface FinalCharacter {
   staerken: string[]
   ressourcen: Record<string, number>
   meisterschaften: PickedItem[]
-  zauber: PickedItem[]
   xp: number
 }

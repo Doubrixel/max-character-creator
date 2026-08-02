@@ -151,14 +151,12 @@ const HobbybedarfReducer: Reducer = (stats, delta) => {
 };
 
 const zauberReducer: Reducer = (stats, delta) => {
-  const { meisterschaften = [], zauber = [] } = delta as {
-    meisterschaften: { id: string; name: string }[]
-    zauber: { id: string; name: string }[]
+  const { pflicht = [] } = delta as {
+    pflicht: { skillId: string; meisterschaft: { id: string; name: string } }[]
   }
   return {
     ...stats,
-    meisterschaften,
-    zauber,
+    meisterschaften: pflicht.map((p) => p.meisterschaft),
   };
 };
 
@@ -231,8 +229,7 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
     skills: (state.skills ?? {}) as Record<string, number>,
     staerken,
     ressourcen: (state.ressourcen ?? {}) as Record<string, number>,
-    meisterschaften: steps.Zauber?.meisterschaften ?? [],
-    zauber: steps.Zauber?.zauber ?? [],
+    meisterschaften: steps.Zauber?.pflicht?.map((p) => p.meisterschaft) ?? [],
     xp: 15,
   };
 }

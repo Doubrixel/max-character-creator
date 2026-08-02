@@ -169,16 +169,6 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         </Section>
       )}
 
-      {((state.zauber ?? []) as { id: string; name: string }[]).length > 0 && (
-        <Section title="Zauber">
-          <div style={styles.tagList}>
-            {((state.zauber ?? []) as { id: string; name: string }[]).map((s, i) => (
-              <span key={i} style={styles.tag}>{s.name}</span>
-            ))}
-          </div>
-        </Section>
-      )}
-
       {Object.keys(resources).length > 0 && (
         <Section title="Ressourcen">
           <div style={styles.skillGrid}>

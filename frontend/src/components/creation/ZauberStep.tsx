@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import type { PickedItem, PflichtMeisterschaft } from '@mcc/shared'
 
 interface LibraryItem {
   id: string
@@ -11,7 +12,7 @@ interface LibraryItem {
 interface SkillRef {
   id: string
   name: string
-  isMagic: boolean
+  category: string
 }
 
 interface MasteryInfo {
@@ -19,26 +20,16 @@ interface MasteryInfo {
   name: string
   description: string
   effekt: string
-  typ: string | null
-  skillId: string | null
-  skillName: string | null
-  wert: number | null
+  kategorieName: string | null
+  schwelle: string | null
 }
 
-interface SpellInfo {
+interface QualifyingSkill {
   id: string
   name: string
-  description: string
-  effekt: string
-  level: number
-  schuleId: string | null
-  schuleName: string
-  required: number
-}
-
-interface PickedItem {
-  id: string
-  name: string
+  category: string
+  value: number
+  pool: MasteryInfo[]
 }
 
 interface ZauberStepProps {
@@ -52,18 +43,14 @@ function parseConfig(config: string | unknown | null): Record<string, unknown> {
   return (config ?? {}) as Record<string, unknown>
 }
 
-const SPELL_LEVEL_DEFAULT = { 0: 1, 1: 3, 2: 6 } as Record<number, number>
-
 export default function ZauberStep({ onValid }: ZauberStepProps) {
   const { computeBaseStats, stepDeltas, currentStep, updateStepDelta, reportApiError } = useAppContext()
   const stepData = stepDeltas[currentStep] ?? null
   const baseSkills = (computeBaseStats(currentStep).skills ?? {}) as Record<string, number>
 
   const [masteries, setMasteries] = useState<MasteryInfo[]>([])
-  const [spells, setSpells] = useState<SpellInfo[]>([])
-  const [magicSkills, setMagicSkills] = useState<SkillRef[]>([])
-  const [selectedMasteries, setSelectedMasteries] = useState<PickedItem[]>([])
-  const [selectedZauber, setSelectedZauber] = useState<PickedItem[]>([])
+  const [skills, setSkills] = useState<SkillRef[]>([])
+  const [pflicht, setPflicht] = useState<Record<string, PickedItem>>({})
   const [dataLoading, setDataLoading] = useState(true)
   const initializedRef = useRef(false)
 
@@ -71,54 +58,28 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     const API_BASE = import.meta.env.VITE_API_URL || ''
     Promise.all([
       fetch(`${API_BASE}/api/library/masteries`).then((r) => r.json()),
-      fetch(`${API_BASE}/api/library/spells`).then((r) => r.json()),
       fetch(`${API_BASE}/api/library/skills`).then((r) => r.json()),
     ])
-      .then(([masteriesData, spellsData, skillsData]: [LibraryItem[], LibraryItem[], LibraryItem[]]) => {
-        const skills: SkillRef[] = skillsData.map((s) => ({
+      .then(([masteriesData, skillsData]: [LibraryItem[], LibraryItem[]]) => {
+        setSkills(skillsData.map((s) => ({
           id: s.id,
           name: s.name,
-          isMagic: parseConfig(s.config).kategorie === 'magie',
-        }))
-        const skillName = (id: string) => skills.find((sk) => sk.id === id)?.name ?? id
-
-        setMagicSkills(skills.filter((sk) => sk.isMagic))
+          category: typeof parseConfig(s.config).kategorie === 'string' ? parseConfig(s.config).kategorie as string : '',
+        })))
 
         setMasteries(masteriesData.map((m) => {
           const cfg = parseConfig(m.config)
-          const typ = typeof cfg.voraussetzung_typ === 'string' ? cfg.voraussetzung_typ : null
-          const skillId = typeof cfg.voraussetzung_id === 'string' ? cfg.voraussetzung_id : null
-          const wert = typeof cfg.voraussetzung_wert === 'number' ? cfg.voraussetzung_wert : null
           return {
             id: m.id,
             name: m.name,
             description: m.description ?? '',
             effekt: typeof cfg.effekt === 'string' ? cfg.effekt : (m.description ?? ''),
-            typ,
-            skillId,
-            skillName: skillId ? skillName(skillId) : null,
-            wert,
-          }
-        }))
-
-        setSpells(spellsData.map((sp) => {
-          const cfg = parseConfig(sp.config)
-          const level = typeof cfg.level === 'number' ? cfg.level : (parseInt(String(cfg.level ?? '0'), 10) || 0)
-          const schuleId = typeof cfg.schule === 'string' ? cfg.schule : null
-          const maxWert = typeof cfg.maxSchulenwert === 'number' ? cfg.maxSchulenwert : null
-          return {
-            id: sp.id,
-            name: sp.name,
-            description: sp.description ?? '',
-            effekt: typeof cfg.effekt === 'string' ? cfg.effekt : (sp.description ?? ''),
-            level,
-            schuleId,
-            schuleName: schuleId ? skillName(schuleId) : 'Allgemeine Magie',
-            required: maxWert ?? SPELL_LEVEL_DEFAULT[level] ?? 1,
+            kategorieName: typeof cfg.kategorie_name === 'string' ? cfg.kategorie_name : null,
+            schwelle: typeof cfg.schwelle === 'string' ? cfg.schwelle : null,
           }
         }))
       })
-      .catch(() => reportApiError('Meisterschaften/Zauber konnten nicht geladen werden'))
+      .catch(() => reportApiError('Meisterschaften konnten nicht geladen werden'))
       .finally(() => setDataLoading(false))
   }, [])
 
@@ -127,127 +88,113 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     if (dataLoading) return
     initializedRef.current = true
 
-    const saved = stepData as { meisterschaften?: PickedItem[]; zauber?: PickedItem[] } | null
-    setSelectedMasteries(saved?.meisterschaften ?? [])
-    setSelectedZauber(saved?.zauber ?? [])
+    const saved = stepData as { pflicht?: PflichtMeisterschaft[] } | null
+    const restored: Record<string, PickedItem> = {}
+    for (const p of saved?.pflicht ?? []) {
+      restored[p.skillId] = p.meisterschaft
+    }
+    setPflicht(restored)
   }, [stepData, dataLoading])
 
   useEffect(() => {
     return () => { initializedRef.current = false }
   }, [])
 
+  const masteryMatchesSkill = (m: MasteryInfo, skill: SkillRef): boolean => {
+    if (m.schwelle !== '1') return false
+    if (m.kategorieName === skill.name) return true
+    if (skill.category === 'kampf' && !['Schusswaffen', 'Wurfwaffen'].includes(skill.name) && m.kategorieName === 'Allgemeine Nahkampfmeisterschaften') return true
+    if (skill.category === 'magie' && m.kategorieName === 'Allgemeine Magieschulen-Meisterschaften') return true
+    return false
+  }
+
+  const qualifyingSkills: QualifyingSkill[] = skills
+    .filter((s) => ['fertigkeit', 'kampf', 'magie'].includes(s.category))
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+      value: baseSkills[s.id] ?? 0,
+      pool: masteries.filter((m) => masteryMatchesSkill(m, s)),
+    }))
+    .filter((s) => s.value >= 6 && s.pool.length > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const missingCount = qualifyingSkills.filter((s) => !pflicht[s.id]).length
+  const allCovered = missingCount === 0
+
   useEffect(() => {
-    onValid(true)
-  }, [onValid])
+    onValid(allCovered)
+  }, [onValid, allCovered])
 
-  const magicMax = Math.max(0, ...magicSkills.map((s) => baseSkills[s.id] ?? 0))
-
-  const masteryAvailable = (m: MasteryInfo): boolean => {
-    if (!m.typ || !m.skillId || m.wert === null) return true
-    return (baseSkills[m.skillId] ?? 0) >= m.wert
-  }
-
-  const spellAvailable = (s: SpellInfo): boolean => {
-    const value = s.schuleId ? (baseSkills[s.schuleId] ?? 0) : magicMax
-    return value >= s.required
-  }
-
-  const masteryRequirementText = (m: MasteryInfo): string => {
-    if (!m.typ || !m.skillId || m.wert === null) return 'Immer verfügbar'
-    return `${m.typ === 'magie >= wert' ? 'Magie' : ''} ${m.skillName} ${m.wert}`
-  }
-
-  const toggleMastery = (m: MasteryInfo) => {
-    if (!masteryAvailable(m)) return
-    let next: PickedItem[]
-    if (selectedMasteries.some((x) => x.id === m.id)) {
-      next = selectedMasteries.filter((x) => x.id !== m.id)
-    } else {
-      next = [...selectedMasteries, { id: m.id, name: m.name }]
-    }
-    setSelectedMasteries(next)
-    updateStepDelta('Zauber', { meisterschaften: next, zauber: selectedZauber })
-  }
-
-  const toggleZauber = (s: SpellInfo) => {
-    if (!spellAvailable(s)) return
-    let next: PickedItem[]
-    if (selectedZauber.some((x) => x.id === s.id)) {
-      next = selectedZauber.filter((x) => x.id !== s.id)
-    } else {
-      next = [...selectedZauber, { id: s.id, name: s.name }]
-    }
-    setSelectedZauber(next)
-    updateStepDelta('Zauber', { meisterschaften: selectedMasteries, zauber: next })
+  const setPflichtForSkill = (skill: QualifyingSkill, m: PickedItem | null) => {
+    const next = { ...pflicht }
+    if (m) next[skill.id] = m
+    else delete next[skill.id]
+    setPflicht(next)
+    updateStepDelta('Zauber', {
+      pflicht: Object.entries(next).map(([skillId, meisterschaft]) => ({ skillId, meisterschaft })),
+    })
   }
 
   if (dataLoading) {
-    return <div style={styles.loading}>Lade Meisterschaften und Zauber...</div>
+    return <div style={styles.loading}>Lade Meisterschaften...</div>
+  }
+
+  if (qualifyingSkills.length === 0) {
+    return (
+      <div style={styles.container}>
+        <p style={styles.hint}>
+          Keine Talent-, Kampf- oder Magie-Fertigkeit hat einen Wert von 6 oder mehr.
+          Es sind keine Pflicht-Meisterschaften nötig.
+        </p>
+      </div>
+    )
   }
 
   return (
     <div style={styles.container}>
       <p style={styles.hint}>
-        Wähle Meisterschaften und Zauber, für die dein Charakter die Voraussetzungen erfüllt.
-        Diese Auswahl ist optional.
+        Für jede Talent-, Kampf- und Magie-Fertigkeit mit einem Wert von 6 oder mehr
+        musst du genau eine Meisterschaft mit Schwelle 1 wählen.
       </p>
 
       <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Meisterschaften</h3>
-        {masteries.length === 0 && <div style={styles.empty}>Keine Meisterschaften in der Bibliothek.</div>}
-        <div style={styles.grid}>
-          {masteries.map((m) => {
-            const available = masteryAvailable(m)
-            const isSelected = selectedMasteries.some((x) => x.id === m.id)
-            return (
-              <button
-                key={m.id}
-                style={{
-                  ...styles.card,
-                  ...(isSelected ? styles.cardSelected : {}),
-                  ...(!available ? styles.cardDisabled : {}),
+        <h3 style={styles.sectionTitle}>Pflicht-Meisterschaften</h3>
+        {qualifyingSkills.map((skill) => {
+          const selected = pflicht[skill.id]
+          return (
+            <div key={skill.id} style={styles.skillRow}>
+              <div style={styles.skillInfo}>
+                <span style={styles.skillName}>{skill.name}</span>
+                <span style={styles.skillValue}>Wert {skill.value}</span>
+              </div>
+              <select
+                style={styles.select}
+                value={selected?.id ?? ''}
+                onChange={(e) => {
+                  const mastery = skill.pool.find((m) => m.id === e.target.value) ?? null
+                  setPflichtForSkill(skill, mastery ? { id: mastery.id, name: mastery.name } : null)
                 }}
-                onClick={() => toggleMastery(m)}
-                disabled={!available}
               >
-                <div style={styles.cardHeader}>
-                  <span style={styles.cardName}>{m.name}</span>
-                  <span style={styles.cardReq}>{masteryRequirementText(m)}</span>
-                </div>
-                {m.effekt && <span style={styles.cardDesc}>{m.effekt}</span>}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div style={styles.section}>
-        <h3 style={styles.sectionTitle}>Zauber</h3>
-        {spells.length === 0 && <div style={styles.empty}>Keine Zauber in der Bibliothek.</div>}
-        <div style={styles.grid}>
-          {spells.map((s) => {
-            const available = spellAvailable(s)
-            const isSelected = selectedZauber.some((x) => x.id === s.id)
-            return (
-              <button
-                key={s.id}
-                style={{
-                  ...styles.card,
-                  ...(isSelected ? styles.cardSelected : {}),
-                  ...(!available ? styles.cardDisabled : {}),
-                }}
-                onClick={() => toggleZauber(s)}
-                disabled={!available}
-              >
-                <div style={styles.cardHeader}>
-                  <span style={styles.cardName}>{s.name}</span>
-                  <span style={styles.cardReq}>Stufe {s.level} · {s.schuleName} {s.required}</span>
-                </div>
-                {s.effekt && <span style={styles.cardDesc}>{s.effekt}</span>}
-              </button>
-            )
-          })}
-        </div>
+                <option value="">— Meisterschaft wählen —</option>
+                {skill.pool.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              {selected && skill.pool.find((m) => m.id === selected.id)?.effekt && (
+                <span style={styles.masteryEffect}>
+                  {skill.pool.find((m) => m.id === selected.id)?.effekt}
+                </span>
+              )}
+            </div>
+          )
+        })}
+        {missingCount > 0 && (
+          <p style={styles.missingHint}>
+            Noch {missingCount} Fertigkeit{missingCount > 1 ? 'en' : ''} ohne Meisterschaft.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -271,67 +218,63 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     padding: 24,
   },
-  empty: {
-    fontSize: 13,
-    color: 'var(--text-tertiary)',
-    fontStyle: 'italic',
-  },
   section: {
     background: 'var(--bg-primary)',
     borderRadius: 12,
     padding: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
   },
   sectionTitle: {
-    margin: '0 0 16px 0',
+    margin: 0,
     fontSize: 18,
     color: 'var(--text-primary)',
   },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 12,
-  },
-  card: {
-    padding: 14,
-    background: 'var(--bg-secondary)',
-    color: 'var(--text-primary)',
-    border: '2px solid var(--border)',
-    borderRadius: 8,
-    cursor: 'pointer',
-    textAlign: 'left',
+  skillRow: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: 6,
+    padding: 12,
+    background: 'var(--bg-secondary)',
+    borderRadius: 8,
+    border: '2px solid var(--border)',
   },
-  cardSelected: {
-    border: '2px solid var(--accent)',
-    background: 'var(--bg-tertiary)',
-  },
-  cardDisabled: {
-    opacity: 0.4,
-    cursor: 'not-allowed',
-  },
-  cardHeader: {
+  skillInfo: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
   },
-  cardName: {
+  skillName: {
     fontSize: 15,
     fontWeight: 600,
+    color: 'var(--text-primary)',
   },
-  cardReq: {
-    fontSize: 11,
+  skillValue: {
+    fontSize: 12,
     fontWeight: 600,
     color: 'var(--accent)',
     background: 'rgba(233, 69, 96, 0.1)',
     padding: '2px 8px',
     borderRadius: 4,
   },
-  cardDesc: {
+  select: {
+    padding: '8px 10px',
+    fontSize: 14,
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
+    borderRadius: 8,
+  },
+  masteryEffect: {
     fontSize: 12,
     color: 'var(--text-secondary)',
+  },
+  missingHint: {
+    fontSize: 13,
+    color: 'var(--accent)',
+    margin: 0,
+    fontWeight: 600,
   },
 }
