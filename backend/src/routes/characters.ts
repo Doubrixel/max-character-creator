@@ -108,10 +108,11 @@ app.get('/api/characters/:id/state', async (c) => {
 
   const deltas: StepDeltas = {}
   for (const row of allSteps) {
-    if (!row.stepKey) continue
-    const idx = STEP_ORDER.indexOf(row.stepKey)
+    const stepKey = row.stepKey
+    if (!stepKey || !isStepKey(stepKey)) continue
+    const idx = STEP_ORDER.indexOf(stepKey)
     if (idx >= 0 && idx <= upToIdx) {
-      deltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
+      deltas[stepKey] = row.delta ? JSON.parse(row.delta) : {}
     }
   }
 
@@ -242,7 +243,9 @@ app.post('/api/characters/:id/steps/:step', async (c) => {
 
   const allDeltas: StepDeltas = {}
   for (const row of allSteps) {
-    if (row.stepKey) allDeltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
+    const stepKey = row.stepKey
+    if (!stepKey || !isStepKey(stepKey)) continue
+    allDeltas[stepKey] = row.delta ? JSON.parse(row.delta) : {}
   }
 
   const newState: CharacterState = recalculateStats(allDeltas)
@@ -261,7 +264,9 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
 
   const allDeltas: StepDeltas = {}
   for (const row of allSteps) {
-    if (row.stepKey) allDeltas[row.stepKey] = row.delta ? JSON.parse(row.delta) : {}
+    const stepKey = row.stepKey
+    if (!stepKey || !isStepKey(stepKey)) continue
+    allDeltas[stepKey] = row.delta ? JSON.parse(row.delta) : {}
   }
 
   const VALID_SKILLS = [
@@ -288,11 +293,12 @@ app.post('/api/characters/:id/steps/:step/validate', async (c) => {
     const delta = allDeltas[stepKey]
     if (!delta) continue
 
-    const deltasBefore: StepDeltas = {}
+    const deltasBeforeRaw: Record<string, unknown> = {}
     for (let i = 0; i < s; i++) {
       const beforeKey = STEP_ORDER[i]
-      if (allDeltas[beforeKey]) deltasBefore[beforeKey] = allDeltas[beforeKey]
+      if (allDeltas[beforeKey]) deltasBeforeRaw[beforeKey] = allDeltas[beforeKey]
     }
+    const deltasBefore = deltasBeforeRaw as StepDeltas
     const stateBefore = recalculateStats(deltasBefore)
     const errors: string[] = []
 

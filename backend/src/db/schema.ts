@@ -19,9 +19,9 @@ export const characterSteps = sqliteTable('character_steps', {
   stepKey: text('step_key').notNull(),
   delta: text('delta'),
   updatedAt: integer('updated_at'),
-}, (table) => [
-  uniqueIndex('character_steps_character_id_step_key_unique').on(table.characterId, table.stepKey),
-]);
+}, (table) => ({
+  characterStepsUnique: uniqueIndex('character_steps_character_id_step_key_unique').on(table.characterId, table.stepKey),
+}));
 
 export const races = sqliteTable('races', {
   id: text('id').primaryKey(),
