@@ -398,11 +398,12 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
       {showForm && type === 'races' && (
         <RasseForm
+          key={rasseEditingId ?? 'new'}
           editingId={rasseEditingId}
           initialName={rasseName}
           initialConfig={rasseConfig}
-          onSaved={() => { setShowForm(false); setRasseEditingId(null); load() }}
-          onCancel={() => { setShowForm(false); setRasseEditingId(null) }}
+          onSaved={() => { setShowForm(false); setRasseEditingId(null); setRasseName(''); setRasseConfig({}); load() }}
+          onCancel={() => { setShowForm(false); setRasseEditingId(null); setRasseName(''); setRasseConfig({}) }}
         />
       )}
 
@@ -697,7 +698,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
           ))}
 
           <div style={styles.formActions}>
-            <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
+            <button style={styles.cancelBtn} onClick={() => { resetForm(); setShowForm(false) }}>
               Abbrechen
             </button>
             <button style={styles.saveBtn} onClick={handleSubmit}>

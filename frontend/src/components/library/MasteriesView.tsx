@@ -546,7 +546,7 @@ export default function MasteriesView() {
             </div>
             {renderVoraussetzungFields()}
             <div style={styles.formActions}>
-              <button style={styles.cancelBtn} onClick={() => setShowForm(false)}>
+              <button style={styles.cancelBtn} onClick={() => { resetForm(); setShowForm(false) }}>
                 Abbrechen
               </button>
               <button style={styles.saveBtn} onClick={handleSubmit}>
