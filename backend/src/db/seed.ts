@@ -89,6 +89,12 @@ const STRENGTH_SEED = [
   { name: 'Charisma', description: '+1 auf soziale Proben', config: '{}' },
 ];
 
+const RACE_STRENGTH_SEED = [
+  { name: 'Anpassungsfähig', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
+  { name: 'Nachtsicht', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
+  { name: 'Empfindlich gegen Eisen', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'nachteil' }) },
+];
+
 const DERIVED_VALUE_SEED = [
   { name: 'Lebenspunkte', description: 'Maximale Lebensenergie eines Charakters', formel: '( GK + KON ) * 5' },
   { name: 'Focus', description: 'Magische Fokuskraft eines Charakters', formel: '( MYS + MYS ) * 3' },
@@ -136,6 +142,31 @@ async function syncDerivedValues() {
     });
   }
   console.log(`Seed: synced derived values (${DERIVED_VALUE_SEED.length})`);
+}
+
+async function syncRaceStrengths() {
+  const existing = await db.select().from(strengths);
+  const existingNames = new Set(existing.map((e) => e.name));
+  const now = Date.now();
+  let inserted = 0;
+
+  for (const entry of RACE_STRENGTH_SEED) {
+    if (!existingNames.has(entry.name)) {
+      await db.insert(strengths).values({
+        id: randomUUID(),
+        name: entry.name,
+        description: entry.description,
+        config: entry.config,
+        createdAt: now,
+        updatedAt: now,
+      });
+      inserted++;
+    }
+  }
+
+  if (inserted > 0) {
+    console.log(`Seed: synced race strengths (${inserted} inserted)`);
+  }
 }
 
 export async function seedIfNeeded(): Promise<void> {
@@ -219,6 +250,8 @@ export async function seedIfNeeded(): Promise<void> {
       await db.insert(strengths).values({ id: randomUUID(), ...s, createdAt: now, updatedAt: now });
     }
   }
+
+  await syncRaceStrengths();
 
   console.log('Seed completed.');
 }

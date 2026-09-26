@@ -51,7 +51,7 @@ export default function PointDistributionStep({
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number; kategorie: string }[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
@@ -76,8 +76,8 @@ export default function PointDistributionStep({
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setStaerkenData(strengthsData.map((s) => {
           const cfg = s.config ? JSON.parse(s.config) : {}
-          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1 }
-        }))
+          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1, kategorie: cfg.kategorie || 'staerke' }
+        }).filter(s => s.kategorie !== 'rasse'))
       })
       .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
       .finally(() => setDataLoading(false))

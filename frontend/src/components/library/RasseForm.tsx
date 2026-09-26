@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -36,6 +36,37 @@ export default function RasseForm({
   const [groessenklasse, setGroessenklasse] = useState(String(initialConfig.groessenklasse ?? ''))
   const [vorteile, setVorteile] = useState<string[]>(parseNames(initialConfig.vorteile))
   const [nachteile, setNachteile] = useState<string[]>(parseNames(initialConfig.nachteile))
+  const [vorteileOptions, setVorteileOptions] = useState<{ id: string; name: string }[]>([])
+  const [nachteileOptions, setNachteileOptions] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/library/strengths`)
+      .then(r => r.json())
+      .then((data: { id: string; name: string; config: string | null }[]) => {
+        const vorteile: { id: string; name: string }[] = []
+        const nachteile: { id: string; name: string }[] = []
+        for (const entry of data) {
+          try {
+            const cfg = entry.config ? JSON.parse(entry.config) : {}
+            if (cfg.kategorie === 'rasse') {
+              if (cfg.unterkategorie === 'vorteil') vorteile.push({ id: entry.id, name: entry.name })
+              else if (cfg.unterkategorie === 'nachteil') nachteile.push({ id: entry.id, name: entry.name })
+            }
+          } catch {}
+        }
+        setVorteileOptions(vorteile)
+        setNachteileOptions(nachteile)
+      })
+      .catch(() => {})
+  }, [])
+
+  const toggleVorteil = (name: string) => {
+    setVorteile(prev => prev.includes(name) ? prev.filter(v => v !== name) : [...prev, name])
+  }
+
+  const toggleNachteil = (name: string) => {
+    setNachteile(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
+  }
 
   const handleSubmit = async () => {
     if (!name.trim()) return
@@ -100,23 +131,51 @@ export default function RasseForm({
       </div>
       <div style={styles.formRow}>
         <label style={styles.label}>Vorteile</label>
-        <textarea
-          style={styles.textarea}
-          placeholder={'Nachtsicht\nSchnelle Heilung'}
-          value={vorteile.join('\n')}
-          onChange={e => setVorteile(e.target.value.split(/\r?\n/))}
-          rows={3}
-        />
+        <div style={styles.chipContainer}>
+          {vorteileOptions.map(opt => {
+            const selected = vorteile.includes(opt.name)
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                style={{
+                  ...styles.chip,
+                  ...(selected ? styles.chipSelected : {}),
+                }}
+                onClick={() => toggleVorteil(opt.name)}
+              >
+                {selected ? '✓ ' : ''}{opt.name}
+              </button>
+            )
+          })}
+          {vorteileOptions.length === 0 && (
+            <span style={styles.chipEmpty}>Keine Rassen-Vorteile in der Bibliothek vorhanden.</span>
+          )}
+        </div>
       </div>
       <div style={styles.formRow}>
         <label style={styles.label}>Nachteile</label>
-        <textarea
-          style={styles.textarea}
-          placeholder={'Empfindlich gegen Eisen\nLangsam'}
-          value={nachteile.join('\n')}
-          onChange={e => setNachteile(e.target.value.split(/\r?\n/))}
-          rows={3}
-        />
+        <div style={styles.chipContainer}>
+          {nachteileOptions.map(opt => {
+            const selected = nachteile.includes(opt.name)
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                style={{
+                  ...styles.chip,
+                  ...(selected ? styles.chipSelected : {}),
+                }}
+                onClick={() => toggleNachteil(opt.name)}
+              >
+                {selected ? '✓ ' : ''}{opt.name}
+              </button>
+            )
+          })}
+          {nachteileOptions.length === 0 && (
+            <span style={styles.chipEmpty}>Keine Rassen-Nachteile in der Bibliothek vorhanden.</span>
+          )}
+        </div>
       </div>
       <div style={styles.formActions}>
         <button style={styles.cancelBtn} onClick={onCancel}>Abbrechen</button>
@@ -144,6 +203,20 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--text-primary)',
     outline: 'none', resize: 'vertical', width: '100%',
+  },
+  chipContainer: {
+    display: 'flex', flexWrap: 'wrap', gap: 6,
+  },
+  chip: {
+    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+    borderRadius: 16, padding: '6px 12px', fontSize: 13, color: 'var(--text-primary)',
+    cursor: 'pointer', transition: 'all 0.15s',
+  },
+  chipSelected: {
+    background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff',
+  },
+  chipEmpty: {
+    fontSize: 12, color: 'var(--text-tertiary)', fontStyle: 'italic',
   },
   formActions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {
