@@ -3,6 +3,8 @@ import LibraryTable from './LibraryTable'
 import StrengthsView from './StrengthsView'
 import MasteriesView from './MasteriesView'
 import SkillsView from './SkillsView'
+import SpellsView from './SpellsView'
+import RacesView from './RacesView'
 
 const TABS = [
   { id: 'races', label: 'Rassen' },
@@ -39,12 +41,16 @@ export default function LibraryView() {
         ))}
       </div>
       <div style={styles.content}>
-        {activeTab === 'strengths' ? (
+        {activeTab === 'races' ? (
+          <RacesView />
+        ) : activeTab === 'strengths' ? (
           <StrengthsView />
         ) : activeTab === 'masteries' ? (
           <MasteriesView />
         ) : activeTab === 'skills' ? (
           <SkillsView />
+        ) : activeTab === 'spells' ? (
+          <SpellsView />
         ) : (
           <LibraryTable key={activeTab} type={activeTab} />
         )}

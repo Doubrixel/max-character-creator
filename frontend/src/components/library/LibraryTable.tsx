@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, FULL_MAGIC_SKILLS, SCHOOL_SHORT_MAP, type FieldSchema } from './typeSchemas'
-import RasseForm from './RasseForm'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -69,9 +68,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [configFields, setConfigFields] = useState<Record<string, string>>({})
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
-  const [rasseEditingId, setRasseEditingId] = useState<string | null>(null)
-  const [rasseName, setRasseName] = useState('')
-  const [rasseConfig, setRasseConfig] = useState<Record<string, string>>({})
   const [races, setRaces] = useState<LibraryEntry[]>([])
   const [skills, setSkills] = useState<{ id: string; name: string; type: string }[]>([])
   const [strengths, setStrengths] = useState<{ id: string; name: string }[]>([])
@@ -142,13 +138,6 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   }
 
   const startEdit = (entry: LibraryEntry) => {
-    if (type === 'races') {
-      setRasseEditingId(entry.id)
-      setRasseName(entry.name)
-      setRasseConfig(entry.config ? JSON.parse(entry.config) : {})
-      setShowForm(true)
-      return
-    }
     setName(entry.name)
     setDescription(entry.description ?? '')
     try {
@@ -396,18 +385,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
         </div>
       )}
 
-      {showForm && type === 'races' && (
-        <RasseForm
-          key={rasseEditingId ?? 'new'}
-          editingId={rasseEditingId}
-          initialName={rasseName}
-          initialConfig={rasseConfig}
-          onSaved={() => { setShowForm(false); setRasseEditingId(null); setRasseName(''); setRasseConfig({}); load() }}
-          onCancel={() => { setShowForm(false); setRasseEditingId(null); setRasseName(''); setRasseConfig({}) }}
-        />
-      )}
-
-      {showForm && type !== 'races' && (
+      {showForm && (
         <div style={styles.form}>
           <div style={styles.formRow}>
             <label style={styles.label}>Name *</label>

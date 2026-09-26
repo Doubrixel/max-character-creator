@@ -112,3 +112,13 @@ export type StepDeltaMap = {
 export type StepDeltas = Partial<StepDeltaMap>
 
 export type AnyStepDelta = StepDeltaMap[StepKey]
+
+export function gradToSchulenwert(grad: number): number {
+  if (grad === 0) return 1
+  return grad * 3
+}
+
+export function schuwenwertToGrad(wert: number): number {
+  if (wert === 1) return 0
+  return wert / 3
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { SKILL_OPTIONS } from './typeSchemas'
+import { SKILL_OPTIONS, FULL_MAGIC_SKILLS } from './typeSchemas'
 import { useAppContext } from '../../context/AppContext'
+import FilterPanel from './FilterPanel'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -156,6 +157,34 @@ function parseMeisterschaftenFile(content: string): ParsedMastery[] {
   return results
 }
 
+const MAGIC_SCHOOL_NAMES = new Set(FULL_MAGIC_SKILLS.map(s => s.name))
+const KAMPF_NAMES = new Set([
+  'Hiebwaffen', 'Kettenwaffen', 'Klingenwaffen', 'Schusswaffen',
+  'Stangenwaffen', 'Wurfwaffen', 'Handgemenge', 'Allgemeine Nahkampfmeisterschaften',
+])
+
+function kategorieNameToGruppe(kategorieName: string): string {
+  if (!kategorieName) return 'Meisterschaften'
+  if (kategorieName === 'Allgemeine Magieschulen-Meisterschaften' || MAGIC_SCHOOL_NAMES.has(kategorieName)) {
+    return 'Magiemeisterschaften'
+  }
+  if (KAMPF_NAMES.has(kategorieName)) return 'Kampfmeisterschaften'
+  return 'Meisterschaften'
+}
+
+const GRUPPEN = [
+  { id: 'Magiemeisterschaften', label: 'Magiemeisterschaften' },
+  { id: 'Kampfmeisterschaften', label: 'Kampfmeisterschaften' },
+  { id: 'Meisterschaften', label: 'Meisterschaften' },
+]
+
+const SCHWELLEN = [
+  { id: '1', label: 'Schwelle 1' },
+  { id: '2', label: 'Schwelle 2' },
+  { id: '3', label: 'Schwelle 3' },
+  { id: '4', label: 'Schwelle 4' },
+]
+
 export default function MasteriesView() {
   const { reportApiError } = useAppContext()
   const [entries, setEntries] = useState<MasteryEntry[]>([])
@@ -176,6 +205,31 @@ export default function MasteriesView() {
   const [voraussetzungTyp, setVoraussetzungTyp] = useState('keine')
   const [voraussetzungId, setVoraussetzungId] = useState('')
   const [voraussetzungWert, setVoraussetzungWert] = useState('6')
+
+  const [showFilter, setShowFilter] = useState(false)
+  const [filterSelected, setFilterSelected] = useState<Map<number, Set<string>>>(() => new Map())
+
+  const toggleFilter = (colIndex: number, id: string) => {
+    setFilterSelected(prev => {
+      const next = new Map(prev)
+      const set = new Set(next.get(colIndex) ?? [])
+      if (set.has(id)) set.delete(id)
+      else set.add(id)
+      next.set(colIndex, set)
+      return next
+    })
+  }
+
+  const filteredEntries = entries.filter(entry => {
+    const cfg = parseConfig(entry.config)
+    const gruppe = kategorieNameToGruppe(cfg.kategorie_name ?? '')
+    const schwelle = cfg.schwelle ?? ''
+    const selectedGruppen = filterSelected.get(0)
+    const selectedSchwellen = filterSelected.get(1)
+    const gruppeMatch = !selectedGruppen || selectedGruppen.size === 0 || selectedGruppen.has(gruppe)
+    const schwelleMatch = !selectedSchwellen || selectedSchwellen.size === 0 || selectedSchwellen.has(schwelle)
+    return gruppeMatch && schwelleMatch
+  })
 
   const load = () => {
     fetch(`${API_BASE}/api/library/masteries`)
@@ -434,8 +488,14 @@ export default function MasteriesView() {
 
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            <span style={styles.count}>{entries.length} Meisterschaften</span>
-            <button style={styles.filterBtn} disabled>Filter</button>
+            <span style={styles.count}>{filteredEntries.length} Meisterschaften</span>
+            <button
+              style={{
+                ...styles.filterBtn,
+                ...(showFilter ? styles.filterBtnActive : {}),
+              }}
+              onClick={() => setShowFilter(!showFilter)}
+            >Filter</button>
           </div>
           <div style={styles.headerActions}>
             <label style={styles.importBtn}>
@@ -470,6 +530,17 @@ export default function MasteriesView() {
             </button>
           </div>
         </div>
+
+        {showFilter && (
+          <FilterPanel
+            columns={[
+              { title: 'Kategorie', options: GRUPPEN },
+              { title: 'Schwelle', options: SCHWELLEN },
+            ]}
+            selected={filterSelected}
+            onToggle={toggleFilter}
+          />
+        )}
 
         {showForm && (
           <div style={styles.form}>
@@ -556,7 +627,7 @@ export default function MasteriesView() {
           </div>
         )}
 
-        {renderGrid(entries)}
+        {renderGrid(filteredEntries)}
       </div>
 
       <div style={styles.detailPanel}>
@@ -665,8 +736,11 @@ const styles: Record<string, React.CSSProperties> = {
   count: { fontSize: 13, color: 'var(--text-secondary)' },
   filterBtn: {
     background: 'transparent', border: '1px solid var(--border)',
-    color: 'var(--text-tertiary)', borderRadius: 6, padding: '8px 16px', fontSize: 13,
-    opacity: 0.5, cursor: 'not-allowed',
+    color: 'var(--text-secondary)', borderRadius: 6, padding: '8px 16px', fontSize: 13,
+    cursor: 'pointer',
+  },
+  filterBtnActive: {
+    borderColor: 'var(--accent)', color: 'var(--accent)',
   },
   headerActions: { display: 'flex', gap: 8 },
   importBtn: {
