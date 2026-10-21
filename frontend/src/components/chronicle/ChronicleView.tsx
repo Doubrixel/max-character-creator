@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import CharacterSheet from './CharacterSheet'
+import { XpBar } from './XpPanel'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -9,6 +10,7 @@ interface Character {
   name: string
   status: string
   xp: number
+  totalXp?: number
   createdAt?: number
 }
 
@@ -80,7 +82,8 @@ export default function ChronicleView() {
                   </span>
                 </div>
                 <div style={styles.cardMeta}>
-                  <span>XP: {char.xp ?? 15}</span>
+                  <XpBar totalXp={char.totalXp ?? char.xp ?? 15} compact />
+                  <span>· {char.xp ?? 15} XP verfügbar</span>
                 </div>
               </div>
               <button
@@ -135,7 +138,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11, fontWeight: 600, padding: '2px 8px',
     borderRadius: 12, color: '#fff', textTransform: 'uppercase' as const,
   },
-  cardMeta: { fontSize: 13, color: 'var(--text-secondary)' },
+  cardMeta: { fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 },
   deleteButton: {
     background: 'transparent', border: '1px solid var(--danger)',
     color: 'var(--danger)', borderRadius: 6, padding: '6px 12px',

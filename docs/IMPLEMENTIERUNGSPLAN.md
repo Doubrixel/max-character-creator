@@ -1,5 +1,46 @@
 # Implementierungsplan
 
+## Schritt 17: XP-System in der Chronik (Level-Balken, Sessions, Verlauf, Ausgeben) (2026-10-21)
+
+### Anforderungen (Tester/Max)
+- XP nach Session hinzufügen (Session-Name + Anzahl), Verlauf speichern
+- Alle 100 XP Level-Aufstieg; Start Level 1 mit 15 XP; Level-Balken
+- Level ist unabhängig vom Ausgeben: nur gesammelte XP (totalXp) zählen fürs Level
+- Aufwerten/Neu erlernen, solange XP-Guthaben + Level-Cap es zulassen (Kosten folgen später)
+- Letzten Verlaufseintrag entfernen können (sofern seit dem nichts „gelevelt" wurde)
+
+### Implementierte Änderungen
+
+**`backend/src/routes/characters.ts`**
+- `GET /api/characters`: `totalXp` im Select
+- `GET /api/characters/:id/xp`: Verlauf (`xp`, `totalXp`, Log neueste zuerst)
+- `POST /characters`: Start-Log-Eintrag „Charakterstart" (+15, beide Branches)
+- `POST /:id/xp`: Validierung (amount > 0, reason/Session-Name nicht leer)
+- `DELETE /:id/xp/:logId`: Undo nur für den neuesten Eintrag, nur XP-Zugänge (amount > 0) und nur wenn das Level dadurch unverändert bleibt („seit dem nix gelevelt")
+- `POST /:id/xp/spend`: XP ausgeben — senkt nur `xp`-Guthaben (Level-Basis `totalXp` unverändert), wendet die Änderung serverseitig auf den Charakter-State an (`skill_up`: Skill +1; `learn_skill`: neuer Skill = 1; `learn_strength`: Stärke anhängen), loggt negativen Eintrag
+
+**`frontend/src/components/chronicle/xpkosten.ts` (neu)**
+- Zentrale XP-Regeln: `XP_PER_LEVEL=100`, `START_XP=15`, `levelOf/levelProgress/xpToNextLevel`
+- Platzhalter-Kosten (je 15 XP für skill_up/learn_skill/learn_strength) — später hier justieren
+- `getLevelCap(level)`-Stub (null = keine Beschränkung) für das spätere Level-Cap
+
+**`frontend/src/components/chronicle/XpPanel.tsx` (neu)**
+- Level-Balken (Fortschritt `(totalXp % 100)/100`) + „X XP gesamt · Y bis Level N+1 · Verfügbar: Z"
+- „+ XP hinzufügen": Inline-Form (Session-Name, XP-Zahl), Validierung im Frontend + Backend
+- Aufklappbarer Verlauf: Datum · Session · ±XP (grün/rot); Undo-„×" nur am neuesten positiven Eintrag
+- „XP ausgeben": Aktions- + Zieldropdown, Kostenanzeige, Inline-Bestätigung, Level-Cap-Hinweis
+- API-Fehler immer via `reportApiError` (kein stiller Catch)
+
+**`frontend/src/components/chronicle/CharacterSheet.tsx`**
+- Fetch-Block zu `load()` refactored (Refresh nach XP-Änderungen); `XpPanel` oben im Bogen integriert
+- Ziel-Listen abgeleitet: bekannte Skills (+Wert), nicht bekannte Skills, nicht genommene Stärken
+
+**`frontend/src/components/chronicle/ChronicleView.tsx`**
+- Karten zeigen `XpBar` (kompakt, Level + Fortschritt) + verfügbare XP
+
+### Verifikation (End-to-End-Smoke, Wegwerf-Charakter)
+Start-Log ✓ · +35 XP ✓ · Validierung 400 ✓ · Spend (xp 50→35, totalXp 50 konstant, State geändert) ✓ · Undo negativ 400 ✓ · Undo positiv ✓ · Level-Guard 400 ✓ · Aufräumen ✓ · `tsc`/Build ohne Fehler
+
 ## Schritt 16: Zauber-Meta (Dauer/Reichweite/Kosten) überall sichtbar (2026-10-21)
 
 ### Feedback (Tester)

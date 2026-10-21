@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
+import XpPanel from './XpPanel'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -47,7 +48,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const [raceMap, setRaceMap] = useState<Record<string, { name: string; description: string }>>({})
   const [cultureMap, setCultureMap] = useState<Record<string, { name: string; description: string }>>({})
 
-  useEffect(() => {
+  const load = () => {
     Promise.all([
       fetch(`${API_BASE}/api/characters/${characterId}/state`)
         .then(async r => {
@@ -150,7 +151,9 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         setLoading(false)
         reportApiError('Charakter konnte nicht geladen werden')
       })
-  }, [characterId])
+  }
+
+  useEffect(() => { load() }, [characterId])
 
   const handleDelete = async () => {
     try {
@@ -246,6 +249,18 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
             Löschen
           </button>
         </div>
+
+        <XpPanel
+          characterId={characterId}
+          knownSkills={Object.entries(skills).map(([id, value]) => ({ id, name: skillMap[id]?.name ?? id, value }))}
+          learnableSkills={Object.entries(skillMap)
+            .filter(([id]) => !(id in skills))
+            .map(([id, m]) => ({ id, name: m.name }))}
+          learnableStrengths={Object.entries(strengthMap)
+            .filter(([id]) => !staerken.includes(id))
+            .map(([id, m]) => ({ id, name: m.name }))}
+          onChanged={load}
+        />
 
         {schicksalName && (
           <div 
