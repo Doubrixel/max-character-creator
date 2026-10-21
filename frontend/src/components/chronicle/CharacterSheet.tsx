@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -88,7 +90,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         { id: string; name: string; description: string | null }[],
         { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null }[],
-        { id: string; name: string; description: string | null }[],
+        { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null }[],
       ]) => {
         setState(charData.state)
@@ -121,7 +123,10 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         setSpellMap(spMap)
         
         const rMap: Record<string, { name: string; description: string }> = {}
-        for (const r of racesData) rMap[r.id] = { name: r.name, description: r.description || '' }
+        for (const r of racesData) {
+          const cfg = r.config ? JSON.parse(r.config) : {}
+          rMap[r.id] = { name: r.name, description: cfg.beschreibung || r.description || '' }
+        }
         setRaceMap(rMap)
         
         const cMap: Record<string, { name: string; description: string }> = {}
@@ -517,13 +522,17 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
             {selectedDetail.description && (
               <div style={styles.detailSection}>
                 <div style={styles.detailSectionTitle}>Beschreibung</div>
-                <p style={styles.detailText}>{selectedDetail.description}</p>
+                <div className="markdown" style={styles.detailText}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedDetail.description}</ReactMarkdown>
+                </div>
               </div>
             )}
             {selectedDetail.extra && (
               <div style={styles.detailSection}>
                 <div style={styles.detailSectionTitle}>Effekt</div>
-                <p style={styles.detailText}>{selectedDetail.extra}</p>
+                <div className="markdown" style={styles.detailText}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedDetail.extra}</ReactMarkdown>
+                </div>
               </div>
             )}
           </div>
@@ -713,6 +722,5 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-primary)',
     lineHeight: 1.6,
     margin: 0,
-    whiteSpace: 'pre-wrap',
   },
 }

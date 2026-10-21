@@ -1,5 +1,34 @@
 # Implementierungsplan
 
+## Schritt 13: Markdown-Rendering für Regeltexte + Vollbild zentriert (2026-10-21)
+
+### Feedback
+- Vollbild bei der Rassenwahl: Inhalt lief randlos von Rand zu Rand
+- Regeltexte sind als Markdown gespeichert, wurden aber als Rohtext angezeigt
+
+### Implementierte Änderungen
+
+**Abhängigkeiten (`frontend`)**
+- `react-markdown@^10.1.0` + `remark-gfm@^4.0.1` (Tabellen, Listen, Strikethrough)
+
+**`frontend/src/theme.css`**
+- Neue `.markdown`-Klasse: Abstände für p/h1–h4/ul/ol, Code-, Blockquote-, Tabellen- und hr-Styles, Farbe erbt vom Kontext (`--detail-text`/`--text-primary`)
+
+**`frontend/src/components/creation/RasseStep.tsx`**
+- Beschreibung wird als Markdown gerendert (beide Modi); 200-Zeichen-Rohkürzung entfernt (führte sonst zu kaputtem Markdown am Schnitt)
+- Vollbild: neuer `fullscreenContent`-Wrapper (`maxWidth: 880`, zentriert) – Inhalt nicht mehr von Rand zu Rand
+
+**`frontend/src/components/library/RacesView.tsx`**
+- Detailpanel rendert `cfg.beschreibung` als Markdown (dieselbe Datenquelle)
+
+**`frontend/src/components/chronicle/CharacterSheet.tsx`**
+- Feld-Fix: Rassen-Popup las `r.description` (Spalte, meist `null`) → liest jetzt `config.beschreibung`
+- Detail-Popup (Beschreibung/Effekt) rendert Markdown
+
+### Verifikation
+- `tsc -b` + `vite build` ohne Fehler (Chunk-Warnung durch große Bibliotheksdaten, bereits vorhanden)
+- Smoke: Elf-Rasse in der lokalen DB mit realistischem Markdown-Spezialgesetz versehen; `/api/library/races` liefert es korrekt
+
 ## Schritt 12: Rassenwahl-Feedback behoben + lokale Testdaten bereinigt (2026-10-21)
 
 ### Feedback-Ausgangslage

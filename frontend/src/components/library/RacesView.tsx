@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 import RasseForm from './RasseForm'
 
@@ -172,7 +174,11 @@ export default function RacesView() {
               const cfg = parseConfig(selectedEntry.config)
               const beschreibung = cfg.beschreibung as string
               if (beschreibung) {
-                return <div style={styles.detailDesc}>{beschreibung}</div>
+                return (
+                  <div className="markdown" style={styles.detailDesc}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{beschreibung}</ReactMarkdown>
+                  </div>
+                )
               }
               return null
             })()}
@@ -259,8 +265,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500,
   },
   detailDesc: {
-    fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6,
-    whiteSpace: 'pre-wrap',
+    color: 'var(--text-primary)',
   },
   detailLists: {
     display: 'flex', flexDirection: 'column', gap: 12,

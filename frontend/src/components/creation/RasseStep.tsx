@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -83,6 +85,57 @@ export default function RasseStep({ onValid }: RasseStepProps) {
     return <div style={styles.loading}>Lade Rassen...</div>
   }
 
+  const detailContent = selectedRace ? (
+    <>
+      <div style={styles.detailHeader}>
+        <h3 style={styles.detailTitle}>
+          {selectedRace.icon} {selectedRace.name}
+        </h3>
+        <button
+          style={styles.fullscreenButton}
+          onClick={() => setFullscreen((f) => !f)}
+          aria-label={fullscreen ? 'Vollbild schließen' : 'Vollbild anzeigen'}
+        >
+          {fullscreen ? 'Verkleinern' : 'Vollbild'}
+        </button>
+      </div>
+      {selectedRace.beschreibung && (
+        <div className="markdown" style={styles.detailText}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {selectedRace.beschreibung}
+          </ReactMarkdown>
+        </div>
+      )}
+      <div style={styles.metaRow}>
+        <span style={styles.metaChip}>Größenklasse {selectedRace.groessenklasse}</span>
+      </div>
+      {vorteile.length > 0 && (
+        <div style={styles.statblock}>
+          <h4 style={styles.statblockTitle}>Vorteile</h4>
+          <ul style={styles.statList}>
+            {vorteile.map((v, i) => (
+              <li key={i} style={styles.statItem}>
+                {v}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {nachteile.length > 0 && (
+        <div style={styles.statblock}>
+          <h4 style={styles.statblockTitle}>Nachteile</h4>
+          <ul style={styles.statList}>
+            {nachteile.map((n, i) => (
+              <li key={i} style={styles.statItem}>
+                {n}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  ) : null
+
   return (
     <div style={styles.container}>
       <div style={styles.optionsGrid}>
@@ -102,53 +155,10 @@ export default function RasseStep({ onValid }: RasseStepProps) {
       </div>
       {selectedRace && (
         <div style={{ ...styles.detailPanel, ...(fullscreen ? styles.detailPanelFullscreen : {}) }}>
-          <div style={styles.detailHeader}>
-            <h3 style={styles.detailTitle}>
-              {selectedRace.icon} {selectedRace.name}
-            </h3>
-            <button
-              style={styles.fullscreenButton}
-              onClick={() => setFullscreen((f) => !f)}
-              aria-label={fullscreen ? 'Vollbild schließen' : 'Vollbild anzeigen'}
-            >
-              {fullscreen ? 'Verkleinern' : 'Vollbild'}
-            </button>
-          </div>
-          {selectedRace.beschreibung && (
-            <p style={styles.detailText}>
-              {fullscreen
-                ? selectedRace.beschreibung
-                : selectedRace.beschreibung.length > 200
-                  ? `${selectedRace.beschreibung.substring(0, 200)}...`
-                  : selectedRace.beschreibung}
-            </p>
-          )}
-          <div style={styles.metaRow}>
-            <span style={styles.metaChip}>Größenklasse {selectedRace.groessenklasse}</span>
-          </div>
-          {vorteile.length > 0 && (
-            <div style={styles.statblock}>
-              <h4 style={styles.statblockTitle}>Vorteile</h4>
-              <ul style={styles.statList}>
-                {vorteile.map((v, i) => (
-                  <li key={i} style={styles.statItem}>
-                    {v}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {nachteile.length > 0 && (
-            <div style={styles.statblock}>
-              <h4 style={styles.statblockTitle}>Nachteile</h4>
-              <ul style={styles.statList}>
-                {nachteile.map((n, i) => (
-                  <li key={i} style={styles.statItem}>
-                    {n}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {fullscreen ? (
+            <div style={styles.fullscreenContent}>{detailContent}</div>
+          ) : (
+            detailContent
           )}
         </div>
       )}
@@ -229,6 +239,10 @@ const styles: Record<string, React.CSSProperties> = {
     alignSelf: 'auto',
     overflowY: 'auto',
     zIndex: 1000,
+  },
+  fullscreenContent: {
+    maxWidth: 880,
+    margin: '0 auto',
   },
   detailHeader: {
     display: 'flex',
