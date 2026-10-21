@@ -1,5 +1,97 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
+
+// --- Robustes Parsen der Kultur-Config --------------------------------------
+// Die config speichert Listen teils als JSON-Strings (doppelt kodiert) und teils
+// als echte Arrays; Einträge können leer oder unvollständig sein. Diese Helper
+// normalisieren beides und werfen nie (kein Crash bei kaputten Einträgen).
+
+interface KulturEntry {
+  name: string
+  punkte: number
+  anzahl: number
+}
+
+interface KulturConfig {
+  talente: KulturEntry[]
+  waffenTalente: KulturEntry[]
+  magieSchulen: KulturEntry[]
+  staerken: KulturEntry[]
+}
+
+const EMPTY_KULTUR_CONFIG: KulturConfig = {
+  talente: [],
+  waffenTalente: [],
+  magieSchulen: [],
+  staerken: [],
+}
+
+function asArray(value: unknown): unknown[] {
+  if (value == null) return []
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string') {
+    const s = value.trim()
+    if (!s) return []
+    try {
+      const parsed: unknown = JSON.parse(s)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function entryField(entry: unknown, key: string): string {
+  if (!entry || typeof entry !== 'object') return ''
+  const v = (entry as Record<string, unknown>)[key]
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+function entryNumber(entry: unknown, key: string): number {
+  if (!entry || typeof entry !== 'object') return 0
+  const v = (entry as Record<string, unknown>)[key]
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) return Number(v)
+  return 0
+}
+
+function parseEntries(value: unknown): KulturEntry[] {
+  return asArray(value)
+    .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+    .map(entry => ({
+      name: entryField(entry, 'name'),
+      punkte: entryNumber(entry, 'punkte'),
+      anzahl: entryNumber(entry, 'anzahl'),
+    }))
+    .filter(entry => entry.name !== '')
+}
+
+function parseKulturConfig(config: string | null): KulturConfig {
+  if (!config) return EMPTY_KULTUR_CONFIG
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(config)
+  } catch {
+    return EMPTY_KULTUR_CONFIG
+  }
+  if (!parsed || typeof parsed !== 'object') return EMPTY_KULTUR_CONFIG
+  const cfg = parsed as Record<string, unknown>
+  return {
+    talente: parseEntries(cfg.talente),
+    waffenTalente: parseEntries(cfg.waffenTalente),
+    magieSchulen: parseEntries(cfg.magieSchulen),
+    staerken: parseEntries(cfg.staerken),
+  }
+}
+
+function formatEntry(entry: KulturEntry): string {
+  if (entry.punkte > 0) return `${entry.name} +${entry.punkte}`
+  if (entry.anzahl > 1) return `${entry.name} ×${entry.anzahl}`
+  return entry.name
+}
 
 interface LibraryItem {
   id: string
@@ -72,6 +164,15 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
   })
 
   const selectedKultur = filteredKulturen.find((k) => k.id === selectedId)
+  const kulturConfig = selectedKultur ? parseKulturConfig(selectedKultur.config) : null
+  const statblockSections: { title: string, entries: KulturEntry[] }[] = kulturConfig
+    ? [
+        { title: 'Talente', entries: kulturConfig.talente },
+        { title: 'Waffentalente', entries: kulturConfig.waffenTalente },
+        { title: 'Magieschulen', entries: kulturConfig.magieSchulen },
+        { title: 'Stärken', entries: kulturConfig.staerken },
+      ].filter((section) => section.entries.length > 0)
+    : []
 
   if (loading) {
     return <div style={styles.loading}>Lade Kulturen...</div>
@@ -103,11 +204,20 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
         <div style={styles.detailPanel}>
           <h3 style={styles.detailTitle}>{selectedKultur.name}</h3>
           {selectedKultur.description && (
-            <p style={styles.detailText}>{selectedKultur.description}</p>
+            <div className="markdown" style={styles.detailText}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedKultur.description}</ReactMarkdown>
+            </div>
           )}
-          {selectedKultur.config && (
-            <pre style={styles.detailConfig}>{JSON.stringify(JSON.parse(selectedKultur.config), null, 2)}</pre>
-          )}
+          {statblockSections.map((section) => (
+            <div key={section.title} style={styles.statblock}>
+              <h4 style={styles.statblockTitle}>{section.title}</h4>
+              <ul style={styles.statList}>
+                {section.entries.map((entry, i) => (
+                  <li key={i} style={styles.statItem}>{formatEntry(entry)}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -169,7 +279,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
   },
   detailPanel: {
-    width: '25%',
+    width: '35%',
+    minWidth: 280,
     background: 'var(--bg-detail)',
     border: '1px solid var(--border)',
     borderRadius: 8,
@@ -188,13 +299,21 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--detail-text)',
     margin: '0 0 12px 0',
   },
-  detailConfig: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    background: 'var(--bg-secondary)',
-    padding: 12,
-    borderRadius: 6,
-    overflow: 'auto',
-    whiteSpace: 'pre-wrap',
+  statblock: {
+    marginTop: 12,
+  },
+  statblockTitle: {
+    margin: '8px 0 4px 0',
+    fontSize: 14,
+    color: 'var(--detail-title)',
+  },
+  statList: {
+    margin: '0 0 12px 0',
+    paddingLeft: 20,
+  },
+  statItem: {
+    fontSize: 13,
+    color: 'var(--detail-text)',
+    marginBottom: 4,
   },
 }

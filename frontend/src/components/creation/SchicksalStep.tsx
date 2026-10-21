@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 
 const destinies = [
@@ -88,7 +90,9 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
       {selectedDestiny && (
         <div style={styles.detailPanel}>
           <h3 style={styles.detailTitle}>{selectedDestiny.icon} {selectedDestiny.name}</h3>
-          <p style={styles.detailText}>{selectedDestiny.ruleText}</p>
+          <div className="markdown" style={styles.detailText}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedDestiny.ruleText}</ReactMarkdown>
+          </div>
         </div>
       )}
     </div>

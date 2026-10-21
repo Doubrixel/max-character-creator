@@ -1,5 +1,29 @@
 # Implementierungsplan
 
+## Schritt 14: Kultur-Infofenster nutzbar gemacht (Statblock statt JSON-Dump) (2026-10-21)
+
+### Feedback (Tester)
+- „Bei der Wahl der Kultur ist das Infofenster useless – zeigt nicht an, mit dem man was anfangen kann"
+- Ursache: das Panel zeigte die `config` als rohen JSON-Dump in einem `<pre>` (doppelt kodierte Arrays, maskierte Strings) – unlesbar
+
+### Implementierte Änderungen
+
+**`frontend/src/components/creation/KulturSelectStep.tsx`**
+- Robuster Parser-Stack (`asArray`/`parseEntries`/`parseKulturConfig`): behandelt doppelt kodierte Strings, bereits geparste Arrays, kaputtes JSON, null und leere Einträge – **wirft nie**, filtert Einträge ohne Namen; numerische Felder werden String↔Number-sicher gelesen
+- Panel zeigt statt des Dumps geordnete Abschnitte: **Talente** (`Handwerk +2`), **Waffentalente** (`Klingenwaffen +2`), **Magieschulen** (`Schutzmagie +2`), **Stärken** (`Zäh ×2`) – leere Abschnitte entfallen
+- Beschreibung als Markdown gerendert (`.markdown`-Klasse, react-markdown + remark-gfm)
+- Detailpanel 25 % → 35 % (+ `minWidth: 280`), konsistent zum RasseStep
+
+**`frontend/src/components/creation/SchicksalStep.tsx`**
+- Regeltext (`ruleText`) ebenfalls als Markdown gerendert (gleiches Plaintext-Muster wie zuvor Rasse/Kultur)
+
+### Robustheits-Nachweis (Einmal-Test gegen 7 Fälle)
+Stadthandwerker-Config (doppelt kodiert) ✓ · leere Namen/Einträge gefiltert ✓ · bereits geparste Arrays ✓ · kaputtes JSON ohne Crash ✓ · leere Strings ✓ · Punktzahlen als Strings ✓ · null ✓
+
+### Verifikation
+- `tsc -b` + `vite build` ohne Fehler
+- Empfohlener manuelle Test: Schritt 1 (Schicksal) und Schritt 4 (Kultur) durchklicken; „Stadthandwerker" zeigt alle 4 Abschnitte
+
 ## Schritt 13: Markdown-Rendering für Regeltexte + Vollbild zentriert (2026-10-21)
 
 ### Feedback
