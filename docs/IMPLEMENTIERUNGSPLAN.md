@@ -1,5 +1,32 @@
 # Implementierungsplan
 
+## Schritt 16: Zauber-Meta (Dauer/Reichweite/Kosten) überall sichtbar (2026-10-21)
+
+### Feedback (Tester)
+- „Wann immer man Details zu Spells sieht, wären Sachen wie Reichweite, Kosten und Castdauer interessant"
+- Befund: die Felder liegen in der Spell-Config vor, wurden aber an 3 Stellen nicht angezeigt
+
+### Implementierte Änderungen
+
+**`frontend/src/components/creation/ZauberStep.tsx`**
+- `SpellInfo` um `schwierigkeit`/`kosten`/`zauberdauer`/`reichweite` erweitert (robuster Feld-Lese-Helper)
+- Gewählter Zauber zeigt kompakte Meta-Zeile (`Schwierigkeit 15 · Kosten K1 · Dauer 1 Tick · Reichweite Berührung`), Felder nur wenn belegt
+- Wirkungstext jetzt als Markdown gerendert
+
+**`frontend/src/components/chronicle/CharacterSheet.tsx`**
+- `spellMap` lädt jetzt `config` (bislang nur name+description → Meta war unsichtbar) und baut die Meta-Zeile
+- `DetailInfo` um `meta?: string[]` erweitert; Popup zeigt „Zauberdaten"-Abschnitt über der Beschreibung
+- Zauber-Eintrag klickbar, wenn Beschreibung **oder** Meta vorhanden
+
+**`frontend/src/components/library/SpellsView.tsx`**
+- Detailpanel-Meta vollständig: Typus, Schwierigkeit, Kosten, Dauer, Reichweite, Wirkungsdauer, Bereich (nur belegte Felder)
+- Wirkungstext als Markdown gerendert
+
+### Verifikation
+- `tsc -b` + `vite build` ohne Fehler
+- API-Smoke: Spells mit Reichweite/Kosten/Dauer vorhanden (Beispielzauber geprüft)
+- Manuell: Zauber-Step → Zauber wählen (Meta-Zeile); Chronik → Zauber anklicken; Bibliothek → Spells
+
 ## Schritt 15: Weiter-Freigabe im KindheitStep korrigiert (2026-10-21)
 
 ### Feedback (Tester)

@@ -15,6 +15,7 @@ interface DetailInfo {
   name: string
   description: string
   extra?: string
+  meta?: string[]
 }
 
 const SKILL_NAMES: Record<string, string> = {
@@ -42,7 +43,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const [skillMap, setSkillMap] = useState<Record<string, { name: string; description: string }>>({})
   const [strengthMap, setStrengthMap] = useState<Record<string, { name: string; description: string }>>({})
   const [masteryMap, setMasteryMap] = useState<Record<string, { name: string; description: string; effekt: string }>>({})
-  const [spellMap, setSpellMap] = useState<Record<string, { name: string; description: string }>>({})
+  const [spellMap, setSpellMap] = useState<Record<string, { name: string; description: string; meta: string[] }>>({})
   const [raceMap, setRaceMap] = useState<Record<string, { name: string; description: string }>>({})
   const [cultureMap, setCultureMap] = useState<Record<string, { name: string; description: string }>>({})
 
@@ -89,7 +90,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         { id: string; name: string; description: string | null }[],
         { id: string; name: string; description: string | null }[],
         { id: string; name: string; description: string | null; config: string | null }[],
-        { id: string; name: string; description: string | null }[],
+        { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null }[],
       ]) => {
@@ -118,8 +119,17 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         }
         setMasteryMap(mstMap)
         
-        const spMap: Record<string, { name: string; description: string }> = {}
-        for (const s of spellsData) spMap[s.id] = { name: s.name, description: s.description || '' }
+        const spMap: Record<string, { name: string; description: string; meta: string[] }> = {}
+        for (const s of spellsData) {
+          const cfg = s.config ? JSON.parse(s.config) : {}
+          const metaParts = [
+            typeof cfg.schwierigkeit === 'string' && cfg.schwierigkeit && `Schwierigkeit ${cfg.schwierigkeit}`,
+            typeof cfg.kosten === 'string' && cfg.kosten && `Kosten ${cfg.kosten}`,
+            typeof cfg.zauberdauer === 'string' && cfg.zauberdauer && `Dauer ${cfg.zauberdauer}`,
+            typeof cfg.reichweite === 'string' && cfg.reichweite && `Reichweite ${cfg.reichweite}`,
+          ].filter(Boolean)
+          spMap[s.id] = { name: s.name, description: s.description || '', meta: metaParts as string[] }
+        }
         setSpellMap(spMap)
         
         const rMap: Record<string, { name: string; description: string }> = {}
@@ -453,14 +463,16 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
                         <span style={styles.spellGrade}>Grad {spell.grade}:</span>
                         <span 
                           style={{
-                            ...(spellMap[spell.spellId]?.description ? styles.clickable : {})
+                            ...((spellMap[spell.spellId]?.description || spellMap[spell.spellId]?.meta.length) ? styles.clickable : {})
                           }}
                           onClick={() => {
-                            if (spellMap[spell.spellId]?.description) {
+                            const info = spellMap[spell.spellId]
+                            if (info?.description || info?.meta.length) {
                               setSelectedDetail({
                                 type: 'Zauber',
                                 name: spell.spellName,
-                                description: spellMap[spell.spellId].description
+                                description: info.description,
+                                meta: info.meta
                               })
                             }
                           }}
@@ -519,6 +531,12 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
           </div>
           <div style={styles.detailType}>{selectedDetail.type}</div>
           <div style={styles.detailContent}>
+            {selectedDetail.meta && selectedDetail.meta.length > 0 && (
+              <div style={styles.detailSection}>
+                <div style={styles.detailSectionTitle}>Zauberdaten</div>
+                <div style={styles.detailMetaValue}>{selectedDetail.meta.join(' · ')}</div>
+              </div>
+            )}
             {selectedDetail.description && (
               <div style={styles.detailSection}>
                 <div style={styles.detailSectionTitle}>Beschreibung</div>
@@ -716,6 +734,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     color: 'var(--text-secondary)',
     textTransform: 'uppercase',
+  },
+  detailMetaValue: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-primary)',
   },
   detailText: {
     fontSize: 14,

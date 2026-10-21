@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { FULL_MAGIC_SKILLS, TYPE_SCHEMAS } from './typeSchemas'
 import { useAppContext } from '../../context/AppContext'
 import { schuwenwertToGrad } from '@mcc/shared'
@@ -411,13 +413,19 @@ export default function SpellsView() {
                 if (schulen.length > 0) {
                   parts.push(schulen.map(s => `${s.name} (Grad ${schuwenwertToGrad(s.wert)})`).join(', '))
                 }
+                if (cfg.typus) parts.push(`Typus: ${cfg.typus}`)
+                if (cfg.schwierigkeit) parts.push(`Schwierigkeit: ${cfg.schwierigkeit}`)
                 if (cfg.kosten) parts.push(`Kosten: ${cfg.kosten}`)
+                if (cfg.zauberdauer) parts.push(`Dauer: ${cfg.zauberdauer}`)
+                if (cfg.reichweite) parts.push(`Reichweite: ${cfg.reichweite}`)
+                if (cfg.wirkungsdauer) parts.push(`Wirkungsdauer: ${cfg.wirkungsdauer}`)
+                if (cfg.wirkungsbereich) parts.push(`Bereich: ${cfg.wirkungsbereich}`)
                 return parts.join(' · ')
               })()}
             </div>
             {selectedEntry.description && (
-              <div style={styles.detailDesc}>
-                {selectedEntry.description}
+              <div className="markdown" style={styles.detailDesc}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedEntry.description}</ReactMarkdown>
               </div>
             )}
           </div>
@@ -454,8 +462,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500,
   },
   detailDesc: {
-    fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6,
-    whiteSpace: 'pre-wrap',
+    fontSize: 14, color: 'var(--text-primary)',
   },
   detailPlaceholder: {
     color: 'var(--text-tertiary)', fontSize: 14, fontStyle: 'italic',

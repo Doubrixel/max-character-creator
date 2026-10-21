@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 import type { PickedItem, PflichtMeisterschaft, PickedSpell } from '@mcc/shared'
 
@@ -38,6 +40,10 @@ interface SpellInfo {
   description: string | null
   schulen: { id: string; name: string; wert: number }[]
   artefakt: string
+  schwierigkeit: string
+  kosten: string
+  zauberdauer: string
+  reichweite: string
 }
 
 interface ZauberStepProps {
@@ -109,12 +115,17 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
           const cfg = parseConfig(s.config)
           const schulenRaw = cfg.schulen || '[]'
           const schulen = typeof schulenRaw === 'string' ? JSON.parse(schulenRaw) : schulenRaw
+          const field = (key: string): string => (typeof cfg[key] === 'string' ? cfg[key] as string : '')
           return {
             id: s.id,
             name: s.name,
             description: s.description,
             schulen: schulen as { id: string; name: string; wert: number }[],
-            artefakt: typeof cfg.artefakt === 'string' ? cfg.artefakt : 'Spruch',
+            artefakt: field('artefakt') || 'Spruch',
+            schwierigkeit: field('schwierigkeit'),
+            kosten: field('kosten'),
+            zauberdauer: field('zauberdauer'),
+            reichweite: field('reichweite'),
           }
         }))
       })
@@ -340,11 +351,28 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
                             <option key={s.id} value={s.id}>{s.name}</option>
                           ))}
                         </select>
-                        {picked && (
-                          <div style={styles.spellDescription}>
-                            {spells.find(s => s.id === picked.spellId)?.description}
-                          </div>
-                        )}
+                        {picked && (() => {
+                          const spell = spells.find(s => s.id === picked.spellId)
+                          if (!spell) return null
+                          const metaParts = [
+                            spell.schwierigkeit && `Schwierigkeit ${spell.schwierigkeit}`,
+                            spell.kosten && `Kosten ${spell.kosten}`,
+                            spell.zauberdauer && `Dauer ${spell.zauberdauer}`,
+                            spell.reichweite && `Reichweite ${spell.reichweite}`,
+                          ].filter(Boolean)
+                          return (
+                            <div style={styles.spellDescription}>
+                              {spell.description && (
+                                <div className="markdown">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{spell.description}</ReactMarkdown>
+                                </div>
+                              )}
+                              {metaParts.length > 0 && (
+                                <div style={styles.spellMeta}>{metaParts.join(' · ')}</div>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   )
@@ -438,6 +466,13 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-secondary)',
     lineHeight: 1.4,
     fontStyle: 'italic',
+  },
+  spellMeta: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: 600,
+    fontStyle: 'normal',
+    color: 'var(--text-tertiary)',
   },
   skillRow: {
     display: 'flex',
