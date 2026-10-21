@@ -1,5 +1,35 @@
 # Implementierungsplan
 
+## Schritt 12: Rassenwahl-Feedback behoben + lokale Testdaten bereinigt (2026-10-21)
+
+### Feedback-Ausgangslage
+- „Bei der Rassenwahl sieht man nichts von Relevanz" → Ursache: `RasseStep` las `cfg.spezieslaw`, gespeichert wird aber `cfg.beschreibung` (Library-Formular) – der Detailtext war dadurch immer leer.
+- „MaxWindow-Button fehl am Platz, bewirkt nichts" → der Vollbild-Toggle zeigte bei leerem Detailtext denselben (fast leeren) Inhalt; kryptische Fenster-Glyphen wirkten deplatziert.
+
+### Implementierte Änderungen
+
+**`frontend/src/components/creation/RasseStep.tsx`**
+- Feld-Mismatch behoben: `cfg.beschreibung` wird gelesen (Fallback auf `r.description`), lokales Feld `speciesLaw` → `beschreibung` umbenannt
+- Vollbild-Toggle bleibt (Nutzerentscheidung): klare Beschriftung „Vollbild"/„Verkleinern" statt Fenster-Glyphen, Vollbild zeigt vollständigen Text (Kürzung auf 200 Zeichen nur in der verkleinerten Ansicht), Escape schließt weiterhin
+- Detailpanel 25 % → 35 % Breite (+ `minWidth: 280`), Größenklasse als Chip, Vorteile-/Nachteile-Abschnitte nur bei vorhandenen Einträgen, leere Strings werden beim Rendern gefiltert
+- Rassen-Auswahlkarten bleiben bewusst schlank (Name + Icon), alle Infos im Detailpanel
+
+**`backend/src/db/seed.ts`** (für frische Seeds)
+- Race-Seed: `beschreibung` für Mensch/Elf ergänzt
+- Kultur-Seed: Beschreibungen für Mittelreich/Waldelfen
+- `RACE_STRENGTH_SEED`: Beschreibungen für Anpassungsfähig, Nachtsicht, Empfindlich gegen Eisen (bisher `null`)
+
+### Lokale Testdaten (`backend/sqlite.db`, vorher gesichert als `sqlite.backup.db`)
+- Gelöscht (referenzfrei, gegen `character_steps.delta` geprüft): Rassen „blubb" und „reeet", Kultur „fdfdgdrzr"
+- Umbenannt: Kultur „handwer2klingenwaffen2schutzmagie2zäh2" → „Stadthandwerker" (+ Beschreibung; ID unverändert, damit Charakterbezüge halten)
+- Testcharaktere „qwertz"/„qqqq" → „Testcharakter 1"/„Testcharakter 2"; eingebettete Kultur-Snapshots in `characters.state` und `character_steps.delta` mit sanitiert
+- Beschreibungen ergänzt: Rassen Mensch/Elf, Kulturen Mittelreich/Waldelfen, Rassen-Stärken
+- Hinweis: `sqlite.db` im Repo-Root ist vollständig leer (keine Tabellen, veraltete Rest-Datei) und kann bei Bedarf entfernt werden
+
+### Verifikation
+- `tsc -b` (frontend) und `tsc -p tsconfig.json` (backend) ohne Fehler
+- Backend-Smoke-Test: `/api/library/races` liefert Rassen mit `config.beschreibung`, `/api/characters` liefert umbenannte Testcharaktere
+
 ## Schritt 11: Spells-Import aus Spells.md (2026-08-02)
 
 ### Ziel

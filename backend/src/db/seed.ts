@@ -90,9 +90,9 @@ const STRENGTH_SEED = [
 ];
 
 const RACE_STRENGTH_SEED = [
-  { name: 'Anpassungsfähig', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
-  { name: 'Nachtsicht', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
-  { name: 'Empfindlich gegen Eisen', description: null, config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'nachteil' }) },
+  { name: 'Anpassungsfähig', description: 'Passt sich neuen Umgebungen und ungewohnten Situationen rasch an.', config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
+  { name: 'Nachtsicht', description: 'Sieht in Dunkelheit und Dämmerung weit besser als Menschen.', config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'vorteil' }) },
+  { name: 'Empfindlich gegen Eisen', description: 'Berührung mit Eisen verursacht Unbehagen und Erschwernisse.', config: JSON.stringify({ kosten: '0', nur_bei_erstellung: 'false', kategorie: 'rasse', unterkategorie: 'nachteil' }) },
 ];
 
 const DERIVED_VALUE_SEED = [
@@ -188,8 +188,8 @@ export async function seedIfNeeded(): Promise<void> {
 
   if (await isEmpty(races)) {
     const raceData = [
-      { name: 'Mensch', config: JSON.stringify({ vorteile: ['Anpassungsfähig'], nachteile: [], groessenklasse: 3 }) },
-      { name: 'Elf', config: JSON.stringify({ vorteile: ['Nachtsicht'], nachteile: ['Empfindlich gegen Eisen'], groessenklasse: 2 }) },
+      { name: 'Mensch', config: JSON.stringify({ beschreibung: 'Vielseitig und anpassungsfähig – die dominante Rasse des Mittelreichs.', vorteile: ['Anpassungsfähig'], nachteile: [], groessenklasse: 3 }) },
+      { name: 'Elf', config: JSON.stringify({ beschreibung: 'Anmutig, langlebig und magieverbunden – doch Eisen widern die Elfen an.', vorteile: ['Nachtsicht'], nachteile: ['Empfindlich gegen Eisen'], groessenklasse: 2 }) },
     ];
     for (const entry of raceData) {
       await db.insert(races).values({ id: randomUUID(), ...entry, createdAt: now, updatedAt: now });
@@ -197,8 +197,12 @@ export async function seedIfNeeded(): Promise<void> {
   }
 
   if (await isEmpty(cultures)) {
-    for (const name of ['Mittelreich', 'Waldelfen']) {
-      await db.insert(cultures).values({ id: randomUUID(), name, createdAt: now, updatedAt: now });
+    const cultureData = [
+      { name: 'Mittelreich', description: 'Das bevölkerungsreiche Kernland der Menschen, geprägt von Adel, Handel und Rittertum.' },
+      { name: 'Waldelfen', description: 'Elfische Kultur der großen Wälder, im Einklang mit Natur und Magie.' },
+    ];
+    for (const entry of cultureData) {
+      await db.insert(cultures).values({ id: randomUUID(), ...entry, createdAt: now, updatedAt: now });
     }
   }
 

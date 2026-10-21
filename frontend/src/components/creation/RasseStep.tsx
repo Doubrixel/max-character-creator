@@ -3,7 +3,7 @@ import { useAppContext } from '../../context/AppContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
-type Race = { id: string, name: string, icon: string, speciesLaw: string, groessenklasse: number, statblock: { vorteile: string[], nachteile: string[] } }
+type Race = { id: string, name: string, icon: string, beschreibung: string, groessenklasse: number, statblock: { vorteile: string[], nachteile: string[] } }
 
 interface RasseStepProps {
   onValid: (valid: boolean) => void
@@ -40,7 +40,7 @@ export default function RasseStep({ onValid }: RasseStepProps) {
             id: r.id,
             name: r.name,
             icon: cfg.bildUrl ? '🖼️' : '🧑',
-            speciesLaw: cfg.spezieslaw || r.description || '',
+            beschreibung: cfg.beschreibung || r.description || '',
             groessenklasse: typeof cfg.groessenklasse === 'number' ? cfg.groessenklasse : 3,
             statblock: {
               vorteile: cfg.vorteile ? (typeof cfg.vorteile === 'string' ? JSON.parse(cfg.vorteile) : cfg.vorteile) : [],
@@ -76,6 +76,8 @@ export default function RasseStep({ onValid }: RasseStepProps) {
   }
 
   const selectedRace = races.find((r) => r.id === selected)
+  const vorteile = selectedRace ? selectedRace.statblock.vorteile.filter(v => v && v.trim()) : []
+  const nachteile = selectedRace ? selectedRace.statblock.nachteile.filter(n => n && n.trim()) : []
 
   if (dataLoading) {
     return <div style={styles.loading}>Lade Rassen...</div>
@@ -109,30 +111,45 @@ export default function RasseStep({ onValid }: RasseStepProps) {
               onClick={() => setFullscreen((f) => !f)}
               aria-label={fullscreen ? 'Vollbild schließen' : 'Vollbild anzeigen'}
             >
-              {fullscreen ? '🗕 Verkleinern' : '⛶ Vollbild'}
+              {fullscreen ? 'Verkleinern' : 'Vollbild'}
             </button>
           </div>
-          <p style={styles.detailText}>
-            {fullscreen ? selectedRace.speciesLaw : selectedRace.speciesLaw.length > 200 ? `${selectedRace.speciesLaw.substring(0, 200)}...` : selectedRace.speciesLaw}
-          </p>
-          <div style={styles.statblock}>
-            <h4 style={styles.statblockTitle}>Vorteile</h4>
-            <ul style={styles.statList}>
-              {selectedRace.statblock.vorteile.map((v, i) => (
-                <li key={i} style={styles.statItem}>
-                  {v}
-                </li>
-              ))}
-            </ul>
-            <h4 style={styles.statblockTitle}>Nachteile</h4>
-            <ul style={styles.statList}>
-              {selectedRace.statblock.nachteile.map((n, i) => (
-                <li key={i} style={styles.statItem}>
-                  {n}
-                </li>
-              ))}
-            </ul>
+          {selectedRace.beschreibung && (
+            <p style={styles.detailText}>
+              {fullscreen
+                ? selectedRace.beschreibung
+                : selectedRace.beschreibung.length > 200
+                  ? `${selectedRace.beschreibung.substring(0, 200)}...`
+                  : selectedRace.beschreibung}
+            </p>
+          )}
+          <div style={styles.metaRow}>
+            <span style={styles.metaChip}>Größenklasse {selectedRace.groessenklasse}</span>
           </div>
+          {vorteile.length > 0 && (
+            <div style={styles.statblock}>
+              <h4 style={styles.statblockTitle}>Vorteile</h4>
+              <ul style={styles.statList}>
+                {vorteile.map((v, i) => (
+                  <li key={i} style={styles.statItem}>
+                    {v}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {nachteile.length > 0 && (
+            <div style={styles.statblock}>
+              <h4 style={styles.statblockTitle}>Nachteile</h4>
+              <ul style={styles.statList}>
+                {nachteile.map((n, i) => (
+                  <li key={i} style={styles.statItem}>
+                    {n}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -189,7 +206,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
   detailPanel: {
-    width: '25%',
+    width: '35%',
+    minWidth: 280,
     background: 'var(--bg-detail)',
     border: '1px solid var(--border)',
     borderRadius: 8,
@@ -207,6 +225,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: 'auto',
     maxWidth: 'none',
     borderRadius: 0,
+    padding: 32,
     alignSelf: 'auto',
     overflowY: 'auto',
     zIndex: 1000,
@@ -226,11 +245,27 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 10px',
     cursor: 'pointer',
     fontSize: 13,
+    fontWeight: 600,
   },
   detailTitle: {
     margin: '0 0 12px 0',
     fontSize: 18,
     color: 'var(--detail-title)',
+  },
+  metaRow: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+    margin: '0 0 12px 0',
+  },
+  metaChip: {
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '4px 10px',
+    borderRadius: 999,
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border)',
+    color: 'var(--detail-text)',
   },
   detailText: {
     fontSize: 14,
