@@ -96,9 +96,9 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const staerkeAvailable = 1 - staerkeUsed
 
   useEffect(() => {
-    const valid = staerke !== ''
+    const valid = staerke !== '' && availablePoints <= 0
     onValid(valid)
-  }, [staerke, onValid])
+  }, [staerke, availablePoints, onValid])
 
   const incrementSkill = (id: string) => {
     const current = getSkillValue(id)

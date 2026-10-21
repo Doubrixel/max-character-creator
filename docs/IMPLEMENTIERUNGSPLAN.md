@@ -1,5 +1,24 @@
 # Implementierungsplan
 
+## Schritt 15: Weiter-Freigabe im KindheitStep korrigiert (2026-10-21)
+
+### Feedback (Tester)
+- „Beim 4. Step kann ich weiter, obwohl ich nicht alle Punkte vergeben hab"
+- Ursache: `KindheitStep` validierte nur, dass eine Stärke gewählt wurde – die 20 Fertigkeits-Punkte (Restzähler) flossen nicht in die Weiter-Freigabe ein
+
+### Implementierte Änderungen
+
+**`frontend/src/components/creation/KindheitStep.tsx`**
+- Validierung erweitert: `staerke !== '' && availablePoints <= 0` (alle Punkte müssen verteilt sein, gleiche Regel wie Ausbildung/Hobbybedarf)
+- `availablePoints` in die Effect-Dependencies aufgenommen (frische Freigabe bei jeder Änderung; Rücknahme eines Punktes deaktiviert „Weiter" sofort wieder)
+
+### Systemcheck aller Steps
+Alle übrigen Steps validieren vollständig (Schicksal/Rasse/Kultur/Name: Auswahl; Abstammung: Phasen+Zeilen+Magie; Attribute: Pool+Verteilung; Ausbildung/Hobbybedarf: alle Zähler = 0; Zauber: Pflicht-Abdeckung). Der KindheitStep war die einzige Lücke.
+
+### Verifikation
+- `tsc -b` + `vite build` ohne Fehler
+- Manuell prüfen: Stärke wählen ohne Punktevergabe → „Weiter" disabled; 20. Punkt verteilt → aktiv; Punkt zurückgenommen → wieder disabled
+
 ## Schritt 14: Kultur-Infofenster nutzbar gemacht (Statblock statt JSON-Dump) (2026-10-21)
 
 ### Feedback (Tester)
