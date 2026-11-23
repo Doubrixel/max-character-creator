@@ -109,29 +109,12 @@ const DERIVED_VALUE_SEED = [
 
 async function syncDerivedValues() {
   const existing = await db.select().from(derivedValues);
-  const currentSignatures = existing.map((e) => {
-    let formel = '';
-    if (e.config) {
-      try {
-        const cfg = JSON.parse(e.config);
-        formel = typeof cfg.formel === 'string' ? cfg.formel : '';
-      } catch {
-        formel = e.config;
-      }
-    }
-    return JSON.stringify({ name: e.name, description: e.description ?? '', formel });
-  });
-  const targetSignatures = DERIVED_VALUE_SEED.map((e) =>
-    JSON.stringify({ name: e.name, description: e.description, formel: e.formel }),
-  );
-  const matches =
-    existing.length === DERIVED_VALUE_SEED.length &&
-    targetSignatures.every((sig) => currentSignatures.includes(sig));
-  if (matches) return;
+  const existingNames = new Set(existing.map((entry) => entry.name));
+  const missing = DERIVED_VALUE_SEED.filter((entry) => !existingNames.has(entry.name));
+  if (missing.length === 0) return;
 
   const now = Date.now();
-  await db.delete(derivedValues);
-  for (const entry of DERIVED_VALUE_SEED) {
+  for (const entry of missing) {
     await db.insert(derivedValues).values({
       id: randomUUID(),
       name: entry.name,
@@ -141,7 +124,7 @@ async function syncDerivedValues() {
       updatedAt: now,
     });
   }
-  console.log(`Seed: synced derived values (${DERIVED_VALUE_SEED.length})`);
+  console.log(`Seed: added missing derived values (${missing.length})`);
 }
 
 async function syncRaceStrengths() {

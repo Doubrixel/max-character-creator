@@ -1,25 +1,25 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend/package.json backend/
 COPY shared/package.json shared/
-RUN npm ci
+RUN npm ci --omit=peer
 
 COPY frontend/ frontend/
 COPY backend/ backend/
 COPY shared/ shared/
 RUN npm run build --workspace=frontend
 
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/
 COPY backend/package.json backend/
 COPY shared/package.json shared/
-RUN npm ci
+RUN npm ci --omit=dev --omit=peer
 
 COPY --from=builder /app/frontend/dist frontend/dist
 COPY --from=builder /app/backend/src backend/src
@@ -34,4 +34,4 @@ ENV DATABASE_URL=file:///app/data/sqlite.db
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "backend/src/server.ts"]
+CMD ["node", "--import=tsx", "backend/src/server.ts"]

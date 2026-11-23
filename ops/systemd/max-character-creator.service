@@ -1,0 +1,27 @@
+[Unit]
+Description=Max Character Creator
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=maxcc
+Group=maxcc
+WorkingDirectory=/srv/max-character-creator/current
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DATABASE_URL=file:///var/lib/max-character-creator/sqlite.db
+EnvironmentFile=/srv/max-character-creator/current/.release.env
+ExecStart=/opt/node/bin/node --import=tsx backend/src/server.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=90
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/max-character-creator /var/lib/maxcc
+
+[Install]
+WantedBy=multi-user.target

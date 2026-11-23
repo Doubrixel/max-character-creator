@@ -27,6 +27,7 @@ async function repairCharactersTable() {
   if (await hasPrimaryKey('characters')) return;
 
   console.log('Migration: repairing characters table (lost PK)');
+  const hasState = await columnExists('characters', 'state');
 
   await client.execute(`CREATE TABLE characters_backup (
     id text PRIMARY KEY NOT NULL,
@@ -34,12 +35,18 @@ async function repairCharactersTable() {
     created_at integer,
     updated_at integer,
     status text DEFAULT 'draft',
+    state text,
     xp integer DEFAULT 15,
     total_xp integer DEFAULT 15
   )`);
 
-  await client.execute(`INSERT INTO characters_backup (id, name, created_at, updated_at, status, xp, total_xp)
-    SELECT id, name, created_at, updated_at, status, xp, total_xp FROM characters`);
+  if (hasState) {
+    await client.execute(`INSERT INTO characters_backup (id, name, created_at, updated_at, status, state, xp, total_xp)
+      SELECT id, name, created_at, updated_at, status, state, xp, total_xp FROM characters`);
+  } else {
+    await client.execute(`INSERT INTO characters_backup (id, name, created_at, updated_at, status, state, xp, total_xp)
+      SELECT id, name, created_at, updated_at, status, NULL, xp, total_xp FROM characters`);
+  }
 
   await client.execute(`DROP TABLE characters`);
   await client.execute(`ALTER TABLE characters_backup RENAME TO characters`);
@@ -165,7 +172,17 @@ async function addGroessenklasseToRaces() {
   for (const row of rows) {
     let cfg: Record<string, unknown> = {};
     if (row.config) {
-      try { cfg = JSON.parse(row.config as string) } catch { cfg = {} }
+      try {
+        const parsed: unknown = JSON.parse(row.config as string);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          console.warn(`Migration: leaving races.config unchanged for ${row.id}; expected a JSON object`);
+          continue;
+        }
+        cfg = parsed as Record<string, unknown>;
+      } catch {
+        console.warn(`Migration: leaving races.config unchanged for ${row.id}; invalid JSON`);
+        continue;
+      }
     }
     if (typeof cfg.groessenklasse === 'number') continue;
 
@@ -181,17 +198,21 @@ async function addGroessenklasseToRaces() {
 }
 
 export async function runMigration() {
-  await repairCharactersTable();
-  await makeSkillsTypeNullable();
-  await createStrengthsTable();
-  await createWeaknessesTable();
-  await addCharactersStateColumn();
-  await addGroessenklasseToRaces();
+  try {
+    await repairCharactersTable();
+    await makeSkillsTypeNullable();
+    await createStrengthsTable();
+    await createWeaknessesTable();
+    await addCharactersStateColumn();
+    await addGroessenklasseToRaces();
 
-  if ((await columnExists('character_steps', 'data')) && !(await columnExists('character_steps', 'delta'))) {
-    await client.execute(`ALTER TABLE character_steps RENAME COLUMN data TO delta`);
-    console.log('Migration: renamed data to delta in character_steps');
+    if ((await columnExists('character_steps', 'data')) && !(await columnExists('character_steps', 'delta'))) {
+      await client.execute(`ALTER TABLE character_steps RENAME COLUMN data TO delta`);
+      console.log('Migration: renamed data to delta in character_steps');
+    }
+
+    await rebuildCharacterStepsWithStepKey();
+  } finally {
+    client.close();
   }
-
-  await rebuildCharacterStepsWithStepKey();
 }
