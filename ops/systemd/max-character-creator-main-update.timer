@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll GitHub main for Max Character Creator QA updates
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=1min
+Persistent=true
+Unit=max-character-creator-main-update.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Max Character Creator Main/QA from GitHub main
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/update-max-character-creator-main
+TimeoutStartSec=30min

@@ -1,0 +1,2 @@
+# The SSH account is restricted to mcc-ssh-command by its authorized_keys entry.
+mcc-deploy ALL=(root) NOPASSWD: /usr/local/sbin/mcc-deploy-commit
