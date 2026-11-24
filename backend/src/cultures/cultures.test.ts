@@ -6,12 +6,18 @@ import {
   MSG_MAX_TALENTE,
   MSG_STAERKE_STUFE,
   formatAlternative,
+  gruppeAufloesen,
+  msgEintragUnvollstaendig,
+  msgSeiteLeer,
   parseKulturRegeln,
   pruefeStaerkenAbschnitt,
   pruefeStaerkeWert,
   pruefeTalentPunkte,
+  staerkenZuweisungen,
   talentPunkteGesamt,
   validateKultur,
+  wahlmoeglichkeiten,
+  type KulturAlternative,
   type KulturFeld,
 } from '@mcc/shared';
 
@@ -81,12 +87,20 @@ test('TC-04: Eine zweite Stärke wird beim Zuweisen blockiert', () => {
     ],
   });
   assert.equal(pruefeStaerkenAbschnitt(inArbeit, 'schnell'), MSG_MAX_STAERKEN);
+
+  // Auch eine bereits zugewiesene Stärke mit Anzahl 0 zählt (Review-Fund).
+  const nullAnzahl = parseKulturRegeln({ staerken: [{ id: 'zaeh', name: 'Zäh', anzahl: 0 }] });
+  assert.equal(staerkenZuweisungen(nullAnzahl), 1);
+  assert.equal(pruefeStaerkenAbschnitt(nullAnzahl, 'schnell'), MSG_MAX_STAERKEN);
 });
 
 test('TC-05: Stärke mit Stufe (Anzahl) 2 wird blockiert', () => {
   assert.equal(pruefeStaerkeWert('zaeh', 2, { zaeh: 1 }), MSG_STAERKE_STUFE);
   assert.equal(pruefeStaerkeWert('zaeh', 1, { zaeh: 1 }), null);
-  assert.equal(pruefeStaerkeWert('zaeh', 0, { zaeh: 1 }), null);
+  // Eine zugewiesene Stärke mit Anzahl 0 erfüllt R1 ebenfalls nicht.
+  assert.equal(pruefeStaerkeWert('zaeh', 0, { zaeh: 1 }), MSG_STAERKE_STUFE);
+  // Ohne Zuweisung (keine id) wird kein Wert geprüft.
+  assert.equal(pruefeStaerkeWert('', 0, { zaeh: 1 }), null);
 });
 
 test('TC-06: Stärke mit Kosten 2 wird blockiert', () => {
@@ -269,4 +283,123 @@ test('Defekte und leere Configs führen nicht zu Fehlern', () => {
   const regeln = parseKulturRegeln(undefined);
   assert.deepEqual(regeln.alternativen, []);
   assert.equal(talentPunkteGesamt(regeln), 0);
+});
+
+// --- Review-Nacharbeit INT-000015 ---------------------------------------------
+
+test('Review R1: Stärken-Einträge mit Anzahl 0 umgehen die Limits nicht', () => {
+  const eineNull = parseKulturRegeln({ staerken: [{ id: 'zaeh', name: 'Zäh', anzahl: 0 }] });
+  assert.equal(staerkenZuweisungen(eineNull), 1);
+  assert.equal(validateKultur(eineNull), MSG_STAERKE_STUFE);
+
+  const zweiNull = {
+    staerken: [
+      { id: 'zaeh', name: 'Zäh', anzahl: 0 },
+      { id: 'schnell', name: 'Schnell', anzahl: 0 },
+    ],
+  };
+  assert.equal(validateKultur(zweiNull), MSG_MAX_STAERKEN);
+
+  const teuerNull = { staerken: [{ id: 'teuer', name: 'Teuer', anzahl: 0 }] };
+  assert.equal(validateKultur(teuerNull, { teuer: 2 }), MSG_STAERKE_STUFE);
+
+  // Auch im wählbaren Ergebnis zählt die Zuweisung unabhängig vom Wert.
+  assert.deepEqual(wahlmoeglichkeiten(eineNull), [{ talentPunkte: 0, staerkenAnzahl: 1 }]);
+});
+
+test('Review R3: Gruppe mit leerer Seite kann nicht gespeichert werden', () => {
+  const leerSeite2 = {
+    alternativen: [
+      { typ: 'talent', seiten: [[gruppenEintrag('talente', 'athletik', 'Athletik', 2)], []] },
+    ],
+  };
+  assert.equal(validateKultur(leerSeite2), msgSeiteLeer(2));
+
+  const leerSeite1 = {
+    alternativen: [
+      { typ: 'talent', seiten: [[], [gruppenEintrag('talente', 'akrobatik', 'Akrobatik', 1)]] },
+    ],
+  };
+  assert.equal(validateKultur(leerSeite1), msgSeiteLeer(1));
+
+  // „Zäh 0 | " (Review-Beispiel) wird ebenfalls abgelehnt – die erste
+  // Feststellung benennt Seite 1: deren Eintrag hat keinen tragenden Wert.
+  const nullSumme = {
+    alternativen: [
+      { typ: 'staerke', seiten: [[gruppenEintrag('staerken', 'zaeh', 'Zäh', 0)], []] },
+    ],
+  };
+  assert.equal(validateKultur(nullSumme), msgEintragUnvollstaendig(1));
+});
+
+test('Review R3: Gruppe mit Eintrag ohne Auswahl oder Wert kann nicht gespeichert werden', () => {
+  const ohneAuswahl = {
+    alternativen: [
+      {
+        typ: 'talent',
+        seiten: [
+          [gruppenEintrag('talente', 'athletik', 'Athletik', 2)],
+          [gruppenEintrag('talente', '', '', 2)],
+        ],
+      },
+    ],
+  };
+  assert.equal(validateKultur(ohneAuswahl), msgEintragUnvollstaendig(2));
+
+  const ohneWert = {
+    alternativen: [
+      {
+        typ: 'talent',
+        seiten: [
+          [gruppenEintrag('talente', 'athletik', 'Athletik', 2)],
+          [gruppenEintrag('talente', 'akrobatik', 'Akrobatik', 0)],
+        ],
+      },
+    ],
+  };
+  assert.equal(validateKultur(ohneWert), msgEintragUnvollstaendig(2));
+});
+
+test('Review R2: Gruppe auflösen stellt ausschließlich Seite 1 in die Abschnitte zurück', () => {
+  const talentGruppe: KulturAlternative = {
+    typ: 'talent',
+    seiten: [
+      [gruppenEintrag('talente', 'athletik', 'Athletik', 2)],
+      [
+        gruppenEintrag('talente', 'akrobatik', 'Akrobatik', 1),
+        gruppenEintrag('talente', 'heimlichkeit', 'Heimlichkeit', 1),
+      ],
+    ],
+  };
+  const wiederhergestellt = gruppeAufloesen(talentGruppe);
+  assert.equal(wiederhergestellt.length, 1);
+  assert.equal(wiederhergestellt[0].name, 'Athletik');
+  assert.ok(!wiederhergestellt.some(eintrag => eintrag.name === 'Heimlichkeit'));
+  assert.equal(validateKultur({ talente: [{ id: 'athletik', name: 'Athletik', punkte: 2 }] }), null);
+
+  const staerkenGruppe: KulturAlternative = {
+    typ: 'staerke',
+    seiten: [
+      [gruppenEintrag('staerken', 'zaeh', 'Zäh', 1)],
+      [gruppenEintrag('staerken', 'schnell', 'Schnell', 1)],
+    ],
+  };
+  const staerken = gruppeAufloesen(staerkenGruppe).map(eintrag => ({
+    id: eintrag.id,
+    name: eintrag.name,
+    anzahl: eintrag.wert,
+  }));
+  assert.equal(validateKultur({ staerken }), null);
+
+  // Referenz zum Vorzustand: beide Seiten gleichzeitig zurückgeschrieben wäre
+  // ein R1-Verstoß (zwei zugewiesene Stärken) – genau das verhindert die Korrektur.
+  assert.equal(
+    validateKultur({
+      staerken: [
+        { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+        { id: 'schnell', name: 'Schnell', anzahl: 1 },
+      ],
+    }),
+    MSG_MAX_STAERKEN,
+  );
 });

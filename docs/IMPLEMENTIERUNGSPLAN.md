@@ -1,5 +1,33 @@
 # Implementierungsplan
 
+## Schritt 19: Review-Nacharbeit Kultureditor – Limits und Gruppenintegrität (2026-11-24)
+
+### Ausgangslage (INT-000015, Review zu PR #2)
+Der Review meldete drei belegbare Mängel: regelwidrige Kulturen konnten doch gespeichert bzw. der Editor in einen dauerhaft ungültigen Zustand gebracht werden.
+
+### Implementierte Änderungen
+
+**1) HIGH – R1 war über Stärken mit Anzahl 0 umgehbar**
+- `shared/src/cultures.ts`: Eine Stärke gilt über ihre gesetzte `id` als zugewiesen – unabhängig vom Wert. Neu: `staerkenZuweisungen(regeln)` (zählende Variante, gespeist in `validateKultur` und `wahlmoeglichkeiten`); `pruefeStaerkenAbschnitt` filtert nicht mehr nach `wert > 0`; `pruefeStaerkeWert` verlangt für eine zugewiesene Stärke zwingend Wert 1 (auch 0 verstößt gegen AK1.2)
+- `frontend/.../LibraryTable.tsx`: Beim Wählen einer Stärke wird die Anzahl sofort auf 1 gesetzt; das Anzahl-Feld blockiert jeden Wert ≠ 1 (auch 0/leer) live mit „Stärken nur mit Stufe 1 und Kosten 1."
+- Wirkung: POST mit zwei Stärken `anzahl: 0` → 400 „Maximal eine Stärke pro Kultur."; teure Stärke mit `anzahl: 0` → 400 „Stärken nur mit Stufe 1 und Kosten 1."
+
+**2) MEDIUM – „Gruppe entfernen" schrieb beide Seiten in die Abschnitte zurück**
+- Neue Shared-Funktion `gruppeAufloesen(alternative)` liefert ausschließlich Seite 1; `gruppeEntfernen` in `LibraryTable.tsx` nutzt sie. Im wählbaren Ergebnis ist pro Gruppe genau eine Seite aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben erzeugte per Konstruktion zwei zugewiesene Stärken (R1-Verstoß).
+
+**3) MEDIUM – R4 prüfte nur die Wertesummen**
+- Jede Gruppenseite braucht jetzt mindestens einen vollständigen Eintrag (`id`, `name`, `wert > 0`); Meldungen: „Ungültige Gruppe: Seite X ist leer – jede Seite braucht mindestens einen Eintrag." bzw. „Ungültige Gruppe: Seite X hat einen Eintrag ohne Auswahl oder Wert." (`msgSeiteLeer`, `msgEintragUnvollstaendig`)
+- Prüfreihenfolge in `validateKultur`: R1 Anzahl der Stärken → R3 Vollständigkeit der Seiten → R1 je Eintrag → R4 Gleichwertigkeit → R5 über alle Ergebnisse
+- UI: „Alternative hinzufügen" erscheint nur bei Einträgen mit zugewiesenem Wert (R3); in einer Gruppe setzt die Stärken-Auswahl den Wert automatisch auf 1; strukturell defekte `alternativen`-Einträge ohne `seiten` werden beim Parsen übersprungen (tolerantes Parsing bleibt erhalten)
+
+### Ergänzte Tests
+- `backend/src/cultures/cultures.test.ts`: 4 neue Fälle (Anzahl 0 in Abschnitt/Ergebnis, leere Seite, Eintrag ohne Auswahl/Wert, „Gruppe entfernen" stellt nur Seite 1 wieder her) sowie TC-05 angepasst (zugewiesene Stärke mit Anzahl 0 ⇒ Fehler)
+- `backend/src/routes/library-cultures-test-child.ts`: 5 neue Route-Fälle mit 400 plus Prüfung, dass keine dieser Kulturen persistiert wird
+
+### Verifikation
+- `npm test && npm run typecheck --workspace=backend`: 22 Tests grün ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓
+
 ## Schritt 18: Kultureditor – Stärken-/Talentlimits und Entweder/Oder-Alternativen (2026-11-24)
 
 ### Anforderungen (SF-000009 / INT-000015, K1–K4 aus der PO-Klärung)

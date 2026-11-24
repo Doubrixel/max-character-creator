@@ -4,6 +4,8 @@ import {
   MSG_MAX_STAERKEN,
   MSG_MAX_TALENTE,
   MSG_STAERKE_STUFE,
+  msgEintragUnvollstaendig,
+  msgSeiteLeer,
 } from '@mcc/shared';
 
 const [{ db }, { migrate }, { runMigration }, { seedIfNeeded }, { strengths }, { default: app }] = await Promise.all([
@@ -162,6 +164,60 @@ try {
   assert.equal(kombinationStaerken.status, 400);
   assert.equal(await messageOf(kombinationStaerken), MSG_MAX_STAERKEN + ERGEBNIS_ZUSATZ);
 
+  // Review-Fund 1: zugewiesene Stärken mit Anzahl 0 umgehen R1 nicht.
+  const anzahlNull = await postKultur({
+    staerken: [
+      { id: 'zaeh', name: 'Zäh', anzahl: 0 },
+      { id: 'schnell', name: 'Schnell', anzahl: 0 },
+    ],
+  }, 'Synthetische Kultur Anzahl Null');
+  assert.equal(anzahlNull.status, 400, await anzahlNull.clone().text());
+  assert.equal(await messageOf(anzahlNull), MSG_MAX_STAERKEN);
+
+  const teuerNull = await postKultur({
+    staerken: [{ id: 'synth-teuer', name: 'Synthetische Teuerstärke', anzahl: 0 }],
+  }, 'Synthetische Kultur Teure Staerke Anzahl Null');
+  assert.equal(teuerNull.status, 400, await teuerNull.clone().text());
+  assert.equal(await messageOf(teuerNull), MSG_STAERKE_STUFE);
+
+  // Review-Fund 3: jede Gruppenseite braucht mindestens einen konkreten Eintrag.
+  const leereSeite = await postKultur({
+    alternativen: [
+      { typ: 'talent', seiten: [[gruppenEintrag('talente', 'athletik', 'Athletik', 2)], []] },
+    ],
+  }, 'Synthetische Kultur Leere Seite');
+  assert.equal(leereSeite.status, 400, await leereSeite.clone().text());
+  assert.equal(await messageOf(leereSeite), msgSeiteLeer(2));
+
+  const ohneAuswahl = await postKultur({
+    alternativen: [
+      {
+        typ: 'talent',
+        seiten: [
+          [gruppenEintrag('talente', 'athletik', 'Athletik', 2)],
+          [gruppenEintrag('talente', '', '', 2)],
+        ],
+      },
+    ],
+  }, 'Synthetische Kultur Ohne Auswahl');
+  assert.equal(ohneAuswahl.status, 400, await ohneAuswahl.clone().text());
+  assert.equal(await messageOf(ohneAuswahl), msgEintragUnvollstaendig(2));
+
+  // Gleiche Summe 0 auf beiden Seiten ist trotz Gleichwertigkeit kein wählbares Ergebnis.
+  const staerkenNull = await postKultur({
+    alternativen: [
+      {
+        typ: 'staerke',
+        seiten: [
+          [gruppenEintrag('staerken', 'zaeh', 'Zäh', 0)],
+          [gruppenEintrag('staerken', 'schnell', 'Schnell', 0)],
+        ],
+      },
+    ],
+  }, 'Synthetische Kultur Staerken Null');
+  assert.equal(staerkenNull.status, 400, await staerkenNull.clone().text());
+  assert.equal(await messageOf(staerkenNull), msgEintragUnvollstaendig(1));
+
   // PATCH: auch das Bearbeiten prüft die Regeln.
   const patchUngueltig = await app.request(`/api/library/cultures/${gespeichert.id}`, {
     method: 'PATCH',
@@ -188,6 +244,11 @@ try {
   assert.ok(!namen.includes('Synthetische Kultur Zu Viele Punkte'));
   assert.ok(!namen.includes('Synthetische Kultur Ungleichwertig'));
   assert.ok(!namen.includes('Synthetische Kultur Ueber Fuenf'));
+  assert.ok(!namen.includes('Synthetische Kultur Anzahl Null'));
+  assert.ok(!namen.includes('Synthetische Kultur Teure Staerke Anzahl Null'));
+  assert.ok(!namen.includes('Synthetische Kultur Leere Seite'));
+  assert.ok(!namen.includes('Synthetische Kultur Ohne Auswahl'));
+  assert.ok(!namen.includes('Synthetische Kultur Staerken Null'));
 } finally {
   db.$client.close();
 }

@@ -5,6 +5,7 @@ import CultureAlternatives from './CultureAlternatives'
 import {
   MSG_STAERKE_STUFE,
   formatAlternative,
+  gruppeAufloesen,
   parseKosten,
   parseKulturRegeln,
   pruefeStaerkenAbschnitt,
@@ -269,13 +270,16 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       setFormError(MSG_STAERKE_STUFE)
       return
     }
-    const anzahl = alt.anzahl ?? 0
-    if (anzahl > 0 && pruefeStaerkeWert(newId, anzahl, kostenById)) {
+    const vorhanden = alt.anzahl ?? 0
+    if (vorhanden > 0 && pruefeStaerkeWert(newId, vorhanden, kostenById)) {
       setFormError(MSG_STAERKE_STUFE)
       return
     }
+    // Die Zuweisung steht direkt auf Stufe 1: ein Anzahl-Wert von 0 darf die
+    // Grenze „höchstens eine Stärke" nicht umgehen (Review-Fund INT-000015).
+    const anzahl = vorhanden > 0 ? vorhanden : 1
     const option = strengths.find(s => s.id === newId)
-    const neu = liste.map((e, i) => (i === idx ? { ...e, id: newId, name: option?.name || newId } : e))
+    const neu = liste.map((e, i) => (i === idx ? { ...e, id: newId, name: option?.name || newId, anzahl } : e))
     const fehler = pruefeStaerkenAbschnitt(parseKulturRegeln({ ...configFields, staerken: JSON.stringify(neu) }), newId)
     if (fehler) {
       setFormError(fehler)
@@ -289,14 +293,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     schreibeListe('staerken', neu)
   }
 
-  /** R1 beim Zuweisen: Anzahl (Stufe) 1 und Kosten 1. */
+  /** R1 beim Zuweisen: Anzahl (Stufe) 1 und Kosten 1 – auch 0 ist bei zugewiesener Stärke unzulässig. */
   const setzeAnzahl = (idx: number, roh: string) => {
     const liste = leseListe('staerken')
     const alt = liste[idx]
     if (!alt) return
     const zahl = parseInt(roh, 10)
     const wert = Number.isFinite(zahl) && zahl > 0 ? zahl : 0
-    if (alt.id !== '' && wert > 0) {
+    if (alt.id !== '') {
       const fehler = pruefeStaerkeWert(alt.id, wert, kostenById)
       if (fehler) {
         setFormError(fehler)
@@ -312,6 +316,8 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     const eintrag = liste[idx]
     if (!eintrag || !eintrag.id) return
     const wert = feld === 'staerken' ? eintrag.anzahl ?? 0 : eintrag.punkte ?? 0
+    // Nur ein Eintrag mit zugewiesener Stufe/Punkten kann tragen (R3).
+    if (wert <= 0) return
     const gruppenEintrag = { feld, id: eintrag.id, name: eintrag.name, wert }
     const alternativen: KulturAlternative[] = [
       ...parseKulturRegeln(configFields).alternativen,
@@ -321,21 +327,24 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     setAlternativen(alternativen)
   }
 
-  /** Gruppe auflösen und die Einträge wieder in ihre Abschnitte zurückschreiben. */
+  /**
+   * Gruppe auflösen: Zurück in die Abschnitte kommt ausschließlich Seite 1
+   * (`gruppeAufloesen`). Im wählbaren Ergebnis ist pro Gruppe genau eine Seite
+   * aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben würde per
+   * Konstruktion einen regelwidrigen Zustand erzeugen (Review-Fund INT-000015).
+   */
   const gruppeEntfernen = (index: number) => {
     const regeln = parseKulturRegeln(configFields)
     const alternative = regeln.alternativen[index]
     if (!alternative) return
     const wiederherstellen: Record<string, AbschnittEintrag[]> = {}
-    for (const seite of alternative.seiten) {
-      for (const eintrag of seite) {
-        if (!wiederherstellen[eintrag.feld]) wiederherstellen[eintrag.feld] = leseListe(eintrag.feld)
-        wiederherstellen[eintrag.feld].push(
-          eintrag.feld === 'staerken'
-            ? { id: eintrag.id, name: eintrag.name, anzahl: eintrag.wert }
-            : { id: eintrag.id, name: eintrag.name, punkte: eintrag.wert },
-        )
-      }
+    for (const eintrag of gruppeAufloesen(alternative)) {
+      if (!wiederherstellen[eintrag.feld]) wiederherstellen[eintrag.feld] = leseListe(eintrag.feld)
+      wiederherstellen[eintrag.feld].push(
+        eintrag.feld === 'staerken'
+          ? { id: eintrag.id, name: eintrag.name, anzahl: eintrag.wert }
+          : { id: eintrag.id, name: eintrag.name, punkte: eintrag.wert },
+      )
     }
     const uebrig = regeln.alternativen.filter((_, i) => i !== index)
     setConfigFields(prev => {
@@ -773,7 +782,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                               ×
                             </button>
                           </div>
-                          {item.id ? (
+                          {item.id && (item.punkte ?? 0) > 0 ? (
                             <button
                               type="button"
                               style={styles.altBtn}
@@ -837,7 +846,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                               ×
                             </button>
                           </div>
-                          {item.id ? (
+                          {item.id && (item.anzahl ?? 0) > 0 ? (
                             <button
                               type="button"
                               style={styles.altBtn}

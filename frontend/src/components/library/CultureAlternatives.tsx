@@ -85,7 +85,8 @@ export default function CultureAlternatives({
     if (!alternative || !eintrag) return
     const zahl = parseInt(roh, 10)
     const wert = Number.isFinite(zahl) && zahl > 0 ? zahl : 0
-    if (alternative.typ === 'staerke' && wert > 0) {
+    if (alternative.typ === 'staerke') {
+      // Auch der Wert 0 ist bei zugewiesener Stärke unzulässig (R1).
       const fehler = pruefeStaerkeWert(eintrag.id, wert, kostenById)
       if (fehler) {
         onFehler(fehler)
@@ -114,6 +115,9 @@ export default function CultureAlternatives({
         ...eintrag,
         id: newId,
         name: newId === '' ? '' : staerkeOption?.name || newId,
+        // Zugewiesene Stärke steht immer auf Stufe 1 (R1) – ein Wert von 0
+        // würde die Gruppe unspielbar machen.
+        wert: newId === '' ? eintrag.wert : 1,
       }
       onChange(neu)
       return
