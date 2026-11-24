@@ -1,5 +1,40 @@
 # Implementierungsplan
 
+## Schritt 18: Kultureditor – Stärken-/Talentlimits und Entweder/Oder-Alternativen (2026-11-24)
+
+### Anforderungen (SF-000009 / INT-000015, K1–K4 aus der PO-Klärung)
+- R1: pro Kultur höchstens eine Stärke, Stufe (Anzahl) 1 und Kosten 1
+- R2: höchstens 5 Punkte für Talente + Waffentalente + Magieschulen zusammen (Summe 5 zulässig, bereichsübergreifend)
+- R3/R4: zu einer Zuweisung kann eine gleichwertige Alternative (Entweder/Oder-Gruppe mit „Seite 1"/„Seite 2") angelegt werden; die Wertesummen beider Seiten müssen gleich sein
+- R5: jedes wählbare Ergebnis (je Gruppe genau eine Seite) muss R1 und R2 erfüllen
+- Nicht im Umfang: Auswahl-UI im Schritt „Kultur" der Charaktererstellung (Folgeticket INT-000016)
+
+### Implementierte Änderungen
+
+**`shared/src/cultures.ts` (neu)**
+- Zentrale, reine Regellogik für Editor und Backend: `parseKulturRegeln` (tolerant gegenüber doppelt kodierten JSON-Strings und echten Arrays), `pruefeTalentPunkte`, `pruefeStaerkenAbschnitt`, `pruefeStaerkeWert`, `validateKultur` (R1 je Eintrag → R4 Gleichwertigkeit → R5 über alle wählbaren Ergebnisse), `wahlmoeglichkeiten` (Aufzählung, ab 13 Gruppen äquivalenter Worst Case), `formatAlternative` („Athletik 2 | Akrobatik 1 + Heimlichkeit 1")
+- Feste Meldungstexte: „Maximal 5 Punkte insgesamt für Talente, Waffentalente und Magieschulen.", „Maximal eine Stärke pro Kultur.", „Stärken nur mit Stufe 1 und Kosten 1.", „Ungleichwertig: Seite 1 = X Punkte, Seite 2 = Y Punkte", Zusatz „ (in einem wählbaren Ergebnis verletzt)"
+
+**`backend/src/routes/library.ts`**
+- POST/PATCH `cultures` validieren die Config gegen die Regeln und antworten mit 400 + `message`; regelwidrige Kulturen werden nicht abgelegt (auch wenn das Frontend umgangen wird)
+- Kosten der Stärken kommen aus der Library-Tabelle `strengths` (`parseKosten`); unbekannte Kosten (Altbestand ohne Feld) werden nicht beanstandet
+
+**`frontend/src/components/library/CultureAlternatives.tsx` (neu)**
+- Block „Entweder/Oder-Gruppen" im Kulturformular: Zusammenfassung im Format „Athletik 2 | Akrobatik 1 + Heimlichkeit 1", Seiten als benannte Feldsets „Seite 1"/„Seite 2" mit Eintrags-Zeilen, „+ Eintrag hinzufügen" je Talentseite (Stärkenseiten führen genau eine Stärke, K2a), „Gruppe entfernen"
+
+**`frontend/src/components/library/LibraryTable.tsx`**
+- Live-Prüfung beim Zuweisen: Talentpunkte-Summe über alle drei Bereiche (blockiert + frische Zeile entfernt), zweite Stärke blockiert (Select revertiert), Stufe/Kosten ≠ 1 blockiert (Anzahl revertiert); Meldung im Formular mit `role="alert"`
+- „Alternative hinzufügen" je Talent-/Stärkeneintrag: der Eintrag wandert in die Gruppe (Seite 1) und zählt nicht mehr im Abschnitt
+- Speichern (`Erstellen`/`Speichern`) führt `validateKultur` aus und zeigt serverseitige 400-Meldungen; Zusammenfassung in der Liste enthält die Gruppen
+- A11y: Abschnitte und Gruppenseiten als `fieldset`/`legend`, Eingaben mit `aria-label`, Name/Beschreibung label-gebunden
+
+**`frontend/src/components/library/StrengthsView.tsx`**
+- Felder des Stärken-Formulars label-gebunden (`htmlFor`/`id` für Name, Beschreibung, Kategorie, Unterkategorie, „Kosten (Punkte)"), damit QA das Feld über den Accessibility Tree eindeutig anspricht (Voraussetzung für AK1.2/TC-06: Stärke mit Kosten 2 anlegen bzw. setzen)
+
+### Verifikation
+- `npm test && npm run typecheck --workspace=backend`: 18 Tests grün (Regel-Unit-Tests TC-01–TC-14, Seed-Test, Route-Integrationstest mit Temp-Datenbank) ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓
+
 ## Schritt 17: XP-System in der Chronik (Level-Balken, Sessions, Verlauf, Ausgeben) (2026-10-21)
 
 ### Anforderungen (Tester/Max)

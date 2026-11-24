@@ -16,6 +16,7 @@ import {
   characterSteps,
 } from '../db/schema'
 import { eq } from 'drizzle-orm'
+import { validateKultur, parseKosten } from '@mcc/shared'
 
 const libraryTables = [
   { path: 'races', table: races },
@@ -35,6 +36,18 @@ const libraryTables = [
 function createLibraryRoutes() {
   const router = new Hono()
 
+  // Speicherprüfung der Kulturregeln R1/R2/R4/R5 (INT-000015): regelwidrige
+  // Kulturen werden nicht abgelegt, auch wenn das Frontend umgangen wird.
+  async function kulturSpeicherFehler(config: unknown): Promise<string | null> {
+    const rows = await db.select().from(strengths)
+    const kostenById: Record<string, number> = {}
+    for (const row of rows) {
+      const kosten = parseKosten(row.config)
+      if (kosten !== null) kostenById[row.id] = kosten
+    }
+    return validateKultur(config, kostenById)
+  }
+
   for (const { path, table } of libraryTables) {
     router.get(`/library/${path}`, async (c) => {
       const data = await db.select().from(table)
@@ -43,6 +56,10 @@ function createLibraryRoutes() {
 
     router.post(`/library/${path}`, async (c) => {
       const body = await c.req.json()
+      if (path === 'cultures') {
+        const fehler = await kulturSpeicherFehler(body.config)
+        if (fehler) return c.json({ message: fehler }, 400)
+      }
       const entry = {
         id: crypto.randomUUID(),
         name: body.name,
@@ -70,6 +87,11 @@ function createLibraryRoutes() {
       const existing = await db.select().from(table).where(eq(table.id, id))
       if (existing.length === 0) {
         return c.json({ error: 'Not found' }, 404)
+      }
+      if (path === 'cultures') {
+        const config = body.config !== undefined ? body.config : existing[0].config
+        const fehler = await kulturSpeicherFehler(config)
+        if (fehler) return c.json({ message: fehler }, 400)
       }
       const updated = {
         ...existing[0],
