@@ -12,10 +12,23 @@
  * R5 Ergebnis-Stabilität: jedes wählbare Ergebnis (je Gruppe genau eine Seite)
  *    erfüllt R1 und R2.
  * R6 Gruppen sind paarweise und unabhängig; gemischte Stärken-/Talent-Gruppen
- *    sind nicht vorgesehen (PO-Entscheidung K2c).
+ *    sind nicht vorgesehen (PO-Entscheidung K2c) und werden abgelehnt. Ein
+ *    Eintrag (gleiche `id`) gehört höchstens einer Gruppe an: Er steht nicht
+ *    zugleich in einer Gruppenseite und im Abschnitt und nicht in zwei
+ *    Gruppen (PO-Entscheidung H).
+ * Punkte in den Abschnitten (Talente, Waffentalente, Magieschulen) sind ganze
+ *    Zahlen ab 0. Negative oder nicht ganzzahlige Werte würden R2 und die
+ *    Basissumme von R5 über einen direkten API-Aufruf umgehen (−5 + 10 ergäbe
+ *    5) und werden in der Speicherprüfung abgelehnt (Review-Fund F3).
+ * Werte in Entweder/Oder-Gruppen sind ganze Zahlen ab 1 (PO-Entscheidung G):
+ *    „1,5 | 1,5" wäre zwar gleichwertig, aber kein gültiger Punktwert.
  *
- * Die Regeln werden vom Bibliotheks-Editor (Live-Prüfung beim Zuweisen) und vom
- * Backend (Prüfung vor dem Speichern) gleichermaßen genutzt.
+ * Die Regeln werden vom Bibliotheks-Editor (Live-Prüfung beim Zuweisen und
+ * direkt an der Entweder/Oder-Gruppe) und vom Backend (Prüfung vor dem
+ * Speichern) gleichermaßen genutzt: `pruefeGruppeImKontext` ist für eine
+ * Gruppe dasselbe Urteil in Live- und Speicherprüfung. Die Editor-Schritte
+ * der Abschnitte (Stärke wählen, Anzahl/Punkte setzen, Alternative anlegen)
+ * sind reine Funktionen in `kulturEditor.ts` und rufen hier nur die Prüfungen auf.
  */
 
 export type KulturFeld = 'talente' | 'waffenTalente' | 'magieSchulen' | 'staerken'
@@ -23,6 +36,9 @@ export type KulturFeld = 'talente' | 'waffenTalente' | 'magieSchulen' | 'staerke
 export type GruppenTyp = 'talent' | 'staerke'
 
 export const TALENT_FELDER: readonly KulturFeld[] = ['talente', 'waffenTalente', 'magieSchulen']
+
+/** Alle Abschnitte des Kultur-Editors: die drei Talentbereiche und die Stärken. */
+export const ABSCHNITT_FELDER: readonly KulturFeld[] = [...TALENT_FELDER, 'staerken']
 
 export const MAX_TALENT_PUNKTE = 5
 export const MAX_STAERKEN = 1
@@ -41,6 +57,28 @@ export function msgSeiteLeer(seite: number): string {
 /** R3: ein Gruppeneintrag ohne Auswahl bzw. zugewiesenen Wert ist nicht wählbar. */
 export function msgEintragUnvollstaendig(seite: number): string {
   return `Ungültige Gruppe: Seite ${seite} hat einen Eintrag ohne Auswahl oder Wert.`
+}
+
+/** K2c: Stärken- und Talent-Einträge dürfen nicht in einer Gruppe gemischt sein. */
+export const MSG_GRUPPE_GEMISCHT =
+  'Ungültige Gruppe: Stärken und Talente dürfen nicht in einer Gruppe gemischt werden.'
+
+/** F3 (Review INT-000015): Punkte sind ganze Zahlen ab 0 – auch per direktem API-Aufruf. */
+export const MSG_PUNKTE_UNGUELTIG =
+  'Ungültiger Punktwert: Punkte müssen ganze Zahlen ab 0 sein (Talente, Waffentalente und Magieschulen).'
+
+/** G (PO-Entscheidung INT-000015): Werte in einer Entweder/Oder-Gruppe sind ganze Zahlen ab 1. */
+export const MSG_GRUPPE_PUNKTE_UNGUELTIG =
+  'Ungültiger Punktwert in einer Entweder/Oder-Gruppe: Werte müssen ganze Zahlen ab 1 sein.'
+
+/** H (PO-Entscheidung INT-000015, R6): ein Eintrag gehört höchstens einer Gruppe an. */
+export function msgMehrfachZugeordnet(name: string): string {
+  return `Ungültige Gruppe: Eintrag ${name} ist mehrfach zugeordnet (Abschnitt oder mehrere Gruppen).`
+}
+
+/** R4 (K4.4): benennt die Wertesummen beider Seiten. */
+export function msgUngleichwertig(summe1: number, summe2: number): string {
+  return `Ungleichwertig: Seite 1 = ${summe1} Punkte, Seite 2 = ${summe2} Punkte`
 }
 
 export interface KulturEintrag {
@@ -226,6 +264,15 @@ export function summeEintraege(eintraege: readonly KulturEintrag[]): number {
   return eintraege.reduce((sum, eintrag) => sum + eintrag.wert, 0)
 }
 
+/**
+ * Punkte sind ganze Zahlen ab 0 (Review-Fund F3). Negative oder nicht
+ * ganzzahlige Werte würden die Summen (R2, Basissumme von R5) umgehen:
+ * −5 + 10 ergäbe 5, 2,5 + 2,5 ergäbe 5.
+ */
+export function istGueltigerPunktwert(wert: number): boolean {
+  return Number.isInteger(wert) && wert >= 0
+}
+
 /** Zählt zugewiesene Stärken: Einträge mit gesetzter `id`, unabhängig vom Wert (R1). */
 function zaehleStaerken(eintraege: readonly KulturEintrag[]): number {
   return eintraege.filter(eintrag => eintrag.id !== '').length
@@ -241,28 +288,22 @@ export function talentPunkteGesamt(regeln: KulturRegeln): number {
   return TALENT_FELDER.reduce((sum, feld) => sum + summeEintraege(regeln[feld]), 0)
 }
 
+/**
+ * R1 für die Gewährung: Eine Kultur gewährt höchstens eine Stärke.
+ * Einträge ohne Anzahl (0) gewähren nichts – ein Wert von 0 darf die Grenze
+ * nicht umgehen (Review-Fund INT-000015). Wird von der Anzeige im Schritt
+ * „Kultur" und von der Kultur-Rechnung (Reducer) genutzt, damit beide
+ * dieselbe Gewährung zeigen.
+ */
+export function gewaehrteStaerken<T extends { anzahl: number }>(eintraege: readonly T[]): T[] {
+  return eintraege.filter(eintrag => eintrag.anzahl > 0).slice(0, MAX_STAERKEN)
+}
+
 // --- Live-Prüfungen im Editor -----------------------------------------------
 
 /** R2 beim Zuweisen: Abschnittssumme über alle drei Talentbereiche. */
 export function pruefeTalentPunkte(regeln: KulturRegeln): string | null {
   return talentPunkteGesamt(regeln) > MAX_TALENT_PUNKTE ? MSG_MAX_TALENTE : null
-}
-
-/**
- * R1 beim Zuweisen im Abschnitt „Stärken": höchstens eine zugewiesene Stärke.
- * Die Zeile, die gerade geändert wird (`selbstId`), zählt nicht mit.
- *
- * Als zugewiesen gilt ein Eintrag mit gesetzter `id` – unabhängig vom Wert.
- * Ein Anzahl-Wert von 0 darf das Limit nicht umgehen (Review-Fund INT-000015).
- */
-export function pruefeStaerkenAbschnitt(
-  regeln: KulturRegeln,
-  selbstId: string | null,
-): string | null {
-  const andere = regeln.staerken.filter(
-    eintrag => eintrag.id !== '' && eintrag.id !== selbstId,
-  )
-  return andere.length >= MAX_STAERKEN ? MSG_MAX_STAERKEN : null
 }
 
 /**
@@ -281,6 +322,122 @@ export function pruefeStaerkeWert(
   const kosten = kostenById[id]
   if (kosten !== undefined && kosten !== STUFE_1) return MSG_STAERKE_STUFE
   return null
+}
+
+/**
+ * Struktur einer einzelnen Entweder/Oder-Gruppe (R3, K2c) – Live- und
+ * Speicherprüfung. Jede Seite braucht mindestens einen vollständig
+ * zugewiesenen Eintrag (id, name, wert > 0), sonst ist sie im Folgeticket
+ * nicht wählbar („Zäh 0 | " oder „Athletik 2 |  2"). Stärken- und
+ * Talent-Einträge dürfen nicht in einer Gruppe gemischt sein.
+ */
+export function pruefeGruppeStruktur(alternative: KulturAlternative): string | null {
+  for (let i = 0; i < alternative.seiten.length; i++) {
+    const seite = alternative.seiten[i]
+    if (seite.length === 0) return msgSeiteLeer(i + 1)
+    if (seite.some(eintrag => eintrag.id === '' || eintrag.name === '' || eintrag.wert <= 0)) {
+      return msgEintragUnvollstaendig(i + 1)
+    }
+  }
+  const eintraege = alternative.seiten.flat()
+  const hatStaerken = eintraege.some(eintrag => eintrag.feld === 'staerken')
+  const hatTalente = eintraege.some(eintrag => eintrag.feld !== 'staerken')
+  return hatStaerken && hatTalente ? MSG_GRUPPE_GEMISCHT : null
+}
+
+/**
+ * Prüfung einer einzelnen Entweder/Oder-Gruppe, wie der Editor sie direkt an
+ * der Gruppe anzeigt: Struktur (R3/K2c) → Wertformat (ganze Zahlen ab 1, G) →
+ * R1 je Stärken-Eintrag (Stufe und Kosten 1) → R4 Gleichwertigkeit.
+ * `pruefeGruppeImKontext` und damit `validateKultur` verwenden dieselbe
+ * Funktion, damit Live- und Speicherprüfung für eine Gruppe identisch urteilen.
+ * Liefert die sichtbare Fehlermeldung oder null, wenn die Gruppe in Ordnung ist.
+ */
+export function pruefeGruppe(
+  alternative: KulturAlternative,
+  kostenById: Record<string, number> = {},
+): string | null {
+  const strukturFehler = pruefeGruppeStruktur(alternative)
+  if (strukturFehler) return strukturFehler
+
+  // G: Werte sind ganze Zahlen ab 1. 0 und negative Werte hat die
+  // Strukturprüfung bereits abgelehnt; hier bleiben positive Bruchwerte
+  // („1,5 | 1,5" wäre gleichwertig – und dennoch kein gültiger Punktwert).
+  for (const eintrag of alternative.seiten.flat()) {
+    if (!Number.isInteger(eintrag.wert)) return MSG_GRUPPE_PUNKTE_UNGUELTIG
+  }
+
+  for (const eintrag of alternative.seiten.flat()) {
+    if (eintrag.feld !== 'staerken') continue
+    const fehler = pruefeStaerkeWert(eintrag.id, eintrag.wert, kostenById)
+    if (fehler) return fehler
+  }
+
+  const summe1 = summeEintraege(alternative.seiten[0])
+  const summe2 = summeEintraege(alternative.seiten[1])
+  return summe1 === summe2 ? null : msgUngleichwertig(summe1, summe2)
+}
+
+/**
+ * R6 (PO-Entscheidung H): Ein Eintrag mit derselben `id` gehört höchstens
+ * einer Gruppe an. Für die Gruppe mit Index `index` wird abgelehnt, wenn einer
+ * ihrer Einträge
+ * - zugleich in einem Abschnitt steht (Talente, Waffentalente, Magieschulen
+ *   oder Stärken) oder
+ * - in einer weiteren Gruppe steht.
+ *
+ * Dieselbe id auf den beiden Seiten derselben Gruppe ist keine Mehrfachzuordnung
+ * („Athletik 2 | Athletik 1 + Heimlichkeit 1"): Je Gruppe ist genau eine Seite
+ * aktiv (R5), der Eintrag gehört weiterhin zu genau dieser einen Gruppe.
+ *
+ * Liefert die sichtbare Fehlermeldung für diese Gruppe oder null.
+ */
+export function pruefeMehrfachZuordnung(regeln: KulturRegeln, index: number): string | null {
+  const alternative = regeln.alternativen[index]
+  if (!alternative) return null
+
+  const imAbschnitt = new Set<string>()
+  for (const feld of ABSCHNITT_FELDER) {
+    for (const eintrag of regeln[feld]) {
+      if (eintrag.id !== '') imAbschnitt.add(eintrag.id)
+    }
+  }
+
+  // Anzahl der Gruppen, in denen eine id vorkommt (je Gruppe einmal gezählt).
+  const gruppenJeId = new Map<string, number>()
+  for (const gruppe of regeln.alternativen) {
+    const ids = new Set(gruppe.seiten.flat().map(eintrag => eintrag.id))
+    ids.delete('')
+    for (const id of ids) gruppenJeId.set(id, (gruppenJeId.get(id) ?? 0) + 1)
+  }
+
+  for (const eintrag of alternative.seiten.flat()) {
+    if (eintrag.id === '') continue
+    const zugewiesenImAbschnitt = imAbschnitt.has(eintrag.id)
+    const inMehrerenGruppen = (gruppenJeId.get(eintrag.id) ?? 0) > 1
+    if (zugewiesenImAbschnitt || inMehrerenGruppen) {
+      return msgMehrfachZugeordnet(eintrag.name !== '' ? eintrag.name : eintrag.id)
+    }
+  }
+  return null
+}
+
+/**
+ * Live- und Speicherprüfung einer Gruppe im Kontext ihrer Kultur: die Gruppe
+ * selbst (`pruefeGruppe`: Struktur, Wertformat, R1, R4) und ihre Zuordnung
+ * (`pruefeMehrfachZuordnung`, R6). Der Editor zeigt genau diese Meldung direkt
+ * an der Gruppe (`role="alert"`); `validateKultur` fragt dieselbe Funktion ab,
+ * damit Live- und Speicherprüfung für eine Gruppe identisch urteilen.
+ * Liefert die sichtbare Fehlermeldung oder null.
+ */
+export function pruefeGruppeImKontext(
+  regeln: KulturRegeln,
+  index: number,
+  kostenById: Record<string, number> = {},
+): string | null {
+  const alternative = regeln.alternativen[index]
+  if (!alternative) return null
+  return pruefeGruppe(alternative, kostenById) ?? pruefeMehrfachZuordnung(regeln, index)
 }
 
 // --- Speicher-Prüfung --------------------------------------------------------
@@ -356,10 +513,76 @@ export function gruppeAufloesen(alternative: KulturAlternative): KulturGruppenEi
   return alternative.seiten[0].map(eintrag => ({ ...eintrag }))
 }
 
+/** Roher Abschnittseintrag im Speicherformat des Kultur-Editors. */
+export interface KulturAbschnittEintrag {
+  id: string
+  name: string
+  punkte?: number
+  anzahl?: number
+}
+
+/** Liest einen Abschnitt (JSON-Array) aus den Configfeldern des Editors. */
+export function leseAbschnitt(roh: string | undefined): KulturAbschnittEintrag[] {
+  if (!roh) return []
+  try {
+    const parsed: unknown = JSON.parse(roh)
+    return Array.isArray(parsed) ? (parsed as KulturAbschnittEintrag[]) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * „Gruppe entfernen" des Kultur-Editors (Review-Fund INT-000015): löst die
+ * Gruppe mit Index `index` auf und liefert die aktualisierten Configfelder.
+ * Zurück in die Abschnitte kommen ausschließlich die Einträge von Seite 1
+ * (`gruppeAufloesen`) – Seite 2 und die Gruppe selbst entfallen. Beide Seiten
+ * gleichzeitig zurückzuschreiben erzeugt per Konstruktion einen R1-widrigen
+ * Zustand (z. B. zwei zugewiesene Stärken).
+ *
+ * Liefert `null`, wenn es die Gruppe nicht gibt.
+ */
+export function entferneGruppe(
+  configFelder: Record<string, string>,
+  index: number,
+): Record<string, string> | null {
+  const regeln = parseKulturRegeln(configFelder)
+  const alternative = regeln.alternativen[index]
+  if (!alternative) return null
+
+  const wiederherstellen = new Map<KulturFeld, KulturGruppenEintrag[]>()
+  for (const eintrag of gruppeAufloesen(alternative)) {
+    const vorhanden = wiederherstellen.get(eintrag.feld)
+    if (vorhanden) vorhanden.push(eintrag)
+    else wiederherstellen.set(eintrag.feld, [eintrag])
+  }
+
+  const next: Record<string, string> = { ...configFelder }
+  for (const [feld, eintraege] of wiederherstellen) {
+    const abschnitt = leseAbschnitt(next[feld])
+    for (const eintrag of eintraege) {
+      abschnitt.push(
+        feld === 'staerken'
+          ? { id: eintrag.id, name: eintrag.name, anzahl: eintrag.wert }
+          : { id: eintrag.id, name: eintrag.name, punkte: eintrag.wert },
+      )
+    }
+    next[feld] = JSON.stringify(abschnitt)
+  }
+
+  const uebrig = regeln.alternativen.filter((_, i) => i !== index)
+  if (uebrig.length === 0) delete next.alternativen
+  else next.alternativen = JSON.stringify(uebrig)
+  return next
+}
+
 /**
  * Vollständige Speicherprüfung einer Kultur.
- * Reihenfolge: R1 Anzahl der Stärken → R3 Vollständigkeit der Gruppenseiten →
- * R1 je Eintrag → R4 Gleichwertigkeit → R5 über alle Ergebnisse.
+ * Reihenfolge: R1 Anzahl der Stärken → R1 je Stärken-Eintrag der Abschnitte →
+ * Punkte der Abschnitte sind ganze Zahlen ab 0 (F3) → je Gruppe die Struktur
+ * (R3/K2c), das Wertformat (G), R1 je Eintrag, R4 Gleichwertigkeit und die
+ * Zuordnung (R6, H) (`pruefeGruppeImKontext`, identisch zur Live-Prüfung) →
+ * R5 über alle Ergebnisse.
  * Liefert die sichtbare Fehlermeldung oder null, wenn die Kultur gültig ist.
  */
 export function validateKultur(
@@ -372,34 +595,25 @@ export function validateKultur(
   // nicht über den Anzahl-Wert (ein Wert von 0 umgeht das Limit sonst).
   if (staerkenZuweisungen(regeln) > MAX_STAERKEN) return MSG_MAX_STAERKEN
 
-  // R3: jede Seite braucht mindestens einen vollständig zugewiesenen Eintrag,
-  // sonst ist die Gruppe im Ergebnis nicht auflösbar.
-  for (const alternative of regeln.alternativen) {
-    for (let i = 0; i < alternative.seiten.length; i++) {
-      const seite = alternative.seiten[i]
-      if (seite.length === 0) return msgSeiteLeer(i + 1)
-      if (seite.some(eintrag => eintrag.id === '' || eintrag.name === '' || eintrag.wert <= 0)) {
-        return msgEintragUnvollstaendig(i + 1)
-      }
-    }
-  }
-
-  const staerkenEintraege: KulturGruppenEintrag[] = [
-    ...regeln.staerken.map(eintrag => ({ ...eintrag, feld: 'staerken' as KulturFeld })),
-    ...regeln.alternativen.flatMap(alternative => alternative.seiten.flat()),
-  ].filter(eintrag => eintrag.feld === 'staerken')
-
-  for (const eintrag of staerkenEintraege) {
+  for (const eintrag of regeln.staerken) {
     const fehler = pruefeStaerkeWert(eintrag.id, eintrag.wert, kostenById)
     if (fehler) return fehler
   }
 
-  for (const alternative of regeln.alternativen) {
-    const summe1 = summeEintraege(alternative.seiten[0])
-    const summe2 = summeEintraege(alternative.seiten[1])
-    if (summe1 !== summe2) {
-      return `Ungleichwertig: Seite 1 = ${summe1} Punkte, Seite 2 = ${summe2} Punkte`
+  // F3: Punkte der Abschnitte sind ganze Zahlen ab 0 – für jeden Eintrag,
+  // unabhängig von id und name. Negative oder nicht ganzzahlige Werte würden
+  // R2 und die Basissumme von R5 umgehen (−5 + 10 ergäbe 5).
+  for (const feld of TALENT_FELDER) {
+    for (const eintrag of regeln[feld]) {
+      if (!istGueltigerPunktwert(eintrag.wert)) return MSG_PUNKTE_UNGUELTIG
     }
+  }
+
+  // Je Gruppe dieselbe Prüfung wie die Live-Meldung im Editor: R3/K2c/G/R1/R4
+  // an der Gruppe, dann ihre Zuordnung (R6/H: Abschnitt, weitere Gruppen).
+  for (let i = 0; i < regeln.alternativen.length; i++) {
+    const fehler = pruefeGruppeImKontext(regeln, i, kostenById)
+    if (fehler) return fehler
   }
 
   const zusatz = regeln.alternativen.length > 0 ? ERGEBNIS_ZUSATZ : ''

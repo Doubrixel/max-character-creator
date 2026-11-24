@@ -1,5 +1,6 @@
 import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
 import { attributeModifier } from './attributes'
+import { gewaehrteStaerken } from './cultures'
 import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
@@ -99,10 +100,11 @@ const kulturReducer: Reducer = (stats, delta) => {
       }
     }
     
-    // Stärken mit anzahl
+    // Stärken mit anzahl – R1: Eine Kultur gewährt höchstens eine Stärke,
+    // Einträge mit Anzahl 0 gewähren nichts (PO INT-000015).
     try {
       const staerkenArr = JSON.parse(kulturConfig.staerken || '[]') as Array<{ id: string; anzahl: number }>
-      for (const item of staerkenArr) {
+      for (const item of gewaehrteStaerken(staerkenArr)) {
         for (let i = 0; i < item.anzahl; i++) {
           kulturStaerken.push(item.id)
         }

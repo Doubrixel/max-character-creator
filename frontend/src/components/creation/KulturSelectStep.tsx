@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { gewaehrteStaerken } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 
 // --- Robustes Parsen der Kultur-Config --------------------------------------
@@ -83,7 +84,9 @@ function parseKulturConfig(config: string | null): KulturConfig {
     talente: parseEntries(cfg.talente),
     waffenTalente: parseEntries(cfg.waffenTalente),
     magieSchulen: parseEntries(cfg.magieSchulen),
-    staerken: parseEntries(cfg.staerken),
+    // R1: Eine Kultur gewährt höchstens eine Stärke (PO INT-000015) – auch wenn
+    // Altbestand mehrere Einträge enthält. Anzahl 0 gewährt nichts.
+    staerken: gewaehrteStaerken(parseEntries(cfg.staerken)),
   }
 }
 

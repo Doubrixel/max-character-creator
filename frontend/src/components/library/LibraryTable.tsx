@@ -3,15 +3,16 @@ import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_S
 import { useAppContext } from '../../context/AppContext'
 import CultureAlternatives from './CultureAlternatives'
 import {
-  MSG_STAERKE_STUFE,
+  alternativeAnlegen,
+  entferneGruppe,
   formatAlternative,
-  gruppeAufloesen,
   parseKosten,
   parseKulturRegeln,
-  pruefeStaerkenAbschnitt,
-  pruefeStaerkeWert,
-  pruefeTalentPunkte,
+  staerkeAnzahlSetzen,
+  staerkeWaehlen,
+  talentPunkteSetzen,
   validateKultur,
+  type EditorSchritt,
   type KulturAlternative,
   type KulturFeld,
 } from '@mcc/shared'
@@ -235,125 +236,49 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     })
   }
 
+  /** Übernimmt einen Editor-Schritt: neue Configfelder und ggf. die Meldung. */
+  const anwenden = (schritt: EditorSchritt) => {
+    if (schritt.fehler) setFormError(schritt.fehler)
+    setConfigFields(schritt.felder)
+  }
+
+  /**
+   * Die Schritte selbst (inklusive Live-Prüfung R1/R2) sind reine Funktionen in
+   * `@mcc/shared` (kulturEditor.ts) und dort getestet – die Komponenten rufen
+   * sie nur auf.
+   */
+
   /** R2 beim Zuweisen: Summe über Talente, Waffentalente und Magieschulen ≤ 5. */
   const setzeTalentPunkte = (feld: KulturFeld, idx: number, roh: string) => {
-    const liste = leseListe(feld)
-    const alt = liste[idx]
-    if (!alt) return
-    const zahl = parseInt(roh, 10)
-    const wert = Number.isFinite(zahl) && zahl > 0 ? zahl : 0
-    const neu = liste.map((eintrag, i) => (i === idx ? { ...eintrag, punkte: wert } : eintrag))
-    const kandidat = { ...configFields, [feld]: JSON.stringify(neu) }
-    const fehler = pruefeTalentPunkte(parseKulturRegeln(kandidat))
-    if (fehler) {
-      setFormError(fehler)
-      if ((alt.punkte ?? 0) === 0) {
-        // Noch nichts zugewiesen: die frische Zeile wieder entfernen.
-        schreibeListe(feld, liste.filter((_, i) => i !== idx))
-      }
-      return
-    }
-    schreibeListe(feld, neu)
+    anwenden(talentPunkteSetzen(configFields, feld, idx, roh))
   }
 
   /** R1 beim Zuweisen: höchstens eine Stärke, Stufe 1 und Kosten 1. */
   const setzeStaerke = (idx: number, newId: string) => {
-    const liste = leseListe('staerken')
-    const alt = liste[idx]
-    if (!alt) return
-    if (newId === '') {
-      schreibeListe('staerken', liste.map((e, i) => (i === idx ? { ...e, id: '', name: '' } : e)))
-      return
-    }
-    const kosten = kostenById[newId]
-    if (kosten !== undefined && kosten !== 1) {
-      setFormError(MSG_STAERKE_STUFE)
-      return
-    }
-    const vorhanden = alt.anzahl ?? 0
-    if (vorhanden > 0 && pruefeStaerkeWert(newId, vorhanden, kostenById)) {
-      setFormError(MSG_STAERKE_STUFE)
-      return
-    }
-    // Die Zuweisung steht direkt auf Stufe 1: ein Anzahl-Wert von 0 darf die
-    // Grenze „höchstens eine Stärke" nicht umgehen (Review-Fund INT-000015).
-    const anzahl = vorhanden > 0 ? vorhanden : 1
     const option = strengths.find(s => s.id === newId)
-    const neu = liste.map((e, i) => (i === idx ? { ...e, id: newId, name: option?.name || newId, anzahl } : e))
-    const fehler = pruefeStaerkenAbschnitt(parseKulturRegeln({ ...configFields, staerken: JSON.stringify(neu) }), newId)
-    if (fehler) {
-      setFormError(fehler)
-      if (alt.id === '') {
-        // Frische Zeile ohne Zuweisung wieder entfernen: es bleibt nur die
-        // bereits gültig zugewiesene Stärke stehen (AK1.1).
-        schreibeListe('staerken', liste.filter((_, i) => i !== idx))
-      }
-      return
-    }
-    schreibeListe('staerken', neu)
+    anwenden(staerkeWaehlen(configFields, idx, { id: newId, name: option?.name || newId }, kostenById))
   }
 
   /** R1 beim Zuweisen: Anzahl (Stufe) 1 und Kosten 1 – auch 0 ist bei zugewiesener Stärke unzulässig. */
   const setzeAnzahl = (idx: number, roh: string) => {
-    const liste = leseListe('staerken')
-    const alt = liste[idx]
-    if (!alt) return
-    const zahl = parseInt(roh, 10)
-    const wert = Number.isFinite(zahl) && zahl > 0 ? zahl : 0
-    if (alt.id !== '') {
-      const fehler = pruefeStaerkeWert(alt.id, wert, kostenById)
-      if (fehler) {
-        setFormError(fehler)
-        return
-      }
-    }
-    schreibeListe('staerken', liste.map((e, i) => (i === idx ? { ...e, anzahl: wert } : e)))
+    anwenden(staerkeAnzahlSetzen(configFields, idx, roh, kostenById))
   }
 
   /** R3: aus einem Abschnittseintrag eine Entweder/Oder-Gruppe machen. */
   const alternativeHinzufuegen = (feld: KulturFeld, idx: number) => {
-    const liste = leseListe(feld)
-    const eintrag = liste[idx]
-    if (!eintrag || !eintrag.id) return
-    const wert = feld === 'staerken' ? eintrag.anzahl ?? 0 : eintrag.punkte ?? 0
-    // Nur ein Eintrag mit zugewiesener Stufe/Punkten kann tragen (R3).
-    if (wert <= 0) return
-    const gruppenEintrag = { feld, id: eintrag.id, name: eintrag.name, wert }
-    const alternativen: KulturAlternative[] = [
-      ...parseKulturRegeln(configFields).alternativen,
-      { typ: feld === 'staerken' ? 'staerke' : 'talent', seiten: [[gruppenEintrag], []] },
-    ]
-    schreibeListe(feld, liste.filter((_, i) => i !== idx))
-    setAlternativen(alternativen)
+    const felder = alternativeAnlegen(configFields, feld, idx)
+    if (felder) setConfigFields(felder)
   }
 
   /**
    * Gruppe auflösen: Zurück in die Abschnitte kommt ausschließlich Seite 1
-   * (`gruppeAufloesen`). Im wählbaren Ergebnis ist pro Gruppe genau eine Seite
-   * aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben würde per
-   * Konstruktion einen regelwidrigen Zustand erzeugen (Review-Fund INT-000015).
+   * (`entferneGruppe`, in shared getestet). Im wählbaren Ergebnis ist pro Gruppe
+   * genau eine Seite aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben
+   * würde per Konstruktion einen regelwidrigen Zustand erzeugen (Review-Fund
+   * INT-000015).
    */
   const gruppeEntfernen = (index: number) => {
-    const regeln = parseKulturRegeln(configFields)
-    const alternative = regeln.alternativen[index]
-    if (!alternative) return
-    const wiederherstellen: Record<string, AbschnittEintrag[]> = {}
-    for (const eintrag of gruppeAufloesen(alternative)) {
-      if (!wiederherstellen[eintrag.feld]) wiederherstellen[eintrag.feld] = leseListe(eintrag.feld)
-      wiederherstellen[eintrag.feld].push(
-        eintrag.feld === 'staerken'
-          ? { id: eintrag.id, name: eintrag.name, anzahl: eintrag.wert }
-          : { id: eintrag.id, name: eintrag.name, punkte: eintrag.wert },
-      )
-    }
-    const uebrig = regeln.alternativen.filter((_, i) => i !== index)
-    setConfigFields(prev => {
-      const next: Record<string, string> = { ...prev }
-      for (const [feld, liste] of Object.entries(wiederherstellen)) next[feld] = JSON.stringify(liste)
-      if (uebrig.length === 0) delete next.alternativen
-      else next.alternativen = JSON.stringify(uebrig)
-      return next
-    })
+    setConfigFields(prev => entferneGruppe(prev, index) ?? prev)
   }
 
   const parseStaerkenFile = (content: string): { name: string; description: string; config: Record<string, string> }[] => {
@@ -894,13 +819,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
           {type === 'cultures' && (
             <CultureAlternatives
-              alternativen={parseKulturRegeln(configFields).alternativen}
+              regeln={parseKulturRegeln(configFields)}
               onChange={setAlternativen}
               onGruppeEntfernen={gruppeEntfernen}
               skills={skills}
               strengths={strengths}
               kostenById={kostenById}
               onFehler={setFormError}
+              formError={formError}
             />
           )}
 

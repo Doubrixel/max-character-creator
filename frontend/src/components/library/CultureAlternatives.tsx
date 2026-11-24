@@ -1,10 +1,13 @@
 import {
   MSG_STAERKE_STUFE,
+  eingabeWert,
   formatAlternative,
+  pruefeGruppeImKontext,
   pruefeStaerkeWert,
   type KulturAlternative,
   type KulturFeld,
   type KulturGruppenEintrag,
+  type KulturRegeln,
 } from '@mcc/shared'
 
 interface SkillOption {
@@ -20,13 +23,24 @@ interface StrengthOption {
 }
 
 interface CultureAlternativesProps {
-  alternativen: KulturAlternative[]
+  /**
+   * Die im Editor gepflegte Kultur (Abschnitte und Entweder/Oder-Gruppen).
+   * Rendert werden `regeln.alternativen`; die Abschnitte braucht die
+   * Live-Prüfung an der Gruppe für R6 (Eintrag nicht zugleich in Abschnitt
+   * und Gruppe).
+   */
+  regeln: KulturRegeln
   onChange: (neu: KulturAlternative[]) => void
   onGruppeEntfernen: (index: number) => void
   skills: SkillOption[]
   strengths: StrengthOption[]
   kostenById: Record<string, number>
   onFehler: (meldung: string) => void
+  /**
+   * Im Formular sichtbare Fehlermeldung (Banner). Steht dort bereits dieselbe
+   * Meldung, wird sie an der Gruppe nicht ein zweites Mal angezeigt.
+   */
+  formError: string | null
 }
 
 function feldAusSkillTyp(type: string): KulturFeld {
@@ -47,17 +61,24 @@ function klon(alternativen: KulturAlternative[]): KulturAlternative[] {
 
 /**
  * Alternativpflege der Kulturen: verwaltet die Entweder/Oder-Gruppen mit den
- * Seiten „Seite 1" und „Seite 2" (R3/R4, K4.1–K4.3).
+ * Seiten „Seite 1" und „Seite 2" (R3/R4, K4.1–K4.3). Direkt an jeder Gruppe
+ * steht die Live-Meldung, solange sie noch nicht speicherbar ist – dieselbe
+ * Prüfung wie beim Speichern (`pruefeGruppeImKontext`): unvollständige oder
+ * ungleichwertige Seiten, Bruchwerte (G) und ein Eintrag, der zugleich im
+ * Abschnitt oder in einer weiteren Gruppe steht (R6/H).
  */
 export default function CultureAlternatives({
-  alternativen,
+  regeln,
   onChange,
   onGruppeEntfernen,
   skills,
   strengths,
   kostenById,
   onFehler,
+  formError,
 }: CultureAlternativesProps) {
+  const alternativen = regeln.alternativen
+
   const eintragHinzufuegen = (gi: number, si: number) => {
     const alternative = alternativen[gi]
     if (!alternative) return
@@ -83,8 +104,7 @@ export default function CultureAlternatives({
     const alternative = alternativen[gi]
     const eintrag = alternative?.seiten[si][ei]
     if (!alternative || !eintrag) return
-    const zahl = parseInt(roh, 10)
-    const wert = Number.isFinite(zahl) && zahl > 0 ? zahl : 0
+    const wert = eingabeWert(roh)
     if (alternative.typ === 'staerke') {
       // Auch der Wert 0 ist bei zugewiesener Stärke unzulässig (R1).
       const fehler = pruefeStaerkeWert(eintrag.id, wert, kostenById)
@@ -145,9 +165,17 @@ export default function CultureAlternatives({
       ) : (
         alternativen.map((alternative, gi) => {
           const istStaerke = alternative.typ === 'staerke'
+          // Live-Prüfung direkt an der Gruppe, im Kontext der Kultur (R3/K2c,
+          // G, R1, R4 und die Zuordnung R6/H) – dieselbe Meldung wie beim
+          // Speichern. Die im Banner sichtbare Meldung wird hier nicht wiederholt.
+          const liveMeldung = pruefeGruppeImKontext(regeln, gi, kostenById)
+          const zeigeMeldung = liveMeldung !== null && liveMeldung !== formError
           return (
             <div key={gi} style={styles.groupCard}>
               <div style={styles.groupSummary}>{formatAlternative(alternative)}</div>
+              {zeigeMeldung && (
+                <div role="alert" style={styles.groupError}>{liveMeldung}</div>
+              )}
               {alternative.seiten.map((seite, si) => (
                 <fieldset key={si} style={styles.side}>
                   <legend style={styles.sideLegend}>Seite {si + 1}</legend>
@@ -255,6 +283,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 600,
     color: 'var(--text-primary)',
+  },
+  groupError: {
+    fontSize: 12,
+    color: 'var(--danger)',
+    margin: 0,
   },
   side: {
     border: '1px dashed var(--border)',
