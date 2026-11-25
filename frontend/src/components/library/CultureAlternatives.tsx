@@ -4,22 +4,18 @@ import {
   formatAlternative,
   pruefeGruppeImKontext,
   pruefeStaerkeWert,
+  staerkenOptionen,
   type KulturAlternative,
   type KulturFeld,
   type KulturGruppenEintrag,
   type KulturRegeln,
+  type StaerkeOption,
 } from '@mcc/shared'
 
 interface SkillOption {
   id: string
   name: string
   type: string
-}
-
-interface StrengthOption {
-  id: string
-  name: string
-  kosten: number | null
 }
 
 interface CultureAlternativesProps {
@@ -33,7 +29,7 @@ interface CultureAlternativesProps {
   onChange: (neu: KulturAlternative[]) => void
   onGruppeEntfernen: (index: number) => void
   skills: SkillOption[]
-  strengths: StrengthOption[]
+  strengths: StaerkeOption[]
   kostenById: Record<string, number>
   onFehler: (meldung: string) => void
   /**
@@ -192,8 +188,12 @@ export default function CultureAlternatives({
                           onChange={e => eintragWaehlen(gi, si, ei, e.target.value)}
                         >
                           <option value="">{istStaerke ? 'Stärke wählen...' : 'Skill wählen...'}</option>
+                          {/* INT-000017 R3: Dieselbe gefilterte Optionsliste wie im
+                              Abschnitt „Stärken" (staerkenOptionen); zugewiesene
+                              Alt-Einträge bleiben sichtbar (R6). Die Prüfung in
+                              eintragWaehlen bleibt unverändert. */}
                           {istStaerke
-                            ? strengths.map(option => (
+                            ? staerkenOptionen(strengths, eintrag.id).map(option => (
                                 <option key={option.id} value={option.id}>{option.name}</option>
                               ))
                             : skills.map(option => (
