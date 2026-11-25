@@ -140,11 +140,12 @@ Die Meldungsreihenfolge folgt der Prüfungsreihenfolge oben und ist deterministi
 
 **Gewährung in der Charaktererstellung:** Der Schritt „Kultur"
 (`KulturSelectStep.tsx`) zeigt nur vollständig zugewiesene Einträge (`id` und `name`)
-und höchstens eine Stärke an. Die Kultur-Rechnung (`shared/src/reducers.ts`) gewährt
-Talentpunkte für Einträge mit gesetzter `id` (`punkte > 0`) und höchstens eine Stärke
-(`gewaehrteStaerken`: `id` gesetzt, `anzahl > 0`, erste in gespeicherter Reihenfolge).
-`name` ist nur für die Anzeige maßgeblich – Altbestand mit `id` ohne `name` verliert
-keinen Wert.
+und höchstens eine Stärke an; seit INT-000016 werden zusätzlich die Entweder/Oder-
+Gruppen mit Seitenwahl angezeigt (siehe unten). Die Kultur-Rechnung
+(`shared/src/reducers.ts`) gewährt Talentpunkte für Einträge mit gesetzter `id`
+(`punkte > 0`) und höchstens eine Stärke (`gewaehrteStaerken`: `id` gesetzt,
+`anzahl > 0`, erste in gespeicherter Reihenfolge). `name` ist nur für die Anzeige
+maßgeblich – Altbestand mit `id` ohne `name` verliert keinen Wert.
 
 **„Gruppe entfernen":** `entferneGruppe`/`gruppeAufloesen` schreiben ausschließlich
 **Seite 1** in die Abschnitte zurück; Seite 2 und die Gruppe entfallen. Beide Seiten
@@ -173,13 +174,13 @@ gleichzeitig zurückzuschreiben erzeugte per Konstruktion einen regelwidrigen Zu
   werden übersprungen, eine vorhandene aber leere Seitenangabe bleibt erhalten und
   wird bei der Speicherprüfung als unvollständige Gruppe beanstandet.
 
-## Bekanntes Verhalten bis INT-000016
+## Auswahl im Schritt „Kultur" (INT-000016)
 
-Im Schritt „Kultur" der Charaktererstellung gibt es noch keine Wahl zwischen den
-Alternativseiten (Folgeticket INT-000016). Kulturen, deren Talente **ausschließlich**
-in Entweder/Oder-Gruppen stehen, gewähren dort daher noch keine Talente; Abschnitts-
-Talente und höchstens eine Stärke werden angezeigt und gewährt. Das ist erwartet und
-kein Mangel dieses Tickets.
+Im Schritt „Kultur" der Charaktererstellung wird je Entweder/Oder-Gruppe genau eine
+Seite gewählt; die Einträge der gewählten Seiten werden über die wirksame Config
+(`shared/src/kulturWahl.ts`, `wirksameKulturConfig`) wie feste Einträge zugewiesen.
+Die technische Dokumentation dazu: [`technische-dokumentation.md`](technische-dokumentation.md);
+die Anwendersicht: [`anwenderhandbuch.md`](anwenderhandbuch.md).
 
 ## Prüfungen
 

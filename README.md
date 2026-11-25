@@ -2,6 +2,11 @@
 
 ## Documentation
 
+- [`docs/technische-dokumentation.md`](docs/technische-dokumentation.md) – Technical
+  guide: Entweder/Oder choice of culture alternatives in the character creation
+  „Kultur" step (components, data flow, validation, persistence, tests).
+- [`docs/anwenderhandbuch.md`](docs/anwenderhandbuch.md) – User manual (German):
+  choosing culture alternatives during character creation.
 - [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
   validation of the library culture editor (talent/strength limits, Entweder/Oder
   alternatives, all message texts).

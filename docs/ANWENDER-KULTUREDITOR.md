@@ -145,11 +145,9 @@ angelegt bzw. nicht geändert. Bedeutung und Lösung:
 
 ## Grenzen und Besonderheiten
 
-- **Alternativwahl folgt später:** Im Schritt „Kultur" der Charaktererstellung kann
-  noch nicht zwischen den beiden Seiten einer Alternative gewählt werden. Kulturen,
-  deren Talente ausschließlich in Entweder/Oder-Gruppen stehen, übertragen daher
-  aktuell noch keine Talente in den Charakter. Die Wahlmöglichkeit wird in einem
-  eigenen Update nachgeliefert.
+- **Alternativwahl bei der Charaktererstellung:** Im Schritt „Kultur" wählen Sie je
+  Gruppe genau eine Seite; Ihr Charakter erhält genau die Einträge der gewählten Seite.
+  Details: [`anwenderhandbuch.md`](anwenderhandbuch.md).
 - **Bestand:** Kulturen, die vor dieser Neuerung gespeichert wurden, werden nicht
   automatisch angepasst. Die Regeln greifen, sobald die Kultur im Editor gespeichert
   wird. Ein solcher Bestand kann im Schritt „Kultur" daher vorübergehend mehrere bzw.
