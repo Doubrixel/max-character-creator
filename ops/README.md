@@ -32,10 +32,18 @@ manage systemd, and take/restore SQLite backups; npm install/build/test run as `
 Install the shared `max-character-creator.service`,
 `max-character-creator-main-update.service`, and
 `max-character-creator-main-update.timer` under `/etc/systemd/system/`. Install
-`deploy-commit.sh` as `/usr/local/sbin/mcc-deploy-commit` and `update-main.sh` as
-`/usr/local/sbin/update-max-character-creator-main`, both mode `0755`. Then run
+`deploy-commit.sh` as `/usr/local/sbin/mcc-deploy-commit`, `mcc-release-env.sh` as
+`/usr/local/sbin/mcc-release-env`, and `update-main.sh` as
+`/usr/local/sbin/update-max-character-creator-main`, all mode `0755`. Then run
 `systemctl daemon-reload` and enable the update timer. Main/QA has no write access to the
 Stable SQLite directory.
+
+`deploy-commit.sh` uses `mcc-release-env` to write the release-local `.release.env`
+and, when re-deploying an already running commit, to restart the service. This is required
+because systemd reads `EnvironmentFile` only when a process starts: without the restart a
+changed `SYSTEM=TEST` flag would never reach the running Node process (and `/api/config`
+would keep reporting the stale value). The deployment health check therefore also verifies
+`/api/config` against the expected test-mode flag.
 
 The timer fetches only the public `main` branch. The updater runs `npm ci --omit=peer`,
 the production dependency audit, backend tests and type-check, and frontend build in a

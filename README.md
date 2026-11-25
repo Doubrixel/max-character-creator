@@ -71,8 +71,11 @@ Ohne `SYSTEM=TEST` erscheint kein Button und das Verhalten entspricht exakt dem
 Ist-Zustand. Für die native systemd-Installation (Main/QA) wird die Variable beim
 Deployment aus der Aufruf-Umgebung in die release-lokale `.release.env`
 übernommen, die der Dienst per `EnvironmentFile` liest, z. B.
-`SYSTEM=TEST mcc-deploy-commit main`. Ein normaler Timer-Update ohne `SYSTEM`
-setzt das Flag wieder zurück.
+`SYSTEM=TEST mcc-deploy-commit main`. Da systemd die `EnvironmentFile` nur beim
+Prozessstart liest, wird der Dienst beim Re-Deploy desselben Commits neu
+gestartet (nicht nur `start`), damit das geänderte Flag auch im laufenden
+Prozess wirksam wird; der Health-Check prüft `/api/config` entsprechend. Ein
+normaler Timer-Update ohne `SYSTEM` setzt das Flag damit wieder zurück.
 
 ## Native Node/systemd deployment
 
