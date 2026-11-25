@@ -5,15 +5,19 @@ import {
   MSG_MAX_STAERKEN,
   MSG_MAX_TALENTE,
   MSG_STAERKE_STUFE,
+  STUFE_1,
   alternativeAnlegen,
   eingabeWert,
   entferneGruppe,
+  istWaehlbareStaerke,
   msgAbschnittEintragUnvollstaendig,
   msgMehrfachZugeordnet,
   msgSeiteLeer,
   parseKulturRegeln,
   pruefeGruppe,
   pruefeGruppeImKontext,
+  pruefeStaerkeWert,
+  staerkenOptionen,
   staerkeAnzahlSetzen,
   staerkeWaehlen,
   talentPunkteGesamt,
@@ -21,6 +25,7 @@ import {
   talentWaehlen,
   validateKultur,
   type KulturAbschnittEintrag,
+  type StaerkeOption,
 } from '@mcc/shared';
 
 /**
@@ -429,4 +434,119 @@ test('UI-Pfad Review-Fund 2 (Runde 6): Stärke-Abwahl setzt die Anzahl auf 0 –
   // Nach der Abwahl nimmt die freie Zeile keinen Anzahl-Wert an
   // (Mangel-3-Standard, unverändert).
   assert.equal(staerkeAnzahlSetzen(abgewaehlt.felder, 0, '1', KOSTEN).fehler, msgAbschnittEintragUnvollstaendig('staerken'));
+});
+
+// --- INT-000017: Angebotssteuerung der Stärken-Auswahl im Kultureditor -------
+//
+// Eigene Fixtures dieses Abschnitts (unabhängig von KOSTEN oben), angelehnt an
+// die QA-Fixtures aus TC-KULTFILT-01/02/08: „Zäh" ist hier die Legacy-Stärke
+// ohne Kostenfeld (Anzeige „Kosten: ?") wie im QA-Seed, daneben je eine Stärke
+// mit Kosten 1, Kosten 2 und Kosten 0 (Rassen-Vorteile).
+
+const BIBLIOTHEK: StaerkeOption[] = [
+  { id: 'zaeh', name: 'Zäh', kosten: null },
+  { id: 'preiswert', name: 'Teststärke Preiswert', kosten: 1 },
+  { id: 'scharfsinn', name: 'Scharfsinn', kosten: 1 },
+  { id: 'teuer', name: 'Teststärke Teuer', kosten: 2 },
+  { id: 'anpassungsfaehig', name: 'Anpassungsfähig', kosten: 0 },
+  { id: 'nachtsicht', name: 'Nachtsicht', kosten: 0 },
+];
+
+/** kostenById, wie der Kultureditor ihn aus dem Stärken-Angebot ableitet. */
+const KOSTEN_AUS_BIBLIOTHEK: Record<string, number> = {};
+for (const option of BIBLIOTHEK) {
+  if (option.kosten !== null) KOSTEN_AUS_BIBLIOTHEK[option.id] = option.kosten;
+}
+
+test('UI-Pfad TC-KULTFILT-02/06/08: Stärken-Dropdown bietet nur wählbare Stärken an (Kosten 1 oder unbekannt)', () => {
+  // Frische Zeile („+ Eintrag hinzufügen", keine Zuweisung): Das Angebot
+  // enthält nur wählbare Stärken – Kosten 1 und ohne Kostenangabe (Legacy,
+  // Anzeige „Kosten: ?"). Nicht wählbare Stärken mit bekanntem Kosten ≠ 1 –
+  // auch Kosten 0 – fehlen vollständig (keine deaktivierte Anzeige).
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK), BIBLIOTHEK.slice(0, 3));
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, ''), BIBLIOTHEK.slice(0, 3));
+
+  // Filterkriterium „wählbar" (R1) einzeln.
+  assert.ok(istWaehlbareStaerke(1));
+  assert.ok(istWaehlbareStaerke(null));
+  assert.ok(istWaehlbareStaerke(undefined));
+  assert.ok(!istWaehlbareStaerke(2));
+  assert.ok(!istWaehlbareStaerke(0));
+
+  // Konsistenz mit der bestehenden Regel (R4, Verteidigung in der Tiefe):
+  // Genau die Stärken, die die Stärke-Prüfung aus INT-000015 mit Stufe 1
+  // bestehen, werden angeboten – und keine andere.
+  for (const option of BIBLIOTHEK) {
+    assert.equal(
+      pruefeStaerkeWert(option.id, STUFE_1, KOSTEN_AUS_BIBLIOTHEK) === null,
+      istWaehlbareStaerke(option.kosten),
+    );
+  }
+});
+
+test('UI-Pfad TC-KULTFILT-04 + R6: zugewiesener Alt-Eintrag bleibt sichtbar, das Angebot bleibt gefiltert', () => {
+  // Beim „Bearbeiten" einer Kultur, deren zugewiesene Stärke Kosten 2 hat
+  // (Altbestand, kein Rewrite): Genau diese Option bleibt für die Zeile
+  // erhalten – die Zuweisung bleibt als zugewiesene Zeile sichtbar –, alle
+  // übrigen nicht wählbaren Stärken fehlen weiterhin. R2 betrifft
+  // ausschließlich das Angebot neuer Auswahloptionen.
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, 'teuer'), [
+    { id: 'teuer', name: 'Teststärke Teuer', kosten: 2 },
+    ...BIBLIOTHEK.slice(0, 3),
+  ]);
+
+  // Eine wählbare zugewiesene Stärke steht ohnehin im Angebot – keine Dublette.
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, 'preiswert'), BIBLIOTHEK.slice(0, 3));
+
+  // Zeile ohne Auswahl („+ Neu" wie „Bearbeiten"): reines Filterergebnis.
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, ''), BIBLIOTHEK.slice(0, 3));
+
+  // Stärke, die nicht mehr in der Bibliothek existiert: keine Zusatzoption,
+  // das Angebot bleibt gefiltert.
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, 'geloescht'), BIBLIOTHEK.slice(0, 3));
+
+  // Die Speicherprüfung des Altbestands bleibt unverändert wirksam (R6): Eine
+  // zugewiesene Stärke mit Kosten 2 wird weiterhin blockierend abgelehnt.
+  const altbestand = mitStaerken({ id: 'teuer', name: 'Teststärke Teuer', anzahl: 1 });
+  assert.equal(validateKultur(altbestand, KOSTEN_AUS_BIBLIOTHEK), MSG_STAERKE_STUFE);
+
+  // Die Live-Prüfung beim Zuweisen bleibt ebenfalls wirksam (R4): Eine Stärke
+  // mit bekanntem Kosten ≠ 1 (hier 0) wird nicht zugewiesen – der Filter ist
+  // eine Ergänzung des Angebots, kein Ersatz der Prüfung.
+  const versuch = staerkeWaehlen(mitStaerken(NEUE_ZEILE), 0, { id: 'anpassungsfaehig', name: 'Anpassungsfähig' }, KOSTEN_AUS_BIBLIOTHEK);
+  assert.equal(versuch.fehler, MSG_STAERKE_STUFE);
+  assert.deepEqual(staerken(versuch.felder), [NEUE_ZEILE]);
+});
+
+test('UI-Pfad TC-KULTFILT-05: Gruppenpflege (Seite 1/Seite 2) nutzt dasselbe gefilterte Angebot', () => {
+  // Die Eintrag-Auswahl der Entweder/Oder-Gruppenpflege läuft über dieselbe
+  // Optionsliste wie der Abschnitt „Stärken" (R3: Überall im Kultureditor,
+  // wo eine Stärke gewählt wird, gilt dasselbe Angebot).
+  const angebot = staerkenOptionen(BIBLIOTHEK);
+  assert.ok(angebot.some(option => option.id === 'zaeh')); // ohne Kostenangabe bleibt wählbar (AK4)
+  assert.ok(!angebot.some(option => option.id === 'teuer')); // Kosten 2 fehlt
+  assert.ok(!angebot.some(option => option.id === 'nachtsicht')); // Kosten 0 fehlt
+
+  // Zugewiesener Alt-Eintrag einer Gruppenseite bleibt als Option der Zeile
+  // sichtbar (R6) …
+  assert.deepEqual(staerkenOptionen(BIBLIOTHEK, 'nachtsicht'), [
+    { id: 'nachtsicht', name: 'Nachtsicht', kosten: 0 },
+    ...BIBLIOTHEK.slice(0, 3),
+  ]);
+
+  // … und die Gruppenprüfung bleibt unverändert wirksam (R4): Eine Stärke mit
+  // Kosten 0 auf einer Gruppenseite wird weiterhin beanstandet.
+  assert.equal(
+    pruefeGruppe(
+      {
+        typ: 'staerke',
+        seiten: [
+          [{ feld: 'staerken', id: 'zaeh', name: 'Zäh', wert: 1 }],
+          [{ feld: 'staerken', id: 'nachtsicht', name: 'Nachtsicht', wert: 1 }],
+        ],
+      },
+      KOSTEN_AUS_BIBLIOTHEK,
+    ),
+    MSG_STAERKE_STUFE,
+  );
 });

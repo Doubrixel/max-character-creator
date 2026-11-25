@@ -7,6 +7,12 @@
  * nur auf – damit ist der UI-Pfad (Stärke wählen, Anzahl setzen, Punkte setzen,
  * Alternative anlegen) ohne Browser mit Unit-Tests prüfbar.
  *
+ * Angebotssteuerung der Stärken-Auswahl (INT-000017): `staerkenOptionen` liefert
+ * die Optionsliste der Stärken-Dropdowns – angeboten werden nur wählbare
+ * Stärken (R1: Kosten 1 oder unbekannt), nicht wählbare fehlen vollständig.
+ * Der Filter ergänzt die Prüfungen (Verteidigung in der Tiefe), er ersetzt sie
+ * nicht: Die Live-Prüfung, `validateKultur` und das Backend bleiben unverändert.
+ *
  * Live-Prüfungen beim Zuweisen (blockierend, die Meldung benennt das Limit):
  * - R1: höchstens eine zugewiesene Stärke. Zugewiesen ist eine Zeile mit
  *   gesetzter `id` – unabhängig vom Anzahl-Wert; ein Wert von 0 umgeht das
@@ -44,6 +50,57 @@ export interface EditorSchritt {
 export interface Auswahl {
   id: string
   name: string
+}
+
+/**
+ * Option des Stärken-Auswahl-Dropdowns im Kultureditor (INT-000017): die
+ * Bibliothekstabelle `strengths` mit ihren Kosten (Punkten). `kosten` ist
+ * `null`, wenn die Config der Stärke kein `kosten`-Feld setzt (Legacy-Seed);
+ * unbekannte Kosten bleiben wie in der bestehenden Prüfung toleriert.
+ */
+export interface StaerkeOption {
+  id: string
+  name: string
+  kosten: number | null
+}
+
+/**
+ * Filterkriterium „wählbar" (INT-000017, R1): Eine Stärke gilt im Kultureditor
+ * als wählbar, wenn ihre Zuweisung die bestehende Stärke-Regel aus INT-000015
+ * nicht ablehnen würde – Kosten (Punkte) 1 oder Kosten nicht gesetzt/unbekannt
+ * (`null`). Stärken mit bekanntem Kosten ≠ 1 (z. B. „Kosten: 2" oder
+ * „Kosten: 0") sind nicht wählbar.
+ */
+export function istWaehlbareStaerke(kosten: number | null | undefined): boolean {
+  return kosten === null || kosten === undefined || kosten === STUFE_1
+}
+
+/**
+ * Optionsliste der Stärken-Auswahl im Kultureditor (INT-000017, R2/R3): Der
+ * Abschnitt „Stärken" (Select „Stärke wählen…") und die Eintrag-Auswahl der
+ * Entweder/Oder-Gruppenpflege (Seite 1/Seite 2) nutzen dieselbe Quelle.
+ * Angeboten werden nur wählbare Stärken gemäß R1 – nicht wählbare erscheinen
+ * nicht in der Optionsliste (vollständiges Fehlen, keine deaktivierte
+ * Anzeige). Das ist eine Ergänzung des Angebots, kein Ersatz der Prüfung
+ * (R4): Live-Prüfung, `validateKultur` und Backend bleiben unverändert.
+ *
+ * Der bereits zugewiesene Wert der Zeile (`zugewieseneId`) bleibt als Option
+ * erhalten (R6 Altbestand): Zugewiesene Alt-Einträge – auch mit Kosten ≠ 1 –
+ * bleiben im Editor als zugewiesene Zeile sichtbar und unterliegen beim
+ * nächsten Speichern unverändert der bestehenden Validierung. R2 betrifft
+ * ausschließlich das Angebot neuer Auswahloptionen; die Anzeige des
+ * vorhandenen Werts ist davon nicht berührt.
+ */
+export function staerkenOptionen(
+  staerken: readonly StaerkeOption[],
+  zugewieseneId: string = '',
+): StaerkeOption[] {
+  const waehlbare = staerken.filter(option => istWaehlbareStaerke(option.kosten))
+  if (zugewieseneId === '' || waehlbare.some(option => option.id === zugewieseneId)) {
+    return waehlbare
+  }
+  const zugewiesen = staerken.find(option => option.id === zugewieseneId)
+  return zugewiesen ? [zugewiesen, ...waehlbare] : waehlbare
 }
 
 /** Zahleneingabe des Editors: positive ganze Zahl, sonst 0. */

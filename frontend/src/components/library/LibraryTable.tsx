@@ -8,6 +8,7 @@ import {
   formatAlternative,
   parseKosten,
   parseKulturRegeln,
+  staerkenOptionen,
   staerkeAnzahlSetzen,
   staerkeWaehlen,
   talentPunkteSetzen,
@@ -16,6 +17,7 @@ import {
   type EditorSchritt,
   type KulturAlternative,
   type KulturFeld,
+  type StaerkeOption,
 } from '@mcc/shared'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -27,12 +29,6 @@ interface LibraryEntry {
   config: string | null
   createdAt: number | null
   updatedAt: number | null
-}
-
-interface StrengthOption {
-  id: string
-  name: string
-  kosten: number | null
 }
 
 interface AbschnittEintrag {
@@ -99,7 +95,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [races, setRaces] = useState<LibraryEntry[]>([])
   const [skills, setSkills] = useState<{ id: string; name: string; type: string }[]>([])
-  const [strengths, setStrengths] = useState<StrengthOption[]>([])
+  const [strengths, setStrengths] = useState<StaerkeOption[]>([])
   const [formError, setFormError] = useState<string | null>(null)
 
   const schema = TYPE_SCHEMAS[type]
@@ -772,7 +768,11 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                               onChange={e => setzeStaerke(idx, e.target.value)}
                             >
                               <option value="">Stärke wählen...</option>
-                              {strengths.map(s => (
+                              {/* INT-000017 R2/R3: Angebot nur wählbarer Stärken
+                                  (Kosten 1 oder unbekannt); der Zeile bereits
+                                  zugewiesene Alt-Einträge bleiben sichtbar (R6).
+                                  Die Prüfung in setzeStaerke bleibt unverändert. */}
+                              {staerkenOptionen(strengths, item.id ?? '').map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                               ))}
                             </select>
