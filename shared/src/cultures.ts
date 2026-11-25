@@ -20,6 +20,12 @@
  *    Zahlen ab 0. Negative oder nicht ganzzahlige Werte würden R2 und die
  *    Basissumme von R5 über einen direkten API-Aufruf umgehen (−5 + 10 ergäbe
  *    5) und werden in der Speicherprüfung abgelehnt (Review-Fund F3).
+ * Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2): Ein Abschnittseintrag
+ *    mit zugewiesenem Wert braucht eine vollständige Auswahl – gesetzte `id`
+ *    und `name`. Nur solche Einträge werden angezeigt und gewährt, sonst ginge
+ *    der Wert beim Gewähren verloren (Phantomzeile aus „+ Eintrag hinzufügen").
+ *    Leere Platzhalterzeilen ohne Wert (Wert 0) bleiben zulässig: sie gewähren
+ *    nichts und werden nirgends angezeigt.
  * Werte in Entweder/Oder-Gruppen sind ganze Zahlen ab 1 (PO-Entscheidung G):
  *    „1,5 | 1,5" wäre zwar gleichwertig, aber kein gültiger Punktwert.
  *
@@ -79,6 +85,23 @@ export function msgMehrfachZugeordnet(name: string): string {
 /** R4 (K4.4): benennt die Wertesummen beider Seiten. */
 export function msgUngleichwertig(summe1: number, summe2: number): string {
   return `Ungleichwertig: Seite 1 = ${summe1} Punkte, Seite 2 = ${summe2} Punkte`
+}
+
+const ABSCHNITT_TITEL: Record<KulturFeld, string> = {
+  talente: 'Talente',
+  waffenTalente: 'Waffentalente',
+  magieSchulen: 'Magieschulen',
+  staerken: 'Stärken',
+}
+
+/**
+ * Mangel-3-Standard auf die Abschnitte übertragen (Review-Fund 1 und 2): Ein
+ * Abschnittseintrag mit zugewiesenem Wert braucht eine vollständige Auswahl –
+ * gesetzte `id` und `name`. Ohne beide wird der Wert weder angezeigt noch
+ * gewährt, deshalb wird eine solche Kultur nicht gespeichert.
+ */
+export function msgAbschnittEintragUnvollstaendig(feld: KulturFeld): string {
+  return `Ungültiger Eintrag im Abschnitt ${ABSCHNITT_TITEL[feld]}: Eintrag mit Wert braucht eine Auswahl (Skill bzw. Stärke).`
 }
 
 export interface KulturEintrag {
@@ -273,6 +296,17 @@ export function istGueltigerPunktwert(wert: number): boolean {
   return Number.isInteger(wert) && wert >= 0
 }
 
+/**
+ * Mangel-3-Standard auf die Abschnitte übertragen (Review-Fund 1 und 2): Ein
+ * Abschnittseintrag ist nur vollständig, wenn `id` und `name` gesetzt sind.
+ * Nur vollständige Einträge werden angezeigt und gewährt – eine Phantomzeile
+ * aus „+ Eintrag hinzufügen" (beides leer) würde sonst eine zugewiesene Stärke
+ * verdrängen bzw. Punkte an eine leere id gewähren.
+ */
+export function istZugewiesenerEintrag(eintrag: { id?: string; name?: string }): boolean {
+  return (eintrag.id ?? '') !== '' && (eintrag.name ?? '') !== ''
+}
+
 /** Zählt zugewiesene Stärken: Einträge mit gesetzter `id`, unabhängig vom Wert (R1). */
 function zaehleStaerken(eintraege: readonly KulturEintrag[]): number {
   return eintraege.filter(eintrag => eintrag.id !== '').length
@@ -290,13 +324,17 @@ export function talentPunkteGesamt(regeln: KulturRegeln): number {
 
 /**
  * R1 für die Gewährung: Eine Kultur gewährt höchstens eine Stärke.
- * Einträge ohne Anzahl (0) gewähren nichts – ein Wert von 0 darf die Grenze
- * nicht umgehen (Review-Fund INT-000015). Wird von der Anzeige im Schritt
- * „Kultur" und von der Kultur-Rechnung (Reducer) genutzt, damit beide
- * dieselbe Gewährung zeigen.
+ * Gezählt wird nur ein vollständig zugewiesener Eintrag (`id` und `name`,
+ * Mangel-3-Standard) mit Anzahl > 0 – ein Wert von 0 darf die Grenze nicht
+ * umgehen (Review-Fund INT-000015) und eine Phantomzeile aus „+ Eintrag
+ * hinzufügen" (leere `id`/`name`) verdrängt keine zugewiesene Stärke
+ * (Review-Fund 1). Wird von der Anzeige im Schritt „Kultur" und von der
+ * Kultur-Rechnung (Reducer) genutzt, damit beide dieselbe Gewährung zeigen.
  */
-export function gewaehrteStaerken<T extends { anzahl: number }>(eintraege: readonly T[]): T[] {
-  return eintraege.filter(eintrag => eintrag.anzahl > 0).slice(0, MAX_STAERKEN)
+export function gewaehrteStaerken<T extends { id?: string; name?: string; anzahl: number }>(
+  eintraege: readonly T[],
+): T[] {
+  return eintraege.filter(eintrag => istZugewiesenerEintrag(eintrag) && eintrag.anzahl > 0).slice(0, MAX_STAERKEN)
 }
 
 // --- Live-Prüfungen im Editor -----------------------------------------------
@@ -606,6 +644,19 @@ export function validateKultur(
   for (const feld of TALENT_FELDER) {
     for (const eintrag of regeln[feld]) {
       if (!istGueltigerPunktwert(eintrag.wert)) return MSG_PUNKTE_UNGUELTIG
+    }
+  }
+
+  // Mangel-3-Standard auf die Abschnitte übertragen (Review-Fund 2): Ein
+  // Abschnittseintrag mit Wert braucht eine vollständige Auswahl – `id` und
+  // `name`. Eine Phantomzeile aus „+ Eintrag hinzufügen" mit gesetztem Wert
+  // würde weder angezeigt noch gewährt (Review-Fund 1) – eine solche Kultur
+  // wird nicht gespeichert. Eintrag ohne Wert (frische Zeile) bleibt zulässig.
+  for (const feld of ABSCHNITT_FELDER) {
+    for (const eintrag of regeln[feld]) {
+      if (eintrag.wert !== 0 && !istZugewiesenerEintrag(eintrag)) {
+        return msgAbschnittEintragUnvollstaendig(feld)
+      }
     }
   }
 

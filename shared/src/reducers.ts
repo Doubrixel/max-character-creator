@@ -1,6 +1,6 @@
 import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
 import { attributeModifier } from './attributes'
-import { gewaehrteStaerken } from './cultures'
+import { gewaehrteStaerken, istZugewiesenerEintrag } from './cultures'
 import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
@@ -89,9 +89,13 @@ const kulturReducer: Reducer = (stats, delta) => {
     // Skills aus talente, waffenTalente, magieSchulen
     for (const key of ['talente', 'waffenTalente', 'magieSchulen']) {
       try {
-        const arr = JSON.parse(kulturConfig[key] || '[]') as Array<{ id: string; punkte: number }>
+        const arr = JSON.parse(kulturConfig[key] || '[]') as Array<{ id: string; name?: string; punkte: number }>
         for (const item of arr) {
-          if (item.punkte > 0) {
+          // Mangel-3-Standard für Abschnitte (Review-Fund 2): Nur vollständig
+          // zugewiesene Einträge (id und name) werden gewährt – Phantomzeilen
+          // ohne Auswahl würden ihre Punkte an eine leere id vergeben. Die
+          // Anzeige im Schritt „Kultur" filtert denselben Standard.
+          if (item.punkte > 0 && istZugewiesenerEintrag(item)) {
             kulturSkills[item.id] = (kulturSkills[item.id] ?? 0) + item.punkte
           }
         }

@@ -1,5 +1,44 @@
 # Implementierungsplan
 
+## Schritt 24: Review-Nacharbeit Kultureditor – Runde 6: Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2) (2026-11-24)
+
+### Ausgangslage (INT-000015, Review PR #2 Runde 5, 24.11. 18:39 UTC)
+Der Review hat zwei blockierende Funde benannt (beide: „Anzeige im Schritt „Kultur" und Gewährung im Reducer laufen auseinander"):
+- Fund 1 (HIGH): `gewaehrteStaerken` filterte nur `anzahl > 0` – eine Phantomzeile aus „+ Eintrag hinzufügen" (leere `id`/`name`, gesetzter Anzahl-Wert) zählte mit und verdrängte die tatsächlich zugewiesene Stärke (`.slice(0, MAX_STAERKEN)` nimmt die erste Zeile). Die Stärke der Kultur ging in der Anzeige verloren, während der Reducer sie weiterhin gewährt.
+- Fund 2 (MEDIUM): Der Mangel-3-Maßstab („Eintrag braucht `id`/`name`") galt nur für Gruppenseiten, nicht für die Abschnitte – Kulturen, deren Talentpunkte auf Phantomzeilen lagen, waren speicherbar, gewährten aber nichts (das komplette 5-Punkte-Budget ging verloren).
+
+### Implementierte Änderungen
+
+**shared/src/cultures.ts**
+- `istZugewiesenerEintrag(eintrag)`: vollständig zugewiesen ist eine Zeile mit gesetzter `id` UND `name` (Mangel-3-Standard für Abschnitte).
+- `msgAbschnittEintragUnvollstaendig(feld)`: „Ungültiger Eintrag im Abschnitt {Talente/Waffentalente/Magieschulen/Stärken}: Eintrag mit Wert braucht eine Auswahl (Skill bzw. Stärke)." – klare, Ursache und Abschnitt benennende Meldung.
+- `gewaehrteStaerken` (Fund 1): filtert jetzt `istZugewiesenerEintrag && anzahl > 0` – eine Phantomzeile verdrängt keine zugewiesene Stärke mehr; Anzeige (Schritt „Kultur") und Kultur-Rechnung (Reducer) zeigen dasselbe.
+- `validateKultur` (Fund 2): Completeness-Prüfung je Abschnittseintrag – ein Eintrag mit Wert ≠ 0 braucht `id` und `name`. POST und PATCH `/api/library/cultures` lehnen solche Kulturen mit 400 und der Meldung ab; Platzhalterzeilen ohne Wert (Wert 0) bleiben zulässig (sie gewähren nichts und werden nirgends angezeigt).
+
+**shared/src/kulturEditor.ts (Live-Prüfung = Speicherprüfung)**
+- `staerkeAnzahlSetzen` und `talentPunkteSetzen`: Ein Wert > 0 auf einer Zeile ohne vollständige Auswahl wird live mit derselben Meldung wie beim Speichern blockiert und nicht übernommen. Wert 0 (Zurücksetzen, auch für Altbestand) bleibt möglich; die Zeile bleibt ohne Wert als Platzhalter stehen – der Editor bleibt ohne manuelles Zeilenlöschen speicherbar.
+
+**frontend/src/components/creation/KulturSelectStep.tsx**
+- `parseEntries` führt die `id` der Einträge mit und filtert auf demselben Mangel-3-Standard (`id` und `name`). Ohne die `id` hätte der neue `gewaehrteStaerken`-Filter auf dem Anzeige-Pfad jede Stärke ausgeblendet (die Map-Ergebnisse hatten keine `id`); jetzt fällt die Anzeige für alle Abschnitte dasselbe Urteil wie die Gewährung.
+
+**shared/src/reducers.ts**
+- Talent-Punkte der Kultur werden nur für vollständig zugewiesene Einträge (`id` und `name`) gewährt – Altbestands-Phantomzeilen (aus der Zeit vor der Prüfung, A3: kein Rewrite) vergeben keine Punkte an eine leere `id` mehr; Anzeige und Gewährung zeigen dasselbe.
+
+### Ergänzte und angepasste Tests
+- `backend/src/cultures/cultures.test.ts`: „gewaehrteStaerken: Anzahl 0 und Phantomzeilen gewähren nichts, höchstens eine Stärke je Kultur" (erweitert: Phantomzeile verdrängt keine Stärke; unvollständige Einträge ohne `name` bzw. ohne `id` gewähren nichts), „Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Review-Fund 1 und 2)", „Review Fund 2: Abschnittseinträge mit Wert brauchen eine vollständige Auswahl" (alle vier Abschnitte, Platzhalter mit Wert 0 zulässig, vollständige Einträge zulässig).
+- `backend/src/cultures/kultur-editor.test.ts`: „UI-Pfad: Stärke wählen steht direkt auf Stufe 1 …" (Anzahl > 0 ohne Zuweisung wird live blockiert; Altbestands-Phantom mit Wert beim Speichern abgelehnt und live blockiert; auf 0 zurücksetzen räumt auf), neu „UI-Pfad Review-Fund 2: Punkte auf einer Zeile ohne Auswahl werden live blockiert" (Talente frisch und Altbestand, Stärken-Abschnitt), „UI-Pfad F1 …" (freie Zeile: R1-Limitmeldung bleibt aus, stattdessen gilt der Mangel-3-Standard).
+- `backend/src/routes/library-cultures-test-child.ts`: POST mit Phantom-Punkten (talente, waffenTalente mit id ohne name) → 400; POST mit Phantom-Stärke neben zugewiesener Stärke (Fund 1 auf API-Ebene) → 400; POST mit Platzhalterzeile (Wert 0, keine Auswahl) → 201; PATCH mit Phantomzeilen (staerken, talente) → 400; alle abgelehnten Namen fehlen in der Liste, der Platzhalter steht darin.
+
+### Verifikation (lokal, Arbeitsstand vor der Übergabe)
+- `npm test`: 47 Tests grün, Exit-Code 0 ✓
+- Mutations-Check: Completeness-Prüfung in `validateKultur` aus → 4 Tests rot (Fund-2-Unit, zwei UI-Pfade, Route); `gewaehrteStaerken` ohne Mangel-3-Filter → 2 rot (Fund-1-Unit, Kultur-Rechnung); Live-Blockaden in `kulturEditor.ts` aus → 3 rot (UI-Pfade); Reducer ohne Filter → 1 rot (Kultur-Rechnung Phantomzeilen).
+- `npm run typecheck --workspace=backend`: Exit-Code 0 ✓
+- `npm run build --workspace=frontend`: Exit-Code 0 ✓ (Chunk-Größen-Hinweis > 500 kB besteht unverändert)
+
+### Nicht geändert – Beobachtungen (kein Umfang dieser Runde)
+- `frontend/tsconfig.tsbuildinfo` (PO-Entscheidung I): nicht geändert; der Build lässt die Datei unverändert.
+- Die Listenzusammenfassung im Bibliotheks-Tab filtert Stärken weiterhin auf `anzahl > 0 && name` – Phantomzeilen (ohne `name`) erscheinen dort nicht; die Speicherprüfung verhindert neu angelegte Kulturen mit Phantomzeilen ohnehin.
+
 ## Schritt 23: Review-Nacharbeit Kultureditor – Runde 5: ganze Zahlen in Gruppen (G), R6 erzwungen (H) (2026-11-24)
 
 ### Ausgangslage (INT-000015, PO-Wiedereinstieg 24.11. 17:28)

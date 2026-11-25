@@ -7,6 +7,7 @@ import {
   MSG_MAX_TALENTE,
   MSG_PUNKTE_UNGUELTIG,
   MSG_STAERKE_STUFE,
+  msgAbschnittEintragUnvollstaendig,
   msgEintragUnvollstaendig,
   msgMehrfachZugeordnet,
   msgSeiteLeer,
@@ -289,6 +290,41 @@ try {
   }, 'Synthetische Kultur Null Punkte');
   assert.equal(nullPunkte.status, 201, await nullPunkte.clone().text());
 
+  // Review-Fund 2: Phantomzeilen („+ Eintrag hinzufügen" ohne Auswahl) mit Wert
+  // sind per direktem POST unzulässig – weder Anzeige noch Gewährung würden den
+  // Wert führen, das 5-Punkte-Budget ginge beim Gewähren verloren.
+  const phantomPunkte = await postKultur({
+    talente: [{ id: '', name: '', punkte: 5 }],
+  }, 'Synthetische Kultur Phantom Punkte');
+  assert.equal(phantomPunkte.status, 400, await phantomPunkte.clone().text());
+  assert.equal(await messageOf(phantomPunkte), msgAbschnittEintragUnvollstaendig('talente'));
+
+  // Unvollständige Auswahl in einem anderen Abschnitt (id gesetzt, name leer).
+  const phantomWaffe = await postKultur({
+    waffenTalente: [{ id: 'klingenwaffen', name: '', punkte: 2 }],
+  }, 'Synthetische Kultur Phantom Waffe');
+  assert.equal(phantomWaffe.status, 400, await phantomWaffe.clone().text());
+  assert.equal(await messageOf(phantomWaffe), msgAbschnittEintragUnvollstaendig('waffenTalente'));
+
+  // Review-Fund 1 auf API-Ebene: Die Phantomzeile im Abschnitt „Stärken" zählt
+  // nicht als zweite Zuweisung (R1), bleibt aber ein Eintrag mit Wert ohne
+  // Auswahl – die Kultur wird abgelehnt, statt die Stärke zu verdrängen.
+  const phantomStaerke = await postKultur({
+    staerken: [
+      { id: '', name: '', anzahl: 3 },
+      { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+    ],
+  }, 'Synthetische Kultur Phantom Staerke');
+  assert.equal(phantomStaerke.status, 400, await phantomStaerke.clone().text());
+  assert.equal(await messageOf(phantomStaerke), msgAbschnittEintragUnvollstaendig('staerken'));
+
+  // Frische Platzhalterzeilen ohne Wert (Wert 0, keine Auswahl) bleiben
+  // zulässig: sie gewähren nichts und werden nirgends angezeigt.
+  const platzhalter = await postKultur({
+    talente: [{ id: 'athletik', name: 'Athletik', punkte: 2 }, { id: '', name: '', punkte: 0 }],
+  }, 'Synthetische Kultur Platzhalter Zeile');
+  assert.equal(platzhalter.status, 201, await platzhalter.clone().text());
+
   // PO-Entscheidung G: Bruchwerte in einer Entweder/Oder-Gruppe („1,5 | 1,5") sind
   // per direktem POST unzulässig – obwohl beide Seiten gleich viel wert sind.
   const gruppeHalbzahlig = await postKultur({
@@ -455,6 +491,40 @@ try {
   assert.equal(patchBruchzahl.status, 400);
   assert.equal(await messageOf(patchBruchzahl), MSG_PUNKTE_UNGUELTIG);
 
+  // Review-Fund 1/2 über PATCH: Phantomzeilen mit Wert werden auch beim
+  // Bearbeiten abgelehnt (Mangel-3-Standard für Abschnitte).
+  const patchPhantomStaerke = await app.request(`/api/library/cultures/${gespeichert.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Synthetische Kultur Fünf Punkte',
+      config: JSON.stringify({
+        staerken: [
+          { id: '', name: '', anzahl: 3 },
+          { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+        ],
+      }),
+    }),
+  });
+  assert.equal(patchPhantomStaerke.status, 400);
+  assert.equal(await messageOf(patchPhantomStaerke), msgAbschnittEintragUnvollstaendig('staerken'));
+
+  const patchPhantomTalente = await app.request(`/api/library/cultures/${gespeichert.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Synthetische Kultur Fünf Punkte',
+      config: JSON.stringify({
+        talente: [
+          { id: '', name: '', punkte: 5 },
+          { id: 'athletik', name: 'Athletik', punkte: 0 },
+        ],
+      }),
+    }),
+  });
+  assert.equal(patchPhantomTalente.status, 400);
+  assert.equal(await messageOf(patchPhantomTalente), msgAbschnittEintragUnvollstaendig('talente'));
+
   // PO-Entscheidung G über PATCH: Bruchwerte in einer Gruppe werden auch beim
   // Bearbeiten abgelehnt (1,5 = 1 + 0,5 wäre gleichwertig).
   const patchGruppeHalbzahlig = await app.request(`/api/library/cultures/${gespeichert.id}`, {
@@ -567,8 +637,14 @@ try {
   assert.ok(!namen.includes('Synthetische Kultur Gruppe Halbzahlig'));
   assert.ok(!namen.includes('Synthetische Kultur Doppelte Zuordnung'));
   assert.ok(!namen.includes('Synthetische Kultur Eintrag in Zwei Gruppen'));
+  // Review-Fund 1/2: Phantomzeilen mit Wert wurden nicht gespeichert.
+  assert.ok(!namen.includes('Synthetische Kultur Phantom Punkte'));
+  assert.ok(!namen.includes('Synthetische Kultur Phantom Waffe'));
+  assert.ok(!namen.includes('Synthetische Kultur Phantom Staerke'));
   // Ganze Zahl 0 bleibt zugelassen.
   assert.ok(namen.includes('Synthetische Kultur Null Punkte'));
+  // Frische Platzhalterzeilen ohne Wert bleiben zulässig.
+  assert.ok(namen.includes('Synthetische Kultur Platzhalter Zeile'));
   // Dieselbe id auf den beiden Seiten derselben Gruppe bleibt zugelassen (R6: eine Gruppe).
   assert.ok(namen.includes('Synthetische Kultur Gleicher Eintrag Beidseitig'));
 } finally {

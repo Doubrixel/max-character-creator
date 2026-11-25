@@ -8,6 +8,7 @@ import {
   alternativeAnlegen,
   eingabeWert,
   entferneGruppe,
+  msgAbschnittEintragUnvollstaendig,
   msgMehrfachZugeordnet,
   msgSeiteLeer,
   parseKulturRegeln,
@@ -95,11 +96,29 @@ test('UI-Pfad: Stärke wählen steht direkt auf Stufe 1 – Anzahl 0 ist für ei
   const ok = staerkeAnzahlSetzen(schritt.felder, 0, '1', KOSTEN);
   assert.equal(ok.fehler, null);
 
-  // Ohne Zuweisung wird der Wert unverändert übernommen (die Zeile zählt nicht).
-  const unzugewiesen = staerkeAnzahlSetzen(mitStaerken(NEUE_ZEILE), 0, '3', KOSTEN);
-  assert.equal(unzugewiesen.fehler, null);
-  assert.deepEqual(staerken(unzugewiesen.felder), [{ ...NEUE_ZEILE, anzahl: 3 }]);
-  assert.equal(validateKultur(unzugewiesen.felder, KOSTEN), null);
+  // Ohne Zuweisung nimmt die Zeile keinen Wert > 0 an (Review-Fund 1):
+  // Live-Meldung wie bei der Speicherprüfung, der Wert wird nicht übernommen.
+  // Die Zeile bleibt ohne Wert als Platzhalter stehen – der Editor bleibt
+  // ohne manuelles Zeilenlöschen speicherbar.
+  const frischeZeile = mitStaerken(NEUE_ZEILE);
+  const unzugewiesen = staerkeAnzahlSetzen(frischeZeile, 0, '3', KOSTEN);
+  assert.equal(unzugewiesen.fehler, msgAbschnittEintragUnvollstaendig('staerken'));
+  assert.equal(unzugewiesen.felder, frischeZeile);
+  assert.deepEqual(staerken(frischeZeile), [NEUE_ZEILE]);
+  assert.equal(validateKultur(frischeZeile, KOSTEN), null);
+
+  // Altbestand (A3, kein Rewrite): Eine Phantomzeile mit bereits gesetztem
+  // Wert wird beim Speichern abgelehnt (Mangel-3-Standard für Abschnitte) …
+  const altPhantom = mitStaerken({ ...NEUE_ZEILE, anzahl: 3 });
+  assert.equal(validateKultur(altPhantom, KOSTEN), msgAbschnittEintragUnvollstaendig('staerken'));
+  // … jede erneute Eingabe wird live mit derselben Meldung blockiert …
+  assert.equal(staerkeAnzahlSetzen(altPhantom, 0, '1', KOSTEN).fehler, msgAbschnittEintragUnvollstaendig('staerken'));
+  assert.equal(staerkeAnzahlSetzen(altPhantom, 0, '3', KOSTEN).felder, altPhantom);
+  // … und lässt sich durch Zurücksetzen auf 0 aufräumen (Wert 0 bleibt möglich).
+  const aufgeraeumt = staerkeAnzahlSetzen(altPhantom, 0, '0', KOSTEN);
+  assert.equal(aufgeraeumt.fehler, null);
+  assert.deepEqual(staerken(aufgeraeumt.felder), [NEUE_ZEILE]);
+  assert.equal(validateKultur(aufgeraeumt.felder, KOSTEN), null);
 });
 
 test('UI-Pfad F1: „Anzahl" auf einer zweiten zugewiesenen Zeile wird live mit dem Limit blockiert', () => {
@@ -131,8 +150,13 @@ test('UI-Pfad F1: „Anzahl" auf einer zweiten zugewiesenen Zeile wird live mit 
   assert.equal(aufgeraeumt.fehler, null);
   assert.deepEqual(staerken(aufgeraeumt.felder), [{ ...ZAEH, anzahl: 1 }, { ...NEUE_ZEILE, anzahl: 0 }]);
   assert.equal(validateKultur(aufgeraeumt.felder, KOSTEN), null);
-  // In der freien Zeile ist Anzahl 1 nun wieder zulässig (keine zweite Zuweisung).
-  assert.equal(staerkeAnzahlSetzen(aufgeraeumt.felder, 1, '1', KOSTEN).fehler, null);
+  // Die freie Zeile ist keine zweite Zuweisung: Die R1-Limitmeldung (F1) bleibt
+  // aus. Einen Anzahl-Wert nimmt die Zeile ohne Auswahl dennoch nicht an
+  // (Mangel-3-Standard für Abschnitte, Review-Fund 1) – erst die gewählte
+  // Stärke steht direkt auf Stufe 1.
+  const freieZeile = staerkeAnzahlSetzen(aufgeraeumt.felder, 1, '1', KOSTEN);
+  assert.equal(freieZeile.fehler, msgAbschnittEintragUnvollstaendig('staerken'));
+  assert.equal(freieZeile.felder, aufgeraeumt.felder);
 });
 
 test('UI-Pfad TC-05/TC-06: Stufe 2 und Kosten 2 werden nicht zugewiesen', () => {
@@ -185,6 +209,52 @@ test('UI-Pfad TC-01/TC-02/TC-03: Talentpunkte über 5 werden bereichsübergreife
   assert.equal(fuenf.fehler, null);
   assert.equal(talentPunkteGesamt(parseKulturRegeln(fuenf.felder)), 5);
   assert.equal(validateKultur(fuenf.felder), null);
+});
+
+test('UI-Pfad Review-Fund 2: Punkte auf einer Zeile ohne Auswahl werden live blockiert', () => {
+  const athletik = { id: 'athletik', name: 'Athletik', punkte: 3 };
+
+  // Frische Zeile ohne gewählten Skill: Der Wert wird nicht übernommen –
+  // dieselbe Meldung wie bei der Speicherprüfung. Die Zeile bleibt ohne Wert
+  // stehen, der Editor bleibt speicherbar.
+  const felder = { talente: JSON.stringify([athletik, { id: '', name: '', punkte: 0 }]) };
+  const schritt = talentPunkteSetzen(felder, 'talente', 1, '2');
+  assert.equal(schritt.fehler, msgAbschnittEintragUnvollstaendig('talente'));
+  assert.equal(schritt.felder, felder);
+  assert.deepEqual(JSON.parse(felder.talente), [athletik, { id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(felder), null);
+
+  // Nach dem Wählen des Skills (die Select-Box setzt id und name) wird
+  // derselbe Wert übernommen.
+  const mitSkill = {
+    talente: JSON.stringify([athletik, { id: 'heimlichkeit', name: 'Heimlichkeit', punkte: 0 }]),
+  };
+  const ok = talentPunkteSetzen(mitSkill, 'talente', 1, '2');
+  assert.equal(ok.fehler, null);
+  assert.deepEqual(JSON.parse(ok.felder.talente), [
+    athletik,
+    { id: 'heimlichkeit', name: 'Heimlichkeit', punkte: 2 },
+  ]);
+
+  // Altbestand (A3): Punkte auf einer Zeile ohne Auswahl werden beim Speichern
+  // abgelehnt und jede erneute Eingabe live mit derselben Meldung blockiert …
+  const altPhantom = { waffenTalente: JSON.stringify([{ id: '', name: '', punkte: 5 }]) };
+  assert.equal(validateKultur(altPhantom), msgAbschnittEintragUnvollstaendig('waffenTalente'));
+  const versuch = talentPunkteSetzen(altPhantom, 'waffenTalente', 0, '5');
+  assert.equal(versuch.fehler, msgAbschnittEintragUnvollstaendig('waffenTalente'));
+  assert.equal(versuch.felder, altPhantom);
+  // … zurücksetzen auf 0 räumt die Zeile auf (Wert 0 bleibt ohne Auswahl möglich).
+  const aufgeraeumt = talentPunkteSetzen(altPhantom, 'waffenTalente', 0, '0');
+  assert.equal(aufgeraeumt.fehler, null);
+  assert.deepEqual(JSON.parse(aufgeraeumt.felder.waffenTalente), [{ id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(aufgeraeumt.felder), null);
+
+  // Stärken-Abschnitt über denselben Standard: Anzahl > 0 ohne Auswahl wird
+  // live blockiert (vgl. den Test „Stärke wählen steht direkt auf Stufe 1").
+  const frisch = mitStaerken(NEUE_ZEILE);
+  const staerkeVersuch = staerkeAnzahlSetzen(frisch, 0, '1', KOSTEN);
+  assert.equal(staerkeVersuch.fehler, msgAbschnittEintragUnvollstaendig('staerken'));
+  assert.equal(staerkeVersuch.felder, frisch);
 });
 
 test('UI-Pfad TC-08/TC-10: Alternative anlegen löst den Eintrag in eine Gruppe mit (noch) leerer Seite 2', () => {

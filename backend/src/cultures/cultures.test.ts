@@ -16,6 +16,7 @@ import {
   msgMehrfachZugeordnet,
   msgSeiteLeer,
   msgUngleichwertig,
+  msgAbschnittEintragUnvollstaendig,
   istGueltigerPunktwert,
   parseKulturRegeln,
   pruefeGruppe,
@@ -508,25 +509,40 @@ test('entferneGruppe mehrerer Gruppen entfernt nur die gewählte', () => {
   assert.equal(validateKultur(neu, { zaeh: 1, schnell: 1 }), null);
 });
 
-test('gewaehrteStaerken: Anzahl 0 gewährt nichts, höchstens eine Stärke je Kultur', () => {
+test('gewaehrteStaerken: Anzahl 0 und Phantomzeilen gewähren nichts, höchstens eine Stärke je Kultur', () => {
   // Altbestand mit mehreren Einträgen (Review-Fund): nur der erste zählt.
   assert.deepEqual(
     gewaehrteStaerken([
-      { id: 'zaeh', anzahl: 1 },
-      { id: 'schnell', anzahl: 1 },
+      { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+      { id: 'schnell', name: 'Schnell', anzahl: 1 },
     ]),
-    [{ id: 'zaeh', anzahl: 1 }],
+    [{ id: 'zaeh', name: 'Zäh', anzahl: 1 }],
   );
   // Ein Eintrag mit Anzahl 0 gewährt nichts – auch nicht als „zweite" Stärke.
   assert.deepEqual(
     gewaehrteStaerken([
-      { id: 'zaeh', anzahl: 0 },
-      { id: 'schnell', anzahl: 1 },
+      { id: 'zaeh', name: 'Zäh', anzahl: 0 },
+      { id: 'schnell', name: 'Schnell', anzahl: 1 },
     ]),
-    [{ id: 'schnell', anzahl: 1 }],
+    [{ id: 'schnell', name: 'Schnell', anzahl: 1 }],
   );
-  assert.deepEqual(gewaehrteStaerken([{ id: 'zaeh', anzahl: 0 }]), []);
+  assert.deepEqual(gewaehrteStaerken([{ id: 'zaeh', name: 'Zäh', anzahl: 0 }]), []);
   assert.deepEqual(gewaehrteStaerken([]), []);
+  // Review-Fund 1: Eine Phantomzeile („+ Eintrag hinzufügen", ohne Auswahl) mit
+  // Anzahl-Wert verdrängt die tatsächlich zugewiesene Stärke nicht – Anzeige im
+  // Schritt „Kultur" und Kultur-Rechnung gewähren weiterhin die echte Stärke.
+  assert.deepEqual(
+    gewaehrteStaerken([
+      { id: '', name: '', anzahl: 3 },
+      { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+    ]),
+    [{ id: 'zaeh', name: 'Zäh', anzahl: 1 }],
+  );
+  assert.deepEqual(gewaehrteStaerken([{ id: '', name: '', anzahl: 3 }]), []);
+  // Unvollständige Einträge (ohne name bzw. ohne id) gewähren nichts – Anzeige
+  // und Gewährung zeigen dasselbe Urteil (Mangel-3-Standard für Abschnitte).
+  assert.deepEqual(gewaehrteStaerken([{ id: 'zaeh', name: '', anzahl: 1 }]), []);
+  assert.deepEqual(gewaehrteStaerken([{ id: '', name: 'Zäh', anzahl: 1 }]), []);
 });
 
 test('Kultur-Rechnung gewährt dem Charakter höchstens eine Stärke (KulturSelectStep-Pfad)', () => {
@@ -564,6 +580,68 @@ test('Kultur-Rechnung gewährt dem Charakter höchstens eine Stärke (KulturSele
   assert.deepEqual(recalculateStats(nullDelta).staerken, []);
   // Talente der Kultur bleiben unberührt.
   assert.deepEqual(state.skills, { athletik: 2 });
+});
+
+test('Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Review-Fund 1 und 2)', () => {
+  // Altbestand aus der Zeit vor der Prüfung: Punkte und Anzahl stehen auf
+  // Zeilen ohne Auswahl („Phantomzeilen"). Weder Anzeige (parseEntries,
+  // Mangel-3-Standard) noch Kultur-Rechnung gewähren sie.
+  const delta = {
+    kultur: {
+      kulturId: 'kultur-1',
+      kulturName: 'Testkultur',
+      kulturDescription: null,
+      kulturConfig: {
+        talente: JSON.stringify([
+          { id: '', name: '', punkte: 5 },
+          { id: 'athletik', name: 'Athletik', punkte: 2 },
+        ]),
+        waffenTalente: JSON.stringify([{ id: 'klingenwaffen', name: '', punkte: 3 }]),
+        staerken: JSON.stringify([
+          { id: '', name: '', anzahl: 3 },
+          { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+        ]),
+      },
+    },
+  };
+  const phantomState = recalculateStats(delta);
+  assert.deepEqual(phantomState.skills, { athletik: 2 });
+  assert.deepEqual(phantomState.staerken, ['zaeh']);
+});
+
+test('Review Fund 2: Abschnittseinträge mit Wert brauchen eine vollständige Auswahl', () => {
+  // Phantomzeile mit Wert: weder anzeige- noch gewährend – das komplette
+  // 5-Punkte-Budget würde beim Gewähren verloren gehen. Nicht speicherbar.
+  assert.equal(
+    validateKultur({ talente: [{ id: '', name: '', punkte: 5 }] }),
+    msgAbschnittEintragUnvollstaendig('talente'),
+  );
+  assert.equal(
+    validateKultur({ waffenTalente: [{ id: 'klingenwaffen', name: '', punkte: 2 }] }),
+    msgAbschnittEintragUnvollstaendig('waffenTalente'),
+  );
+  assert.equal(
+    validateKultur({ magieSchulen: [{ id: '', name: 'Bannmagie', punkte: 2 }] }),
+    msgAbschnittEintragUnvollstaendig('magieSchulen'),
+  );
+  // Review-Fund 1 auf API-Ebene: Eine Phantomzeile im Abschnitt „Stärken"
+  // zählt nicht als Zuweisung (R1), bleibt aber unvollständig und verdrängt
+  // die zugewiesene Stärke nicht – die Kultur wird abgelehnt.
+  assert.equal(
+    validateKultur({
+      staerken: [
+        { id: '', name: '', anzahl: 3 },
+        { id: 'zaeh', name: 'Zäh', anzahl: 1 },
+      ],
+    }),
+    msgAbschnittEintragUnvollstaendig('staerken'),
+  );
+  // Frische Platzhalterzeile ohne Wert (Wert 0) bleibt zulässig: sie gewährt
+  // nichts und wird nirgends angezeigt.
+  assert.equal(validateKultur({ talente: [{ id: '', name: '', punkte: 0 }] }), null);
+  assert.equal(validateKultur({ staerken: [{ id: '', name: '', anzahl: 0 }] }), null);
+  // Vollständige Einträge bleiben zulässig.
+  assert.equal(validateKultur({ talente: [ATHLETIK, AKROBATIK] }), null);
 });
 
 // --- Review-Nacharbeit INT-000015: Live-Meldung direkt an der Gruppe -----------

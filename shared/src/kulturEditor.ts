@@ -13,13 +13,18 @@
  *   Limit nicht (Review-Fund INT-000015). Eine gewählte Stärke steht direkt auf
  *   Stufe 1, und nur Stufe 1 mit Kosten 1 ist zulässig.
  * - R2: höchstens 5 Punkte über Talente, Waffentalente und Magieschulen.
+ * - Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2): Eine Zeile ohne
+ *   vollständige Auswahl (id und name) nimmt keinen Wert > 0 an – mit derselben
+ *   Meldung wie die Speicherprüfung. Wert 0 bleibt ohne Auswahl möglich.
  * Die vollständige Speicherprüfung bleibt `validateKultur`.
  */
 import {
   MSG_MAX_STAERKEN,
   MSG_STAERKE_STUFE,
   STUFE_1,
+  istZugewiesenerEintrag,
   leseAbschnitt,
+  msgAbschnittEintragUnvollstaendig,
   parseKulturRegeln,
   pruefeStaerkeWert,
   pruefeTalentPunkte,
@@ -141,8 +146,14 @@ export function staerkeWaehlen(
  * „Anzahl" (Stufe) einer Stärke ändern (R1). Eine zugewiesene Stärke steht nur
  * auf Stufe 1: 0 ist genauso unzulässig wie 2, der Wert wird nicht übernommen.
  * Es gilt dieselbe Abschnittsprüfung wie beim Wählen – neben einer zweiten
- * zugewiesenen Stärke wird die Änderung nicht akzeptiert. Ohne Zuweisung (keine
- * Stärke gewählt) wird der Wert unverändert übernommen.
+ * zugewiesenen Stärke wird die Änderung nicht akzeptiert.
+ *
+ * Mangel-3-Standard für Abschnitte (Review-Fund 1): Eine Zeile ohne vollständige
+ * Auswahl (id und name) nimmt keinen Wert > 0 an – dieselbe Meldung wie bei der
+ * Speicherprüfung. Eine Phantomzeile aus „+ Eintrag hinzufügen" mit gesetztem
+ * Anzahl-Wert wäre weder anzeige- noch gewährend. Wert 0 (das Zurücksetzen)
+ * bleibt ohne Zuweisung möglich; die Zeile bleibt dann als Platzhalter stehen
+ * und der Editor ist ohne manuelles Zeilenlöschen speicherbar.
  */
 export function staerkeAnzahlSetzen(
   configFelder: Record<string, string>,
@@ -154,6 +165,9 @@ export function staerkeAnzahlSetzen(
   const alt = liste[idx]
   if (!alt) return { felder: configFelder, fehler: null }
   const wert = eingabeWert(roh)
+  if (wert > 0 && !istZugewiesenerEintrag(alt)) {
+    return { felder: configFelder, fehler: msgAbschnittEintragUnvollstaendig('staerken') }
+  }
   if (istZugewiesen(alt)) {
     const fehler = pruefeStaerkeWert(alt.id, wert, kostenById)
     if (fehler) return { felder: configFelder, fehler }
@@ -174,6 +188,12 @@ export function staerkeAnzahlSetzen(
  * „Punkte" eines Talents setzen (R2) – gilt für Talente, Waffentalente und
  * Magieschulen gemeinsam. Ein Wert, der die Summe über 5 hebt, wird nicht
  * übernommen; eine frische Zeile ohne bisherigen Wert wird wieder entfernt.
+ *
+ * Mangel-3-Standard für Abschnitte (Review-Fund 2): Eine Zeile ohne vollständige
+ * Auswahl (id und name) nimmt keinen Wert > 0 an – dieselbe Meldung wie bei der
+ * Speicherprüfung („Ungültiger Eintrag im Abschnitt …"). Punkte auf einer
+ * Phantomzeile würden beim Gewähren verloren gehen. Wert 0 (das Zurücksetzen)
+ * bleibt ohne Auswahl möglich; die Zeile bleibt als Platzhalter stehen.
  */
 export function talentPunkteSetzen(
   configFelder: Record<string, string>,
@@ -185,6 +205,9 @@ export function talentPunkteSetzen(
   const alt = liste[idx]
   if (!alt) return { felder: configFelder, fehler: null }
   const wert = eingabeWert(roh)
+  if (wert > 0 && !istZugewiesenerEintrag(alt)) {
+    return { felder: configFelder, fehler: msgAbschnittEintragUnvollstaendig(feld) }
+  }
   const neu = liste.map((e, i) => (i === idx ? { ...e, punkte: wert } : e))
   const kandidat = schreibeAbschnitt(configFelder, feld, neu)
   const fehler = pruefeTalentPunkte(parseKulturRegeln(kandidat))
