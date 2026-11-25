@@ -1,7 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { gewaehrteStaerken, istZugewiesenerEintrag } from '@mcc/shared'
+import {
+  gewaehrteStaerken,
+  istZugewiesenerEintrag,
+  istWahlVollstaendig,
+  leseAlternativWahl,
+  parseKulturRegeln,
+  wirksameKulturConfig,
+  type AlternativWahl,
+} from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 
 // --- Robustes Parsen der Kultur-Config --------------------------------------
@@ -123,6 +131,8 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
   const [kulturen, setKulturen] = useState<LibraryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Gewählte Seite je Entweder/Oder-Gruppe der gewählten Kultur (INT-000016).
+  const [wahl, setWahl] = useState<AlternativWahl>({})
 
   const selectedRasseId = stepDeltas.rasse?.id
 
@@ -137,31 +147,6 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
       .catch(() => { setLoading(false); reportApiError('Bibliotheksdaten konnten nicht geladen werden') })
   }, [])
 
-  useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-    const d = stepData as Record<string, unknown> | null
-    if (d) {
-      setSelectedId((d.kulturId as string) ?? null)
-    }
-  }, [stepData])
-
-  useEffect(() => () => { initializedRef.current = false }, [])
-
-  useEffect(() => {
-    onValid(selectedId !== null)
-  }, [selectedId, onValid])
-
-  const handleSelect = (item: LibraryItem) => {
-    setSelectedId(item.id)
-    updateStepDelta('kultur', {
-      kulturId: item.id,
-      kulturName: item.name,
-      kulturDescription: item.description,
-      kulturConfig: item.config ? JSON.parse(item.config) : null,
-    })
-  }
-
   const filteredKulturen = kulturen.filter(k => {
     if (!selectedRasseId) return true
     if (!k.config) return false
@@ -175,6 +160,80 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
   })
 
   const selectedKultur = filteredKulturen.find((k) => k.id === selectedId)
+
+  useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
+    const d = stepData as Record<string, unknown> | null
+    if (d) {
+      setSelectedId((d.kulturId as string) ?? null)
+      // Bereits getroffene Entweder/Oder-Wahl wiederherstellen (wie die
+      // gewählte Kultur selbst), damit die Entscheidung beim erneuten Betreten
+      // des Schritts sichtbar bleibt (AK2.6).
+      setWahl(leseAlternativWahl(d.alternativWahl))
+    }
+  }, [stepData])
+
+  useEffect(() => () => { initializedRef.current = false }, [])
+
+  // Entweder/Oder-Gruppen der gewählten Kultur – dieselbe tolerante Parsung
+  // wie im Bibliotheks-Editor (`parseKulturRegeln`); die Abschnitte der
+  // Anzeige enthalten nur die festen Einträge, Gruppeneinträge stehen
+  // ausschließlich in den Gruppen (R6 des Vorgängertickets).
+  const alternativen = useMemo(
+    () => (selectedKultur ? parseKulturRegeln(selectedKultur.config).alternativen : []),
+    [selectedKultur],
+  )
+
+  // Wahlpflicht (Annahme A1): „Weiter" ist erst aktiv, wenn je Gruppe genau
+  // eine Seite gewählt ist. Kulturen ohne Gruppen sind ohne Wahl gültig
+  // (AK2.5, unverändertes Verhalten).
+  const wahlVollstaendig = useMemo(
+    () => istWahlVollstaendig({ alternativen }, wahl),
+    [alternativen, wahl],
+  )
+
+  useEffect(() => {
+    onValid(selectedId !== null && wahlVollstaendig)
+  }, [selectedId, wahlVollstaendig, onValid])
+
+  /** Schreibt das Step-Delta mit der wirksamen Config zur aktuellen Wahl. */
+  const schreibeKulturDelta = (item: LibraryItem, wahlNeu: AlternativWahl) => {
+    updateStepDelta('kultur', {
+      kulturId: item.id,
+      kulturName: item.name,
+      kulturDescription: item.description,
+      // AK2.4: Die Einträge der gewählten Seiten stehen als normale
+      // Abschnittseinträge in der Config – der Reducer weist sie wie feste
+      // Einträge zu, es gibt keine zweite Zuweisungslogik.
+      kulturConfig: wirksameKulturConfig(item.config, wahlNeu),
+      alternativWahl: wahlNeu,
+    })
+  }
+
+  const handleSelect = (item: LibraryItem) => {
+    // Erneuter Klick auf die bereits gewählte Karte ändert nichts – eine
+    // getroffene Entweder/Oder-Wahl bleibt dabei erhalten.
+    if (selectedId === item.id) return
+    setSelectedId(item.id)
+    // Kulturwechsel: neue Gruppen, keine Vorbelegung (TC-KULT-ALT-01).
+    const wahlNeu: AlternativWahl = {}
+    setWahl(wahlNeu)
+    schreibeKulturDelta(item, wahlNeu)
+  }
+
+  /**
+   * Wahl einer Seite einer Entweder/Oder-Gruppe (R2): Je Gruppe wird genau
+   * eine Seite gewählt – die Wahl der anderen Seite ersetzt die bisherige
+   * Entscheidung (nie beide gleichzeitig, TC-KULT-ALT-07).
+   */
+  const seiteWaehlen = (gruppe: number, seite: 0 | 1) => {
+    if (!selectedKultur) return
+    const wahlNeu: AlternativWahl = { ...wahl, [gruppe]: seite }
+    setWahl(wahlNeu)
+    schreibeKulturDelta(selectedKultur, wahlNeu)
+  }
+
   const kulturConfig = selectedKultur ? parseKulturConfig(selectedKultur.config) : null
   const statblockSections: { title: string, entries: KulturEntry[] }[] = kulturConfig
     ? [
@@ -229,6 +288,47 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
               </ul>
             </div>
           ))}
+          {alternativen.length > 0 && (
+            <div style={styles.altSection}>
+              <h4 style={styles.statblockTitle}>Entweder/Oder-Gruppen</h4>
+              <p style={styles.altHint}>
+                Wähle je Gruppe genau eine Seite – dein Charakter erhält genau die Einträge der gewählten Seite.
+              </p>
+              {alternativen.map((alternative, gi) => (
+                <fieldset key={gi} style={styles.altGroup}>
+                  <legend style={styles.altLegend}>Gruppe {gi + 1}</legend>
+                  <div style={styles.altSides}>
+                    {alternative.seiten.map((seite, si) => {
+                      const istGewaehlt = wahl[gi] === si
+                      return (
+                        <button
+                          key={si}
+                          type="button"
+                          style={{ ...styles.sideCard, ...(istGewaehlt ? styles.sideSelected : {}) }}
+                          aria-pressed={istGewaehlt}
+                          onClick={() => seiteWaehlen(gi, si === 0 ? 0 : 1)}
+                        >
+                          <span style={styles.sideLabel}>
+                            {istGewaehlt ? '✓ ' : ''}Seite {si + 1}
+                          </span>
+                          <ul style={styles.sideList}>
+                            {seite.map((eintrag, ei) => (
+                              <li key={ei} style={styles.sideItem}>
+                                {eintrag.name} {eintrag.wert}
+                              </li>
+                            ))}
+                            {seite.length === 0 && (
+                              <li key="leer" style={styles.sideItem}>Kein Eintrag</li>
+                            )}
+                          </ul>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -326,5 +426,65 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     color: 'var(--detail-text)',
     marginBottom: 4,
+  },
+  altSection: {
+    marginTop: 12,
+  },
+  altHint: {
+    margin: '0 0 8px 0',
+    fontSize: 13,
+    color: 'var(--text-secondary)',
+  },
+  altGroup: {
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: 10,
+    margin: '0 0 10px 0',
+    minWidth: 0,
+  },
+  altLegend: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    padding: '0 6px',
+  },
+  altSides: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: 8,
+  },
+  sideCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+    padding: '10px 12px',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    border: '2px solid var(--border)',
+    borderRadius: 8,
+    cursor: 'pointer',
+    textAlign: 'left',
+    transition: 'all 0.2s',
+    minWidth: 0,
+  },
+  sideSelected: {
+    border: '2px solid var(--accent)',
+    background: 'var(--bg-tertiary)',
+    boxShadow: '0 0 12px var(--shadow-accent)',
+  },
+  sideLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--accent)',
+  },
+  sideList: {
+    margin: 0,
+    paddingLeft: 16,
+  },
+  sideItem: {
+    fontSize: 13,
+    color: 'var(--detail-text)',
+    marginBottom: 2,
   },
 }
