@@ -324,17 +324,22 @@ export function talentPunkteGesamt(regeln: KulturRegeln): number {
 
 /**
  * R1 für die Gewährung: Eine Kultur gewährt höchstens eine Stärke.
- * Gezählt wird nur ein vollständig zugewiesener Eintrag (`id` und `name`,
- * Mangel-3-Standard) mit Anzahl > 0 – ein Wert von 0 darf die Grenze nicht
- * umgehen (Review-Fund INT-000015) und eine Phantomzeile aus „+ Eintrag
- * hinzufügen" (leere `id`/`name`) verdrängt keine zugewiesene Stärke
- * (Review-Fund 1). Wird von der Anzeige im Schritt „Kultur" und von der
- * Kultur-Rechnung (Reducer) genutzt, damit beide dieselbe Gewährung zeigen.
+ * Gezählt wird ein Eintrag mit gesetzter `id` und Anzahl > 0 – ein Wert von 0
+ * darf die Grenze nicht umgehen (Review-Fund INT-000015) und eine Phantomzeile
+ * aus „+ Eintrag hinzufügen" (leere `id`/`name`) verdrängt keine zugewiesene
+ * Stärke (Review-Fund 1).
+ *
+ * Fund 4 (Runde 6): Die Gewährung hängt ausschließlich an der `id` – ein
+ * Altbestands-Eintrag mit gesetzter `id`, aber ohne `name`, verliert seinen
+ * Wert nicht stillschweigend; `name` ist nur für die Anzeige maßgeblich
+ * (KulturSelectStep, Mangel-3-Standard). Eine Phantomzeile ohne `id` gewährt
+ * nichts. Wird von der Anzeige im Schritt „Kultur" und von der Kultur-Rechnung
+ * (Reducer) genutzt.
  */
 export function gewaehrteStaerken<T extends { id?: string; name?: string; anzahl: number }>(
   eintraege: readonly T[],
 ): T[] {
-  return eintraege.filter(eintrag => istZugewiesenerEintrag(eintrag) && eintrag.anzahl > 0).slice(0, MAX_STAERKEN)
+  return eintraege.filter(eintrag => (eintrag.id ?? '') !== '' && eintrag.anzahl > 0).slice(0, MAX_STAERKEN)
 }
 
 // --- Live-Prüfungen im Editor -----------------------------------------------

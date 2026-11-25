@@ -18,6 +18,7 @@ import {
   staerkeWaehlen,
   talentPunkteGesamt,
   talentPunkteSetzen,
+  talentWaehlen,
   validateKultur,
   type KulturAbschnittEintrag,
 } from '@mcc/shared';
@@ -358,4 +359,74 @@ test('UI-Pfad PO G/H: Live-Meldung an der Gruppe – Wertformat und Mehrfachzuor
   };
   assert.equal(pruefeGruppeImKontext(parseKulturRegeln(altbestand), 0), MSG_GRUPPE_PUNKTE_UNGUELTIG);
   assert.equal(validateKultur(altbestand), MSG_GRUPPE_PUNKTE_UNGUELTIG);
+});
+
+// --- Runde 7 (Review-Funde 1 und 2 aus Runde 6): Abwahl räumt den Wert ab -------
+
+test('UI-Pfad Review-Fund 1 (Runde 6): Skill-Abwahl setzt die Punkte auf 0 – die Kultur bleibt ohne Zeilenlöschen speicherbar', () => {
+  const athletik = { id: 'athletik', name: 'Athletik', punkte: 2 };
+  const felder = { talente: JSON.stringify([athletik]) };
+
+  // Review-Repro Fund 1 (Runde 6): „Athletik" wählen → Punkte 2 eintragen → im
+  // Select derselben Zeile „Skill wählen..." (Abwahl). Ohne den Shared-Schritt
+  // bliebe die Phantomzeile mit Wert stehen und würde das Speichern einer
+  // ansonsten gültigen Kultur blockieren („Ungültiger Eintrag im Abschnitt …").
+  const abgewaehlt = talentWaehlen(felder, 'talente', 0, { id: '', name: '' });
+  assert.equal(abgewaehlt.fehler, null);
+  assert.deepEqual(JSON.parse(abgewaehlt.felder.talente), [{ id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(abgewaehlt.felder), null);
+
+  // Derselbe Pfad in den anderen Talentbereichen.
+  const waffen = { waffenTalente: JSON.stringify([{ id: 'klingenwaffen', name: 'Klingenwaffen', punkte: 2 }]) };
+  const abgewaehltWaffe = talentWaehlen(waffen, 'waffenTalente', 0, { id: '', name: '' });
+  assert.deepEqual(JSON.parse(abgewaehltWaffe.felder.waffenTalente), [{ id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(abgewaehltWaffe.felder), null);
+  const magie = { magieSchulen: JSON.stringify([{ id: 'bannmagie', name: 'Bannmagie', punkte: 1 }]) };
+  const abgewaehltMagie = talentWaehlen(magie, 'magieSchulen', 0, { id: '', name: '' });
+  assert.deepEqual(JSON.parse(abgewaehltMagie.felder.magieSchulen), [{ id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(abgewaehltMagie.felder), null);
+
+  // Umwählen behält den eingetragenen Wert der Zeile (wie bisher im Select).
+  const umgewaehlt = talentWaehlen(felder, 'talente', 0, { id: 'akrobatik', name: 'Akrobatik' });
+  assert.equal(umgewaehlt.fehler, null);
+  assert.deepEqual(JSON.parse(umgewaehlt.felder.talente), [{ id: 'akrobatik', name: 'Akrobatik', punkte: 2 }]);
+
+  // Altbestand: Wird auf einer Phantomzeile mit bereits eingetragenem Wert ein
+  // Skill gewählt, wird die Zeile vollständig zugewiesen – der R2-Limit wird
+  // live geprüft, der Wert wird nicht übernommen.
+  const altbestand = { talente: JSON.stringify([athletik, { id: '', name: '', punkte: 4 }]) };
+  const blockiert = talentWaehlen(altbestand, 'talente', 1, { id: 'akrobatik', name: 'Akrobatik' });
+  assert.equal(blockiert.fehler, MSG_MAX_TALENTE);
+  assert.equal(blockiert.felder, altbestand);
+  assert.deepEqual(JSON.parse(altbestand.talente), [athletik, { id: '', name: '', punkte: 4 }]);
+
+  // Das Abwählen räumt auch diese Altbestands-Zeile auf.
+  const aufgeraeumt = talentWaehlen(altbestand, 'talente', 1, { id: '', name: '' });
+  assert.equal(aufgeraeumt.fehler, null);
+  assert.deepEqual(JSON.parse(aufgeraeumt.felder.talente), [athletik, { id: '', name: '', punkte: 0 }]);
+  assert.equal(validateKultur(aufgeraeumt.felder), null);
+});
+
+test('UI-Pfad Review-Fund 2 (Runde 6): Stärke-Abwahl setzt die Anzahl auf 0 – die Kultur bleibt ohne Zeilenlöschen speicherbar', () => {
+  const zugewiesen = staerkeWaehlen(mitStaerken(NEUE_ZEILE), 0, ZAEH, KOSTEN).felder;
+  assert.deepEqual(staerken(zugewiesen), [{ ...ZAEH, anzahl: 1 }]);
+
+  // Review-Repro Fund 2 (Runde 6): „Zäh" wählen (Anzahl springt auf 1), dann im
+  // Select derselben Zeile „Stärke wählen..." (Abwahl). Ohne den Fix bliebe
+  // `{ id: '', name: '', anzahl: 1 }` stehen und blockierte das Speichern.
+  const abgewaehlt = staerkeWaehlen(zugewiesen, 0, { id: '', name: '' }, KOSTEN);
+  assert.equal(abgewaehlt.fehler, null);
+  assert.deepEqual(staerken(abgewaehlt.felder), [NEUE_ZEILE]);
+  assert.equal(validateKultur(abgewaehlt.felder, KOSTEN), null);
+
+  // null Stärken ist zulässig (AK1.8) – auch neben einer weiteren Zeile.
+  const altbestand = mitStaerken({ ...ZAEH, anzahl: 1 }, { ...SCHNELL, anzahl: 1 });
+  const zurueck = staerkeWaehlen(altbestand, 0, { id: '', name: '' }, KOSTEN);
+  assert.equal(zurueck.fehler, null);
+  assert.deepEqual(staerken(zurueck.felder), [NEUE_ZEILE, { ...SCHNELL, anzahl: 1 }]);
+  assert.equal(validateKultur(zurueck.felder, KOSTEN), null);
+
+  // Nach der Abwahl nimmt die freie Zeile keinen Anzahl-Wert an
+  // (Mangel-3-Standard, unverändert).
+  assert.equal(staerkeAnzahlSetzen(abgewaehlt.felder, 0, '1', KOSTEN).fehler, msgAbschnittEintragUnvollstaendig('staerken'));
 });

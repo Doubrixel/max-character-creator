@@ -1,5 +1,37 @@
 # Implementierungsplan
 
+## Schritt 25: Review-Nacharbeit Kultureditor – Runde 7: Abwahl räumt den Wert ab, Fund 3/4 (2026-11-25)
+
+### Ausgangslage (INT-000015, PO-Wiedereinstieg 25.11. 11:12; Umfang = Korrekturspezifikation Review-Runde 6, Abschnitt 5)
+- Fund 1 (Runde 6, MEDIUM, blockierend): Die Abwahl eines Skills im Select einer Talentzeile ließ die Punkte stehen – die Phantomzeile mit Wert blockierte das Speichern einer ansonsten gültigen Kultur (Schritt-24-Meldung „Ungültiger Eintrag im Abschnitt …"), entgegen AK1.8.
+- Fund 2 (Runde 6, MEDIUM, blockierend): Die Abwahl einer Stärke ließ den Anzahl-Wert stehen – derselbe blockierte Zustand im Abschnitt „Stärken".
+- Fund 3 (LOW): Das Formular-Banner zeigte nach erfolgreichen Editor-Schritten überholte Meldungen weiter an und unterdrückte damit die Live-Meldung an der Gruppe.
+- Fund 4 (LOW, Verifikationsbedarf): Die Gewährung verlangte `name`; Bestandsdaten mit gesetzter `id` ohne `name` verlieren stillschweigend ihre Punkte (A3: kein Rewrite).
+
+### Implementierte Änderungen
+
+**shared/src/kulturEditor.ts**
+- `staerkeWaehlen` (Fund 2): Die Abwahl (`auswahl.id === ''`) setzt auch den Anzahl-Wert auf 0 – die Zeile bleibt als Platzhalter ohne Zuweisung und Wert stehen; der Editor ist ohne manuelles Zeilenlöschen speicherbar.
+- Neu `talentWaehlen(configFelder, feld, idx, auswahl)` (Fund 1): Shared-Schritt analog zu `staerkeWaehlen` – die Komponente ruft nur noch ihn auf. Abwahl setzt die Punkte der Zeile auf 0 (Platzhalter ohne Wert bleibt stehen); Auswahl setzt `id`/`name` und behält einen bereits eingetragenen Wert, danach gilt die R2-Prüfung über alle drei Bereiche (der Wert einer so wiederhergestellten Altbestands-Zeile zählt mit und blockiert live, wenn er die 5-Punkte-Grenze sprengt).
+
+**shared/src/cultures.ts**
+- `gewaehrteStaerken` (Fund 4, Variante a): Die Gewährung hängt ausschließlich an der `id` (`(id ?? '') !== '' && anzahl > 0`) – ein Altbestands-Eintrag mit gesetzter `id`, aber ohne `name`, verliert seinen Wert nicht stillschweigend; Phantomzeilen ohne `id` gewähren nichts. `name` ist nur für die Anzeige maßgeblich (Mangel-3-Standard im Schritt „Kultur"); für Neuanlagen bleibt die Speicherprüfung bei `id` + `name` unverändert.
+
+**shared/src/reducers.ts**
+- Talent-Punkte der Kultur werden für Einträge mit gesetzter `id` gewährt (Fund 4, Variante a, wie `gewaehrteStaerken`); Phantomzeilen (leere `id`) gewähren nichts.
+
+**frontend/src/components/library/LibraryTable.tsx**
+- Fund 1: Der Skill-Select einer Talentzeile läuft über den neuen Handler `setzeTalent` → `talentWaehlen`; das direkte `schreibeListe` mit erhaltenen Punkten entfällt.
+- Fund 3: `anwenden` übernimmt die Meldung des Schritts immer (`setFormError(schritt.fehler)` – bei Erfolg also null); zusätzlich leeren `setAlternativen`, `gruppeEntfernen`, `alternativeHinzufuegen` (bei Erfolg) und `schreibeListe` das Banner. Damit verschwindet jede überholte Meldung beim nächsten erfolgreichen Schritt und die Live-Meldung an der Gruppe wird nicht mehr durch den Alt-Text unterdrückt.
+
+### Ergänzte und angepasste Tests
+- `backend/src/cultures/kultur-editor.test.ts`: „UI-Pfad Review-Fund 1 (Runde 6): Skill-Abwahl setzt die Punkte auf 0 …" (alle drei Talentbereiche, Umwählen behält den Wert, Altbestands-Phantom mit R2-Live-Blockade, Abwahl räumt auf), „UI-Pfad Review-Fund 2 (Runde 6): Stärke-Abwahl setzt die Anzahl auf 0 …" (inkl. Zeile neben weiterer Zeile und unverändertem Mangel-3-Standard für die freie Zeile).
+- `backend/src/cultures/cultures.test.ts`: „gewaehrteStaerken …" (Fund 4: id ohne name gewährt, id-leere Zeile nicht), „Kultur-Rechnung gewährt Phantomzeilen …" (Fixtures auf echte Phantomzeilen ohne id gestellt), neu „Fund 4 (Runde 6): Gewährung hängt an der id …" (id ohne name grantet in Schritt „Kultur"-Rechnung; Phantomzeile mit name gewährt nichts).
+- Route-Ebene unverändert: Platzhalterzeilen mit Wert 0 bleiben 201 (`platzhalter`, `nullPunkte` nicht verschärft); die Abschnitts-Vollständigkeit (`phantomPunkte`, `phantomWaffe`, `phantomStaerke`, …) bleibt unangetastet.
+
+### Funde 5/6 (optional, nicht umgesetzt)
+- Fund 5 (Listenzusammenfassung auf Rohdaten) und Fund 6 (keine Live-Prüfung R2/R5 an der Gruppe, Skill-Auswahl ohne R6-Live-Prüfung) bleiben wie in Review-Runde 6 eingestuft LOW/nicht blockierend und wurden nicht umgesetzt – kein neuer Fachumfang.
+
 ## Schritt 24: Review-Nacharbeit Kultureditor – Runde 6: Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2) (2026-11-24)
 
 ### Ausgangslage (INT-000015, Review PR #2 Runde 5, 24.11. 18:39 UTC)

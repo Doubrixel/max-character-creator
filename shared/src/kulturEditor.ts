@@ -101,13 +101,16 @@ export function staerkeWaehlen(
   const alt = liste[idx]
   if (!alt) return { felder: configFelder, fehler: null }
 
-  // Auswahl zurückgenommen: Zuweisung der Zeile entfernen.
+  // Auswahl zurückgenommen: Zuweisung der Zeile entfernen. Der Anzahl-Wert wird
+  // ebenfalls auf 0 gesetzt (Review-Fund 2, Runde 6): Sonst bliebe eine Zeile
+  // ohne Auswahl mit Wert stehen, die die Speicherprüfung der ansonsten
+  // gültigen Kultur entgegen AK1.8 blockieren würde.
   if (auswahl.id === '') {
     return {
       felder: schreibeAbschnitt(
         configFelder,
         'staerken',
-        liste.map((e, i) => (i === idx ? { ...e, id: '', name: '' } : e)),
+        liste.map((e, i) => (i === idx ? { ...e, id: '', name: '', anzahl: 0 } : e)),
       ),
       fehler: null,
     }
@@ -224,6 +227,53 @@ export function talentPunkteSetzen(
       fehler,
     }
   }
+  return { felder: kandidat, fehler: null }
+}
+
+/**
+ * Skill wählen im Abschnitt einer Talentzeile (Talente, Waffentalente,
+ * Magieschulen) – analog zu `staerkeWaehlen` (Review-Fund 1, Runde 6): Die
+ * Komponente (`LibraryTable`) ruft nur diesen Schritt auf, die Regellogik
+ * liegt in shared und ist ohne Browser testbar.
+ *
+ * - Abwahl (`auswahl.id === ''`): Die Punkte der Zeile werden auf 0 gesetzt –
+ *   sonst bliebe eine Zeile ohne Auswahl mit Wert stehen („Phantomzeile mit
+ *   Wert"), die die Speicherprüfung der ansonsten gültigen Kultur entgegen
+ *   Schritt-24-Vorgabe und AK1.8 blockieren würde. Die Zeile bleibt als
+ *   Platzhalter ohne Wert stehen; der Editor ist ohne manuelles
+ *   Zeilenlöschen speicherbar.
+ * - Auswahl: `id` und `name` werden gesetzt, ein bereits eingetragener Wert
+ *   bleibt erhalten (auch die Wiederherstellung eines Altbestands-Phantoms).
+ *   Danach gilt die R2-Prüfung über alle drei Bereiche – der Wert der
+ *   vollständig zugewiesenen Zeile zählt jetzt mit.
+ */
+export function talentWaehlen(
+  configFelder: Record<string, string>,
+  feld: KulturFeld,
+  idx: number,
+  auswahl: Auswahl,
+): EditorSchritt {
+  const liste = leseAbschnitt(configFelder[feld])
+  const alt = liste[idx]
+  if (!alt) return { felder: configFelder, fehler: null }
+
+  if (auswahl.id === '') {
+    return {
+      felder: schreibeAbschnitt(
+        configFelder,
+        feld,
+        liste.map((e, i) => (i === idx ? { ...e, id: '', name: '', punkte: 0 } : e)),
+      ),
+      fehler: null,
+    }
+  }
+
+  const neu = liste.map((e, i) =>
+    i === idx ? { ...e, id: auswahl.id, name: auswahl.name } : e,
+  )
+  const kandidat = schreibeAbschnitt(configFelder, feld, neu)
+  const fehler = pruefeTalentPunkte(parseKulturRegeln(kandidat))
+  if (fehler) return { felder: configFelder, fehler }
   return { felder: kandidat, fehler: null }
 }
 

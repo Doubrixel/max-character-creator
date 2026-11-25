@@ -11,6 +11,7 @@ import {
   staerkeAnzahlSetzen,
   staerkeWaehlen,
   talentPunkteSetzen,
+  talentWaehlen,
   validateKultur,
   type EditorSchritt,
   type KulturAlternative,
@@ -225,6 +226,9 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
   const schreibeListe = (key: string, liste: AbschnittEintrag[]) => {
     setField(key, JSON.stringify(liste))
+    // Fund 3: Zeile hinzufügen/entfernen ist ein erfolgreicher Editor-Schritt –
+    // eine überholte Meldung aus einem früheren Fehlversuch verschwindet.
+    setFormError(null)
   }
 
   const setAlternativen = (alternativen: KulturAlternative[]) => {
@@ -234,11 +238,22 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       else next.alternativen = JSON.stringify(alternativen)
       return next
     })
+    // Fund 3: Jede Änderung in der Alternativpflege ist ein erfolgreicher
+    // Editor-Schritt – das Banner zeigt keine überholte Meldung mehr und die
+    // Live-Meldung an der Gruppe wird nicht mehr durch den Alt-Text
+    // unterdrückt.
+    setFormError(null)
   }
 
-  /** Übernimmt einen Editor-Schritt: neue Configfelder und ggf. die Meldung. */
+  /**
+   * Übernimmt einen Editor-Schritt: neue Configfelder und die Meldung.
+   * Fund 3: `fehler` ist bei einem erfolgreichen Schritt null – das Banner
+   * leert sich damit bei jedem erfolgreichen Schritt statt eine überholte
+   * Meldung stehen zu lassen (die auch die Live-Meldung an der Gruppe
+   * unterdrücken würde).
+   */
   const anwenden = (schritt: EditorSchritt) => {
-    if (schritt.fehler) setFormError(schritt.fehler)
+    setFormError(schritt.fehler)
     setConfigFields(schritt.felder)
   }
 
@@ -251,6 +266,17 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   /** R2 beim Zuweisen: Summe über Talente, Waffentalente und Magieschulen ≤ 5. */
   const setzeTalentPunkte = (feld: KulturFeld, idx: number, roh: string) => {
     anwenden(talentPunkteSetzen(configFields, feld, idx, roh))
+  }
+
+  /**
+   * Skill zuweisen/abwählen in einer Talentzeile (Fund 1, Runde 6): Auch der
+   * Select läuft über den Shared-Schritt `talentWaehlen` – eine Abwahl setzt
+   * die Punkte der Zeile auf 0, damit keine Phantomzeile mit Wert übrig bleibt
+   * und die Kultur ohne manuelles Zeilenlöschen speicherbar bleibt.
+   */
+  const setzeTalent = (feld: KulturFeld, idx: number, newId: string) => {
+    const skill = skills.find(s => s.id === newId)
+    anwenden(talentWaehlen(configFields, feld, idx, { id: newId, name: skill?.name || newId }))
   }
 
   /** R1 beim Zuweisen: höchstens eine Stärke, Stufe 1 und Kosten 1. */
@@ -267,7 +293,10 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   /** R3: aus einem Abschnittseintrag eine Entweder/Oder-Gruppe machen. */
   const alternativeHinzufuegen = (feld: KulturFeld, idx: number) => {
     const felder = alternativeAnlegen(configFields, feld, idx)
-    if (felder) setConfigFields(felder)
+    if (felder) {
+      setConfigFields(felder)
+      setFormError(null)
+    }
   }
 
   /**
@@ -279,6 +308,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
    */
   const gruppeEntfernen = (index: number) => {
     setConfigFields(prev => entferneGruppe(prev, index) ?? prev)
+    setFormError(null)
   }
 
   const parseStaerkenFile = (content: string): { name: string; description: string; config: Record<string, string> }[] => {
@@ -675,13 +705,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                               style={{ ...styles.input, flex: 2 }}
                               aria-label={`${field.label} Eintrag ${idx + 1} – Skill wählen`}
                               value={item.id ?? ''}
-                              onChange={e => {
-                                const newId = e.target.value
-                                const skill = skills.find(s => s.id === newId)
-                                const newArr = [...arr]
-                                newArr[idx] = { ...item, id: newId, name: skill?.name || newId, punkte: item.punkte ?? 0 }
-                                schreibeListe(field.key, newArr)
-                              }}
+                              onChange={e => setzeTalent(field.key as KulturFeld, idx, e.target.value)}
                             >
                               <option value="">Skill wählen...</option>
                               {filteredSkills.map(s => (

@@ -539,9 +539,11 @@ test('gewaehrteStaerken: Anzahl 0 und Phantomzeilen gewähren nichts, höchstens
     [{ id: 'zaeh', name: 'Zäh', anzahl: 1 }],
   );
   assert.deepEqual(gewaehrteStaerken([{ id: '', name: '', anzahl: 3 }]), []);
-  // Unvollständige Einträge (ohne name bzw. ohne id) gewähren nichts – Anzeige
-  // und Gewährung zeigen dasselbe Urteil (Mangel-3-Standard für Abschnitte).
-  assert.deepEqual(gewaehrteStaerken([{ id: 'zaeh', name: '', anzahl: 1 }]), []);
+  // Fund 4 (Runde 6): Die Gewährung hängt an der id – ein Eintrag mit gesetzter
+  // id gewährt, auch wenn `name` fehlt (Altbestand verliert keinen Wert
+  // stillschweigend; `name` ist für die Anzeige maßgeblich). Eine Zeile ohne id
+  // (Phantomzeile) gewährt nichts.
+  assert.deepEqual(gewaehrteStaerken([{ id: 'zaeh', name: '', anzahl: 1 }]), [{ id: 'zaeh', name: '', anzahl: 1 }]);
   assert.deepEqual(gewaehrteStaerken([{ id: '', name: 'Zäh', anzahl: 1 }]), []);
 });
 
@@ -584,8 +586,8 @@ test('Kultur-Rechnung gewährt dem Charakter höchstens eine Stärke (KulturSele
 
 test('Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Review-Fund 1 und 2)', () => {
   // Altbestand aus der Zeit vor der Prüfung: Punkte und Anzahl stehen auf
-  // Zeilen ohne Auswahl („Phantomzeilen"). Weder Anzeige (parseEntries,
-  // Mangel-3-Standard) noch Kultur-Rechnung gewähren sie.
+  // Zeilen ohne Auswahl („Phantomzeilen" – id und name leer). Weder Anzeige
+  // (parseEntries, Mangel-3-Standard) noch Kultur-Rechnung gewähren sie.
   const delta = {
     kultur: {
       kulturId: 'kultur-1',
@@ -596,7 +598,7 @@ test('Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Rev
           { id: '', name: '', punkte: 5 },
           { id: 'athletik', name: 'Athletik', punkte: 2 },
         ]),
-        waffenTalente: JSON.stringify([{ id: 'klingenwaffen', name: '', punkte: 3 }]),
+        waffenTalente: JSON.stringify([{ id: '', name: '', punkte: 3 }]),
         staerken: JSON.stringify([
           { id: '', name: '', anzahl: 3 },
           { id: 'zaeh', name: 'Zäh', anzahl: 1 },
@@ -607,6 +609,43 @@ test('Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Rev
   const phantomState = recalculateStats(delta);
   assert.deepEqual(phantomState.skills, { athletik: 2 });
   assert.deepEqual(phantomState.staerken, ['zaeh']);
+});
+
+test('Fund 4 (Runde 6): Gewährung hängt an der id – Bestand ohne name verliert keine Punkte', () => {
+  // Altbestand (A3, kein Rewrite): Eintrag mit gesetzter id, aber ohne `name`.
+  // Die Anzeige im Schritt „Kultur" blendet ihn aus (Mangel-3-Standard), die
+  // Gewährung darf den Wert trotzdem nicht stillschweigend verlieren.
+  const delta = {
+    kultur: {
+      kulturId: 'kultur-1',
+      kulturName: 'Testkultur',
+      kulturDescription: null,
+      kulturConfig: {
+        talente: JSON.stringify([{ id: 'athletik', name: '', punkte: 2 }]),
+        waffenTalente: JSON.stringify([{ id: 'klingenwaffen', name: '', punkte: 3 }]),
+        staerken: JSON.stringify([{ id: 'zaeh', name: '', anzahl: 1 }]),
+      },
+    },
+  };
+  const state = recalculateStats(delta);
+  assert.deepEqual(state.skills, { athletik: 2, klingenwaffen: 3 });
+  assert.deepEqual(state.staerken, ['zaeh']);
+
+  // Phantomzeile (keine id) gewährt weiterhin nichts – auch mit gesetztem name.
+  const phantomDelta = {
+    kultur: {
+      kulturId: 'kultur-1',
+      kulturName: 'Testkultur',
+      kulturDescription: null,
+      kulturConfig: {
+        talente: JSON.stringify([{ id: '', name: 'Athletik', punkte: 2 }]),
+        staerken: JSON.stringify([{ id: '', name: 'Zäh', anzahl: 1 }]),
+      },
+    },
+  };
+  const phantomState = recalculateStats(phantomDelta);
+  assert.deepEqual(phantomState.skills, {});
+  assert.deepEqual(phantomState.staerken, []);
 });
 
 test('Review Fund 2: Abschnittseinträge mit Wert brauchen eine vollständige Auswahl', () => {
