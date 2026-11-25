@@ -1,5 +1,12 @@
 # Implementierungsplan
 
+## Schritt 26: Dokumentation (2026-11-25)
+
+### Umfang (INT-000015, PO-Entscheidung 25.11. 14:07:41 / 14:10:11)
+- Technische Dokumentation: `docs/KULTUREDITOR-REGELN.md` – Regeln R1–R6 samt ergänzender Wertregeln (F3, G, Mangel-3, K2a/K2b/K2c), die dreistufige Gültigkeitsprüfung (Live-Prüfung im Editor, `validateKultur` beim Speichern, POST/PATCH `/api/library/cultures` → 400 mit `message`), alle Meldungstexte wörtlich, Bedienelemente, Altbestandsverhalten (A3), Sicherheitsgrenzen und das erwartete Verhalten bis INT-000016.
+- Anwenderhandbuch: `docs/ANWENDER-KULTUREDITOR.md` – nicht-technisch, ohne Code-Referenzen: Limits (5 Punkte bereichsübergreifend, genau eine Stärke mit Stufe/Kosten 1), Anlegen, Prüfen und Entfernen von Entweder/Oder-Alternativen inkl. Gruppenformat „Athletik 2 | Akrobatik 1 + Heimlichkeit 1", Bedeutung und Auflösung aller Meldungen, Abwahl-Verhalten (Platzhalterzeile bleibt speicherbar).
+- Dokumentiert wird ausschließlich das implementierte und QA-geprüfte Verhalten der Schritte 18–25 (PR #2, QA TC-01–TC-14 gegen Testsystem-Commit b208a28d); `docs/IMPLEMENTIERUNGSPLAN.md` wird nicht rückwirkend umgeschrieben. `README.md` verweist auf beide Dokumente.
+
 ## Schritt 25: Review-Nacharbeit Kultureditor – Runde 7: Abwahl räumt den Wert ab, Fund 3/4 (2026-11-25)
 
 ### Ausgangslage (INT-000015, PO-Wiedereinstieg 25.11. 11:12; Umfang = Korrekturspezifikation Review-Runde 6, Abschnitt 5)
