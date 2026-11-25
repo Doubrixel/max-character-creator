@@ -1,5 +1,14 @@
 # Max Character Creator
 
+## Documentation
+
+- [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
+  validation of the library culture editor (talent/strength limits, Entweder/Oder
+  alternatives, all message texts).
+- [`docs/ANWENDER-KULTUREDITOR.md`](docs/ANWENDER-KULTUREDITOR.md) – User manual
+  (German): creating cultures with talents, one strength, and equal-value
+  Entweder/Oder alternatives.
+
 ## Local development
 
 Requires Node.js 24 and npm.
