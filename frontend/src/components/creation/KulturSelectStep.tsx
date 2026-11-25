@@ -11,6 +11,8 @@ import {
   type AlternativWahl,
 } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 
 // --- Robustes Parsen der Kultur-Config --------------------------------------
 // Die config speichert Listen teils als JSON-Strings (doppelt kodiert) und teils
@@ -233,6 +235,22 @@ export default function KulturSelectStep({ onValid }: KulturSelectStepProps) {
     setWahl(wahlNeu)
     schreibeKulturDelta(selectedKultur, wahlNeu)
   }
+
+  // INT-000018: Testmodus – eine verfügbare Kultur und für jede
+  // Entweder/Oder-Gruppe zufällig genau eine Seite wählen.
+  const fillRandomly = () => {
+    const item = pickRandom(filteredKulturen)
+    if (!item) return
+    const regeln = parseKulturRegeln(item.config).alternativen
+    const wahlNeu: AlternativWahl = {}
+    regeln.forEach((_, gruppe) => {
+      wahlNeu[gruppe] = pickRandom([0, 1] as const) ?? 0
+    })
+    setSelectedId(item.id)
+    setWahl(wahlNeu)
+    schreibeKulturDelta(item, wahlNeu)
+  }
+  useStepFill(fillRandomly, !loading && filteredKulturen.length > 0)
 
   const kulturConfig = selectedKultur ? parseKulturConfig(selectedKultur.config) : null
   const statblockSections: { title: string, entries: KulturEntry[] }[] = kulturConfig

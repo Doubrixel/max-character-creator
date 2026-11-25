@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, ReactNode } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { distributePoints, pickExactCostSubset, pickRandom } from '../../testmode/random'
 import { ALL_RESOURCES } from '@mcc/shared'
 
 const DEFAULT_SKILL_MAX = 6
@@ -239,6 +241,41 @@ export default function PointDistributionStep({
     setResourceLevels(next)
     persist(skills, staerken, next)
   }
+
+  // INT-000018: Testmodus – Fertigkeits-, Stärken- und Ressourcenpunkte
+  // vollständig und regelkonform verteilen. Magieschulen werden ausgelassen,
+  // damit der späteren Zauber-Schritt keine nicht vorhandenen Zauber erzwingt.
+  const fillRandomly = () => {
+    const staerkenIds = pickExactCostSubset(
+      eligibleStaerken.map((s) => ({ id: s.id, kosten: s.kosten })),
+      staerkenPoints,
+    )
+    if (staerkenIds.length === 0 && staerkenPoints > 0) return
+
+    const skillIds = [...talents, ...weapons].map((s) => s.id)
+    const delta = distributePoints(
+      skillIds,
+      (id) => baseSkills[id] ?? 0,
+      () => DEFAULT_SKILL_MAX,
+      skillPoints,
+    )
+    const nextSkills: Record<string, number> = {}
+    for (const id of skillIds) nextSkills[id] = (baseSkills[id] ?? 0) + (delta[id] ?? 0)
+
+    const nextResources: Record<string, number> = {}
+    for (const name of ALL_RESOURCES) nextResources[name] = baseResources[name] ?? 0
+    for (let i = 0; i < ressourcenPoints; i++) {
+      const name = pickRandom([...ALL_RESOURCES])
+      if (!name) break
+      nextResources[name] = (nextResources[name] ?? 0) + 1
+    }
+
+    setSkills(nextSkills)
+    setStaerken(staerkenIds)
+    setResourceLevels(nextResources)
+    persist(nextSkills, staerkenIds, nextResources)
+  }
+  useStepFill(fillRandomly, !dataLoading && talents.length > 0)
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
     <div style={styles.section}>

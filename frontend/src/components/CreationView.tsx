@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { useTestMode } from '../context/TestModeContext'
 import SchicksalStep from './creation/SchicksalStep'
 import RasseStep from './creation/RasseStep'
 import AbstammungStep from './creation/AbstammungStep'
@@ -29,6 +30,7 @@ const steps = STEP_ORDER.map(key => ({ key, label: STEP_LABELS[key] }))
 
 export default function CreationView() {
   const { creating, currentStep, setCurrentStep, createCharacter, resetCharacter, stepDeltas } = useAppContext()
+  const { testMode, stepFillRef } = useTestMode()
   const [canProceed, setCanProceed] = useState(false)
 
   if (!creating) {
@@ -54,6 +56,12 @@ export default function CreationView() {
     if (currentIdx > 0) {
       setCurrentStep(STEP_ORDER[currentIdx - 1])
     }
+  }
+
+  // INT-000018: Der Button ist nur bei serverseitig aktivem Testmodus
+  // sichtbar und füllt ausschließlich den aktuell sichtbaren Schritt.
+  const handleFillRandomly = () => {
+    stepFillRef.current?.()
   }
 
   const handleStepClick = (target: StepKey) => {
@@ -122,13 +130,25 @@ export default function CreationView() {
         <div style={styles.spacer} />
       </div>
       <div style={styles.navBar}>
-        <button
-          style={{ ...styles.navButton, ...(currentIdx === 0 ? styles.navButtonDisabled : {}) }}
-          onClick={handleBack}
-          disabled={currentIdx === 0}
-        >
-          Zurück
-        </button>
+        <div style={styles.navLeftGroup}>
+          <button
+            style={{ ...styles.navButton, ...(currentIdx === 0 ? styles.navButtonDisabled : {}) }}
+            onClick={handleBack}
+            disabled={currentIdx === 0}
+          >
+            Zurück
+          </button>
+          {testMode && (
+            <button
+              type="button"
+              style={styles.testFillButton}
+              title="Testmodus: alle Felder dieses Schritts zufällig und gültig füllen"
+              onClick={handleFillRandomly}
+            >
+              Zufällig ausfüllen
+            </button>
+          )}
+        </div>
         <button
           style={{
             ...styles.navButton,
@@ -212,6 +232,21 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--bg-secondary)',
     borderTop: '1px solid var(--border)',
     zIndex: 10,
+  },
+  navLeftGroup: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  testFillButton: {
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    background: 'transparent',
+    color: 'var(--accent)',
+    border: '2px dashed var(--accent)',
+    borderRadius: 6,
+    cursor: 'pointer',
   },
   navButton: {
     padding: '10px 32px',

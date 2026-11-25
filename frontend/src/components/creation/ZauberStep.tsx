@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 import type { PickedItem, PflichtMeisterschaft, PickedSpell } from '@mcc/shared'
 
 interface LibraryItem {
@@ -252,6 +254,45 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
       return hasSchool && correctLevel && !pickedForOtherGrade
     })
   }
+
+  // INT-000018: Testmodus – alle geforderten Pflicht-Meisterschaften und
+  // Zaubergrade mit zufällig gewählten, verfügbaren Einträgen belegen.
+  const fillRandomly = () => {
+    const nextPflicht: Record<string, PickedItem> = {}
+    for (const skill of qualifyingSkills) {
+      const mastery = pickRandom(skill.pool)
+      if (mastery) nextPflicht[skill.id] = { id: mastery.id, name: mastery.name }
+    }
+
+    const nextSpells: PickedSpell[] = []
+    for (const school of magicSchoolsWithValue) {
+      const usedSpellIds = new Set<string>()
+      for (const grade of getAvailableGrades(school.value)) {
+        const available = spells.filter((spell) =>
+          spell.schulen.some((s) => s.id === school.id && s.wert === gradToSchulenwert(grade)) &&
+          !usedSpellIds.has(spell.id),
+        )
+        const spell = pickRandom(available)
+        if (!spell) continue
+        usedSpellIds.add(spell.id)
+        nextSpells.push({
+          spellId: spell.id,
+          spellName: spell.name,
+          schoolId: school.id,
+          schoolName: school.name,
+          grade,
+        })
+      }
+    }
+
+    setPflicht(nextPflicht)
+    setPickedSpells(nextSpells)
+    updateStepDelta('Zauber', {
+      pflicht: Object.entries(nextPflicht).map(([skillId, meisterschaft]) => ({ skillId, meisterschaft })),
+      spells: nextSpells,
+    })
+  }
+  useStepFill(fillRandomly, !dataLoading)
 
   if (dataLoading) {
     return <div style={styles.loading}>Lade Meisterschaften und Zauber...</div>

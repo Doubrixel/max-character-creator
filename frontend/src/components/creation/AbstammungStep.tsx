@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 import {
   socialClasses,
   choiceKey,
@@ -158,6 +160,47 @@ export default function AbstammungStep({ onValid }: AbstammungStepProps) {
     setSpecializations(spec)
     persist(classId, originId, rowSelections, spec)
   }
+
+  // INT-000018: Testmodus – Herkunft in einem Rutsch vollständig und gültig
+  // füllen (Klasse, Herkunft, alle Zeilen und nötige Spezialisierungen).
+  // Magie-Spezialisierungen müssen zeilenübergreifend eindeutig bleiben.
+  // Die "Magie"-Option wird bewusst nicht gewählt: Sie würde eine
+  // Magieschule mit Wert >= 1 erzeugen, für die der Zauber-Schritt dann
+  // (ohne passende Zauber in der Bibliothek) keine gültige Auswahl hätte.
+  const fillRandomly = () => {
+    const sc = pickRandom(socialClasses)
+    if (!sc) return
+    const origin = pickRandom(sc.origins)
+    if (!origin) return
+
+    const nextRows: Record<number, string> = {}
+    const nextSpec: Record<number, string> = {}
+    const usedMagic = new Set<string>()
+    origin.rows.forEach((row, rowIdx) => {
+      if (row.length === 0) return
+      const safeRow = row.filter((choice) => !genericItemOf(choice) || genericItemOf(choice)?.name !== 'Magie')
+      const choice = pickRandom(safeRow.length > 0 ? safeRow : row)
+      if (!choice) return
+      nextRows[rowIdx] = choiceKey(choice)
+      const generic = genericItemOf(choice)
+      if (!generic) return
+      const isKampf = generic.name === 'Kampf'
+      const options = isKampf ? combatSkills : magicSkills
+      const eligible = options.filter((option) => isKampf || !usedMagic.has(option.id))
+      const picked = pickRandom(eligible)
+      if (picked) {
+        nextSpec[rowIdx] = picked.id
+        if (!isKampf) usedMagic.add(picked.id)
+      }
+    })
+
+    setClassId(sc.id)
+    setOriginId(origin.id)
+    setRowSelections(nextRows)
+    setSpecializations(nextSpec)
+    persist(sc.id, origin.id, nextRows, nextSpec)
+  }
+  useStepFill(fillRandomly, !skillsLoading)
 
   const rollD6 = () => Math.floor(Math.random() * 6) + 1
 

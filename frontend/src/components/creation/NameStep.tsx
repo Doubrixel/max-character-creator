@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 
 interface NameStepProps {
   onValid: (valid: boolean) => void
@@ -35,6 +37,14 @@ export default function NameStep({ onValid }: NameStepProps) {
     setName(value)
     updateStepDelta('Name', { name: value })
   }
+
+  // INT-000018: Testmodus – synthetischen Namen mit Zufallssuffix setzen.
+  const TEST_NAMES = ['Testheld', 'Prüfling', 'Mustercharakter', 'Qa-avatar']
+  const fillRandomly = () => {
+    const base = pickRandom(TEST_NAMES) ?? 'Testcharakter'
+    handleNameChange(`${base}-${Math.floor(Math.random() * 9000) + 1000}`)
+  }
+  useStepFill(fillRandomly)
 
   const handleFinalize = async () => {
     setFinalizing(true)

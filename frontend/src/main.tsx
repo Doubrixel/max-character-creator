@@ -1,13 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from './context/ThemeContext'
+import { TestModeProvider } from './context/TestModeContext'
 import App from './App'
 import './theme.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <TestModeProvider>
+        <App />
+      </TestModeProvider>
     </ThemeProvider>
   </StrictMode>,
 )
