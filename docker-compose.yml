@@ -10,6 +10,11 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_URL=file:///app/data/sqlite.db
+      # INT-000018: Der Testmodus wird serverseitig aus SYSTEM gelesen. Die
+      # Variable muss beim Compose-Start aus der Host-Umgebung in den
+      # Container gereicht werden (SYSTEM=TEST docker compose up --build).
+      # Ohne Angabe bleibt sie leer => kein Button, unverändertes Verhalten.
+      - SYSTEM=${SYSTEM:-}
     restart: unless-stopped
 
 volumes:

@@ -46,6 +46,34 @@ docker compose down
 `docker compose down -v` deletes the persistent SQLite volume and should only be used when
 you intentionally want to remove all local data.
 
+## Testmodus (`SYSTEM=TEST`)
+
+Der Testmodus ergänzt auf jedem Schritt der Charaktererstellung den Button
+„Zufällig ausfüllen". Er setzt ausschließlich die Felder des aktuellen Schritts
+mit zufälligen, gültigen Werten (synthetische Daten); Validierung, Datenmodell,
+Persistenz und der reguläre „Weiter"-Ablauf bleiben unverändert. Der Button ist
+nur sichtbar, wenn die **serverseitig** gestartete Instanz mit `SYSTEM=TEST`
+läuft. Es gibt bewusst keinen clientseitigen Schalter.
+
+```bash
+SYSTEM=TEST npm start                  # direkter Start des Servers
+SYSTEM=TEST docker compose up --build  # Compose reicht SYSTEM in den Container
+```
+
+Der Gate lässt sich direkt prüfen:
+
+```bash
+curl -s http://localhost:3000/api/config   # {"testMode":true} mit SYSTEM=TEST
+                                           # {"testMode":false} ohne die Variable
+```
+
+Ohne `SYSTEM=TEST` erscheint kein Button und das Verhalten entspricht exakt dem
+Ist-Zustand. Für die native systemd-Installation (Main/QA) wird die Variable beim
+Deployment aus der Aufruf-Umgebung in die release-lokale `.release.env`
+übernommen, die der Dienst per `EnvironmentFile` liest, z. B.
+`SYSTEM=TEST mcc-deploy-commit main`. Ein normaler Timer-Update ohne `SYSTEM`
+setzt das Flag wieder zurück.
+
 ## Native Node/systemd deployment
 
 Production deployment targets use Node.js 24 and systemd in unprivileged Debian LXC

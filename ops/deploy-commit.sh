@@ -143,6 +143,25 @@ if [ "$mode" = main ] && [ "$target" != "$main_sha" ]; then
   fail 'Main changed while the deployment target was being resolved.'
 fi
 
+# INT-000018: SYSTEM=TEST ist der einzige Wert, der den Testmodus aktiviert.
+# Der Wert wird beim Deploy aus der Aufruf-Umgebung in die release-lokale
+# .release.env geschrieben, die der systemd-Dienst per EnvironmentFile liest.
+# Wird SYSTEM nicht explizit mitgegeben (z. B. beim Timer-Update), fehlt die
+# Zeile und das System verhält sich unverändert – kein Button, keine Regression.
+write_release_env() {
+  env_file=$1
+  tmp_env_file="$env_file.$$"
+  {
+    printf 'APP_GIT_SHA=%s\n' "$target"
+    if [ "${SYSTEM:-}" = "TEST" ]; then
+      printf 'SYSTEM=TEST\n'
+    fi
+  } > "$tmp_env_file"
+  chown root:"$APP_GROUP" "$tmp_env_file"
+  chmod 0640 "$tmp_env_file"
+  mv -f "$tmp_env_file" "$env_file"
+}
+
 release="$RELEASES/$target"
 staging=
 archive=
@@ -165,6 +184,10 @@ run_app() {
 if [ -d "$release" ]; then
   grep -Fxq "APP_GIT_SHA=$target" "$release/.release.env" \
     || fail "Existing release directory does not identify commit $target."
+  # Auch bei einem bereits vorhandenen Release die Environment-Datei aus der
+  # aktuellen Aufruf-Umgebung (neu) schreiben, damit SYSTEM=TEST nachträglich
+  # gesetzt und ohne SYSTEM wieder entfernt werden kann.
+  write_release_env "$release/.release.env"
 else
   staging=$(mktemp -d "$RELEASES/.staging-${target}.XXXXXX")
   archive=$(mktemp /tmp/max-character-creator-archive.XXXXXX)
@@ -172,7 +195,7 @@ else
   tar -xf "$archive" -C "$staging"
   rm -f -- "$archive"
   archive=
-  printf 'APP_GIT_SHA=%s\n' "$target" > "$staging/.release.env"
+  write_release_env "$staging/.release.env"
   chown -R "$APP_USER:$APP_GROUP" "$staging"
 
   run_app "$staging" "$NPM" ci --omit=peer
