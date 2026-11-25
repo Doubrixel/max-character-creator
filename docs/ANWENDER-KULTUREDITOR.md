@@ -16,9 +16,11 @@ verhindert, dass regelwidrige Kulturen gespeichert werden.
 
 - Sie haben Zugriff auf die App und öffnen in der Seitenleiste **„Bibliothek"** und
   dort den Tab **„Kulturen"**.
-- Für Stärken: Die Stärke muss im Tab „Stärken" mit **„Kosten (Punkte)" = 1** geführt
-  werden. Prüfen Sie das dort vorab (Anzeige „Kosten: 1") und passen Sie es bei Bedarf
-  über „Bearbeiten" an – sonst wird die Zuweisung abgelehnt.
+- Für Stärken: Im Stärken-Dropdown des Kultureditors werden nur Stärken angeboten,
+  die Sie wählen dürfen – Stärken mit **„Kosten (Punkte)" = 1** und Stärken **ohne
+  Kostenangabe** (Anzeige „Kosten: ?"). Stärken mit anderem bekanntem Kostenwert
+  (z. B. „Kosten: 2") erscheinen im Dropdown gar nicht. Prüfen Sie den Kostenwert
+  vorab im Tab „Stärken" und passen Sie ihn bei Bedarf über „Bearbeiten" an.
 
 ## Kultur anlegen oder bearbeiten
 
@@ -52,6 +54,11 @@ Regeln:
 
 Regeln:
 
+- **Das Dropdown bietet nur wählbare Stärken an**: Stärken mit Kosten 1 und Stärken
+  ohne Kostenangabe („Kosten: ?"). Stärken mit bekanntem Kostenwert ≠ 1 – auch
+  „Kosten: 0" – fehlen in der Liste vollständig und können nicht versehentlich
+  gewählt werden. Dasselbe gefilterte Angebot gilt für die Eintrag-Auswahl in einer
+  Entweder/Oder-Gruppe („Seite 1"/„Seite 2").
 - **Höchstens eine Stärke** pro Kultur. Beim Versuch einer zweiten erscheint
   „Maximal eine Stärke pro Kultur."; die zweite Zeile wird automatisch wieder entfernt.
 - Die Stärke muss im Tab „Stärken" **Kosten 1** haben; teurere Stärken werden nicht
@@ -152,6 +159,11 @@ angelegt bzw. nicht geändert. Bedeutung und Lösung:
   automatisch angepasst. Die Regeln greifen, sobald die Kultur im Editor gespeichert
   wird. Ein solcher Bestand kann im Schritt „Kultur" daher vorübergehend mehrere bzw.
   mehrstufige Stärken zeigen.
-- **Stärken-Kosten:** Die Kosten einer Stärke werden im Tab „Stärken" gepflegt. Nur
-  Stärken mit Kosten 1 sind im Kultureditor zuweisbar; Stärken ohne Kostenangabe
-  werden nicht beanstandet.
+- **Stärken-Kosten:** Die Kosten einer Stärke werden im Tab „Stärken" gepflegt. Im
+  Kultureditor werden im Dropdown nur Stärken mit Kosten 1 oder ohne Kostenangabe
+  angeboten; Stärken mit anderem bekanntem Kostenwert erscheinen dort nicht.
+- **Bestand im Dropdown:** Ist in einer bestehenden Kultur bereits eine Stärke
+  zugewiesen, die heute nicht mehr wählbar wäre (z. B. weil ihre Kosten inzwischen
+  geändert wurden), bleibt diese Zuweisung in ihrer Zeile sichtbar. Beim nächsten
+  Speichern entscheidet wie bisher die Prüfung – mit der Meldung „Stärken nur mit
+  Stufe 1 und Kosten 1."
