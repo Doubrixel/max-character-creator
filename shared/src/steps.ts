@@ -1,3 +1,5 @@
+import type { AlternativWahl } from './kulturWahl'
+
 export const STEP_ORDER = [
   'schicksal',
   'rasse',
@@ -43,7 +45,18 @@ export interface KulturDelta {
   kulturId: string
   kulturName: string
   kulturDescription: string | null
+  /**
+   * Die wirksame Config der Kultur (INT-000016): Bei einer Entweder/Oder-Wahl
+   * stehen die Einträge der gewählten Seiten bereits als Abschnittseinträge
+   * darin (`wirksameKulturConfig`); `alternativen` ist aufgelöst. Der
+   * kulturReducer weist sie wie feste Einträge zu.
+   */
   kulturConfig: unknown
+  /**
+   * Gewählte Seite je Entweder/Oder-Gruppe der Kultur (Index → 0 = „Seite 1",
+   * 1 = „Seite 2"). Leer bzw. fehlt bei Kulturen ohne Gruppen (AK2.5).
+   */
+  alternativWahl?: AlternativWahl
 }
 
 export interface KindheitDelta {
