@@ -1,8 +1,10 @@
 # Kultureditor: Regeln und Gültigkeitsprüfung
 
-Technische Dokumentation zu SF-000009 / INT-000015 („Entweder/Oder bei der Kulturwahl").
+Technische Dokumentation zu SF-000009 / INT-000015 („Entweder/Oder bei der Kulturwahl")
+und INT-000017 (Angebotssteuerung der Stärken-Dropdowns).
 Stand: 25.11.2026. Dokumentiert ist ausschließlich das implementierte und QA-geprüfte
-Verhalten (PR #2, gemergt 25.11.2026; QA-Testfälle TC-01–TC-14 bestanden).
+Verhalten (PR #2, QA-Testfälle TC-01–TC-14 bestanden; PR #6, QA-Testfälle
+TC-KULTFILT-01–08 bestanden).
 Anwendersicht: siehe [`ANWENDER-KULTUREDITOR.md`](ANWENDER-KULTUREDITOR.md).
 
 ## Zweck und Geltungsbereich
@@ -97,6 +99,35 @@ Live-Meldung an der Gruppe nicht durch Alt-Text unterdrückt wird.
 gespeicherte Config (siehe Altbestand). Unbekannte Kosten (Stärke ohne Kostenfeld)
 werden nicht beanstandet.
 
+## Angebotssteuerung der Stärken-Dropdowns (INT-000017)
+
+Die Stärken-Auswahl im Kultureditor bietet nur noch Stärken an, die gewählt werden
+dürfen (PR #6). Das ergänzt die dreistufige Prüfung – es ersetzt sie nicht.
+
+- **Filterkriterium „wählbar"** (`istWaehlbareStaerke` in `shared/src/kulturEditor.ts`):
+  wählbar ist eine Stärke mit **Kosten 1** oder **ohne gesetzte Kosten**
+  (`null`/`undefined`, Legacy-Seed, Anzeige „Kosten: ?"). Stärken mit bekanntem
+  Kosten ≠ 1 sind nicht wählbar – auch **Kosten 0** (Rassen-Vorteile). Das Kriterium
+  stimmt mit der bestehenden Stärke-Prüfung überein (`pruefeStaerkeWert` mit Stufe 1):
+  genau die Stärken, die diese Prüfung nicht ablehnen würde, werden angeboten; ein
+  Eigenschaftstest sichert diese Konsistenz ab.
+- **Zentrale Optionsliste** (`staerkenOptionen(staerken, zugewieseneId)`): filtert das
+  Angebot aus der Bibliothekstabelle `strengths` (Kosten via `parseKosten`). Nicht
+  wählbare Stärken fehlen in der Optionsliste **vollständig** – es gibt keine
+  deaktivierte Anzeige. Die bereits der Zeile zugewiesene Stärke bleibt ausschließlich
+  für diese Zeile als Option erhalten (R6 Altbestand, auch mit Kosten ≠ 1; fehlt sie
+  in der Bibliothek, erscheint sie nicht). Dubletten entstehen nicht.
+- **Geltungsbereich**: dieselbe Quelle an beiden Auswahlorten – Abschnitt „Stärken"
+  (`LibraryTable.tsx`, Select „Stärke wählen…") und Eintrag-Auswahl der
+  Entweder/Oder-Gruppenpflege (`CultureAlternatives.tsx`, „Seite 1"/„Seite 2").
+  Überall, wo im Kultureditor eine Stärke gewählt wird, gilt dasselbe Angebot.
+- **Verteidigung in der Tiefe bleibt**: Live-Prüfung (`staerkeWaehlen`,
+  `staerkeAnzahlSetzen`, `eintragWaehlen`/`wertSetzen`), `validateKultur` und das
+  Backend (POST/PATCH → 400 mit message) sind unverändert; alle Meldungstexte sind
+  wörtlich unverändert. Der Filter steuert nur das Angebot neuer Auswahloptionen.
+- **Unverändert bleiben**: die Dropdowns für Talente, Waffentalente und Magieschulen,
+  der Tab „Stärken" (Verwaltung, höhere Kosten dort legitim) und die Charaktererstellung.
+
 ## Meldungstexte (wörtlich)
 
 | Meldung | Auslöser |
@@ -122,15 +153,19 @@ Die Meldungsreihenfolge folgt der Prüfungsreihenfolge oben und ist deterministi
   akzeptiert echte Arrays wie doppelt kodierte JSON-Strings; defekte Einträge werden
   übersprungen), Limits und Meldungstexte, Gruppenprüfung, `wahlmoeglichkeiten`,
   `gewaehrteStaerken`, `entferneGruppe`, `formatAlternative`.
-- `shared/src/kulturEditor.ts` – Editor-Schritte der Abschnitte (siehe oben).
+- `shared/src/kulturEditor.ts` – Editor-Schritte der Abschnitte (siehe oben) und die
+  Angebotssteuerung der Stärken-Auswahl (`istWaehlbareStaerke`, `staerkenOptionen`;
+  INT-000017).
 - `frontend/src/components/library/LibraryTable.tsx` – Kulturformular: Bereiche
   „Talente", „Waffentalente", „Magieschulen" und „Stärken" mit „+ Eintrag hinzufügen",
   Selects „Skill wählen..."/„Stärke wählen...", Zahlenfeldern „Punkte"/„Anzahl",
   Button „Alternative hinzufügen" (nur bei zugewiesenem Eintrag mit Wert > 0),
-  „Gruppe entfernen", „Erstellen"/„Speichern"; Banner mit `role="alert"`.
+  „Gruppe entfernen", „Erstellen"/„Speichern"; Banner mit `role="alert"`. Das
+  Stärken-Select bietet nur das gefilterte Angebot an (`staerkenOptionen`, INT-000017).
 - `frontend/src/components/library/CultureAlternatives.tsx` – Alternativpflege
   („Entweder/Oder-Gruppen") mit Seiten „Seite 1"/„Seite 2", je Seite „+ Eintrag
-  hinzufügen" (Stärkenseiten: genau ein Eintrag) und Live-Meldung an der Gruppe.
+  hinzufügen" (Stärkenseiten: genau ein Eintrag) und Live-Meldung an der Gruppe; die
+  Stärken-Eintrag-Auswahl nutzt dasselbe gefilterte Angebot (INT-000017).
 - `backend/src/routes/library.ts` – serverseitige Speicherprüfung (siehe oben).
 
 **Persistenz:** Kulturen liegen in der `cultures`-Tabelle (SQLite via Drizzle); die
@@ -186,9 +221,16 @@ die Anwendersicht: [`anwenderhandbuch.md`](anwenderhandbuch.md).
 
 - Unit-Tests Regellogik: `backend/src/cultures/cultures.test.ts`
 - Unit-Tests Editor-Schritte/UI-Pfade: `backend/src/cultures/kultur-editor.test.ts`
+  (inkl. INT-000017-Block: gefiltertes Angebot, Sichtbarkeit zugewiesener
+  Alt-Einträge, Gruppenpflege, Konsistenz mit `pruefeStaerkeWert`)
 - Route-Integrationstests (POST/PATCH gegen Temp-DB):
   `backend/src/routes/library-cultures-test-child.ts`, `backend/src/routes/library-cultures.test.ts`
 - Projektprüfungen: `npm test`, `npm run typecheck --workspace=backend`,
   `npm run build --workspace=frontend`
 - QA: TC-01–TC-14 (Limits, Gruppen, Meldungstexte, Unabhängigkeit der Gruppen) am
   25.11.2026 erfolgreich ausgeführt.
+- QA INT-000017: TC-KULTFILT-01–08 (Angebotssteuerung der Stärken-Dropdowns bei
+  „+ Neu" und „Bearbeiten", gefilterte Eintrag-Auswahl in Entweder/Oder-Gruppen,
+  Bestandsschutz für Stärken ohne Kostenangabe, Ausschluss von Kosten ≠ 1 inkl.
+  Kosten 0, Regression: Talente/Waffentalente/Magieschulen, Tab „Stärken" und
+  bestehende Prüfungen) am 25.11.2026 erfolgreich ausgeführt.
