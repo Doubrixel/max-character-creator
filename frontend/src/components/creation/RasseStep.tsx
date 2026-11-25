@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -76,6 +78,13 @@ export default function RasseStep({ onValid }: RasseStepProps) {
       updateStepDelta('rasse', { id: race.id, name: race.name, groessenklasse: race.groessenklasse, statblock: race.statblock })
     }
   }
+
+  // INT-000018: Testmodus – eine geladene Rasse zufällig auswählen.
+  const fillRandomly = () => {
+    const race = pickRandom(races)
+    if (race) handleSelect(race.id)
+  }
+  useStepFill(fillRandomly, !dataLoading && races.length > 0)
 
   const selectedRace = races.find((r) => r.id === selected)
   const vorteile = selectedRace ? selectedRace.statblock.vorteile.filter(v => v && v.trim()) : []

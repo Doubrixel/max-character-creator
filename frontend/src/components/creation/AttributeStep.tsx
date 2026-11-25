@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { evaluateFormula, attributeModifier } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { shuffled } from '../../testmode/random'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -205,6 +207,25 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
       })
     }
   }
+
+  // INT-000018: Testmodus – Pool neu würfeln und alle Werte eindeutig auf
+  // die Attribute verteilen; damit ist der Schritt sofort gültig.
+  const fillRandomly = () => {
+    const newPool: (number | null)[] = []
+    const newDetail: (RollDetail | null)[] = []
+    for (let i = 0; i < ATTRIBUTES.length; i++) {
+      const result = roll4d6DropLowest()
+      newPool.push(result.sum)
+      newDetail.push(result)
+    }
+    const slots = shuffled(ATTRIBUTES.map((_, i) => i))
+    const assignments: Partial<Record<AttributeKey, number>> = {}
+    ATTRIBUTES.forEach((attr, i) => { assignments[attr] = slots[i] })
+    setPool(newPool)
+    setRollsDetail(newDetail)
+    setSlotAssignments(assignments)
+  }
+  useStepFill(fillRandomly)
 
   const assignedTo: Record<number, AttributeKey> = {}
   for (const a of ATTRIBUTES) {

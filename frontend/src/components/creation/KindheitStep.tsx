@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { distributePoints, pickRandom } from '../../testmode/random'
 
 const INITIAL_POINTS = 20
 
@@ -130,6 +132,26 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     setStaerke(id)
     saveDelta(skillDelta, id)
   }
+
+  // INT-000018: Testmodus – alle 20 Fertigkeitspunkte zufällig verteilen und
+  // eine zulässige Stärke wählen. Magieschulen werden ausgelassen: Sie würden
+  // im späteren Zauber-Schritt Zauberauswahlen erzwingen, für die die
+  // Bibliothek keine passenden Einträge bereithält.
+  const fillRandomly = () => {
+    const staerkeId = pickRandom(eligibleStaerken)?.id
+    if (!staerkeId) return
+    const skillIds = [...talents, ...weapons].map((s) => s.id)
+    const next = distributePoints(
+      skillIds,
+      (id) => baseSkills[id] ?? 0,
+      () => 6,
+      INITIAL_POINTS,
+    )
+    setSkillDelta(next)
+    setStaerke(staerkeId)
+    saveDelta(next, staerkeId)
+  }
+  useStepFill(fillRandomly, !skillsLoading && talents.length > 0)
 
   const renderSkillSection = (title: string, items: { id: string; name: string }[]) => (
     <div style={styles.section}>

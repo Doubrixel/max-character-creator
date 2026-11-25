@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
+import { useStepFill } from '../../context/TestModeContext'
+import { pickRandom } from '../../testmode/random'
 
 const destinies = [
   {
@@ -67,6 +69,13 @@ export default function SchicksalStep({ onValid }: SchicksalStepProps) {
       updateStepDelta('schicksal', { id: destiny.id, name: destiny.name, ruleText: destiny.ruleText })
     }
   }
+
+  // INT-000018: Testmodus – einen gültigen Schicksalseintrag zufällig setzen.
+  const fillRandomly = () => {
+    const destiny = pickRandom(destinies)
+    if (destiny) handleSelect(destiny.id)
+  }
+  useStepFill(fillRandomly)
 
   const selectedDestiny = destinies.find((d) => d.id === selected)
 
