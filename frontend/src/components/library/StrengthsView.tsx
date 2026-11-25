@@ -296,8 +296,9 @@ export default function StrengthsView() {
         {showForm && (
           <div style={styles.form}>
             <div style={styles.formRow}>
-              <label style={styles.label}>Name *</label>
+              <label style={styles.label} htmlFor="strength-name">Name *</label>
               <input
+                id="strength-name"
                 style={styles.input}
                 placeholder="Stärkenname"
                 value={name}
@@ -305,8 +306,9 @@ export default function StrengthsView() {
               />
             </div>
             <div style={styles.formRow}>
-              <label style={styles.label}>Beschreibung</label>
+              <label style={styles.label} htmlFor="strength-description">Beschreibung</label>
               <textarea
+                id="strength-description"
                 style={styles.textarea}
                 placeholder="Beschreibung..."
                 value={description}
@@ -315,8 +317,9 @@ export default function StrengthsView() {
               />
             </div>
             <div style={styles.formRow}>
-              <label style={styles.label}>Kategorie</label>
+              <label style={styles.label} htmlFor="strength-kategorie">Kategorie</label>
               <select
+                id="strength-kategorie"
                 style={styles.select}
                 value={kategorie}
                 onChange={e => setKategorie(e.target.value)}
@@ -327,8 +330,9 @@ export default function StrengthsView() {
             </div>
             {kategorie === 'rasse' && (
               <div style={styles.formRow}>
-                <label style={styles.label}>Unterkategorie *</label>
+                <label style={styles.label} htmlFor="strength-unterkategorie">Unterkategorie *</label>
                 <select
+                  id="strength-unterkategorie"
                   style={styles.select}
                   value={unterkategorie}
                   onChange={e => setUnterkategorie(e.target.value)}
@@ -339,8 +343,9 @@ export default function StrengthsView() {
               </div>
             )}
             <div style={styles.formRow}>
-              <label style={styles.label}>Kosten (Punkte)</label>
+              <label style={styles.label} htmlFor="strength-kosten">Kosten (Punkte)</label>
               <input
+                id="strength-kosten"
                 style={styles.input}
                 type="number"
                 placeholder="1"

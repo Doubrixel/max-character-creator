@@ -1,5 +1,270 @@
 # Implementierungsplan
 
+## Schritt 25: Review-Nacharbeit Kultureditor – Runde 7: Abwahl räumt den Wert ab, Fund 3/4 (2026-11-25)
+
+### Ausgangslage (INT-000015, PO-Wiedereinstieg 25.11. 11:12; Umfang = Korrekturspezifikation Review-Runde 6, Abschnitt 5)
+- Fund 1 (Runde 6, MEDIUM, blockierend): Die Abwahl eines Skills im Select einer Talentzeile ließ die Punkte stehen – die Phantomzeile mit Wert blockierte das Speichern einer ansonsten gültigen Kultur (Schritt-24-Meldung „Ungültiger Eintrag im Abschnitt …"), entgegen AK1.8.
+- Fund 2 (Runde 6, MEDIUM, blockierend): Die Abwahl einer Stärke ließ den Anzahl-Wert stehen – derselbe blockierte Zustand im Abschnitt „Stärken".
+- Fund 3 (LOW): Das Formular-Banner zeigte nach erfolgreichen Editor-Schritten überholte Meldungen weiter an und unterdrückte damit die Live-Meldung an der Gruppe.
+- Fund 4 (LOW, Verifikationsbedarf): Die Gewährung verlangte `name`; Bestandsdaten mit gesetzter `id` ohne `name` verlieren stillschweigend ihre Punkte (A3: kein Rewrite).
+
+### Implementierte Änderungen
+
+**shared/src/kulturEditor.ts**
+- `staerkeWaehlen` (Fund 2): Die Abwahl (`auswahl.id === ''`) setzt auch den Anzahl-Wert auf 0 – die Zeile bleibt als Platzhalter ohne Zuweisung und Wert stehen; der Editor ist ohne manuelles Zeilenlöschen speicherbar.
+- Neu `talentWaehlen(configFelder, feld, idx, auswahl)` (Fund 1): Shared-Schritt analog zu `staerkeWaehlen` – die Komponente ruft nur noch ihn auf. Abwahl setzt die Punkte der Zeile auf 0 (Platzhalter ohne Wert bleibt stehen); Auswahl setzt `id`/`name` und behält einen bereits eingetragenen Wert, danach gilt die R2-Prüfung über alle drei Bereiche (der Wert einer so wiederhergestellten Altbestands-Zeile zählt mit und blockiert live, wenn er die 5-Punkte-Grenze sprengt).
+
+**shared/src/cultures.ts**
+- `gewaehrteStaerken` (Fund 4, Variante a): Die Gewährung hängt ausschließlich an der `id` (`(id ?? '') !== '' && anzahl > 0`) – ein Altbestands-Eintrag mit gesetzter `id`, aber ohne `name`, verliert seinen Wert nicht stillschweigend; Phantomzeilen ohne `id` gewähren nichts. `name` ist nur für die Anzeige maßgeblich (Mangel-3-Standard im Schritt „Kultur"); für Neuanlagen bleibt die Speicherprüfung bei `id` + `name` unverändert.
+
+**shared/src/reducers.ts**
+- Talent-Punkte der Kultur werden für Einträge mit gesetzter `id` gewährt (Fund 4, Variante a, wie `gewaehrteStaerken`); Phantomzeilen (leere `id`) gewähren nichts.
+
+**frontend/src/components/library/LibraryTable.tsx**
+- Fund 1: Der Skill-Select einer Talentzeile läuft über den neuen Handler `setzeTalent` → `talentWaehlen`; das direkte `schreibeListe` mit erhaltenen Punkten entfällt.
+- Fund 3: `anwenden` übernimmt die Meldung des Schritts immer (`setFormError(schritt.fehler)` – bei Erfolg also null); zusätzlich leeren `setAlternativen`, `gruppeEntfernen`, `alternativeHinzufuegen` (bei Erfolg) und `schreibeListe` das Banner. Damit verschwindet jede überholte Meldung beim nächsten erfolgreichen Schritt und die Live-Meldung an der Gruppe wird nicht mehr durch den Alt-Text unterdrückt.
+
+### Ergänzte und angepasste Tests
+- `backend/src/cultures/kultur-editor.test.ts`: „UI-Pfad Review-Fund 1 (Runde 6): Skill-Abwahl setzt die Punkte auf 0 …" (alle drei Talentbereiche, Umwählen behält den Wert, Altbestands-Phantom mit R2-Live-Blockade, Abwahl räumt auf), „UI-Pfad Review-Fund 2 (Runde 6): Stärke-Abwahl setzt die Anzahl auf 0 …" (inkl. Zeile neben weiterer Zeile und unverändertem Mangel-3-Standard für die freie Zeile).
+- `backend/src/cultures/cultures.test.ts`: „gewaehrteStaerken …" (Fund 4: id ohne name gewährt, id-leere Zeile nicht), „Kultur-Rechnung gewährt Phantomzeilen …" (Fixtures auf echte Phantomzeilen ohne id gestellt), neu „Fund 4 (Runde 6): Gewährung hängt an der id …" (id ohne name grantet in Schritt „Kultur"-Rechnung; Phantomzeile mit name gewährt nichts).
+- Route-Ebene unverändert: Platzhalterzeilen mit Wert 0 bleiben 201 (`platzhalter`, `nullPunkte` nicht verschärft); die Abschnitts-Vollständigkeit (`phantomPunkte`, `phantomWaffe`, `phantomStaerke`, …) bleibt unangetastet.
+
+### Funde 5/6 (optional, nicht umgesetzt)
+- Fund 5 (Listenzusammenfassung auf Rohdaten) und Fund 6 (keine Live-Prüfung R2/R5 an der Gruppe, Skill-Auswahl ohne R6-Live-Prüfung) bleiben wie in Review-Runde 6 eingestuft LOW/nicht blockierend und wurden nicht umgesetzt – kein neuer Fachumfang.
+
+## Schritt 24: Review-Nacharbeit Kultureditor – Runde 6: Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2) (2026-11-24)
+
+### Ausgangslage (INT-000015, Review PR #2 Runde 5, 24.11. 18:39 UTC)
+Der Review hat zwei blockierende Funde benannt (beide: „Anzeige im Schritt „Kultur" und Gewährung im Reducer laufen auseinander"):
+- Fund 1 (HIGH): `gewaehrteStaerken` filterte nur `anzahl > 0` – eine Phantomzeile aus „+ Eintrag hinzufügen" (leere `id`/`name`, gesetzter Anzahl-Wert) zählte mit und verdrängte die tatsächlich zugewiesene Stärke (`.slice(0, MAX_STAERKEN)` nimmt die erste Zeile). Die Stärke der Kultur ging in der Anzeige verloren, während der Reducer sie weiterhin gewährt.
+- Fund 2 (MEDIUM): Der Mangel-3-Maßstab („Eintrag braucht `id`/`name`") galt nur für Gruppenseiten, nicht für die Abschnitte – Kulturen, deren Talentpunkte auf Phantomzeilen lagen, waren speicherbar, gewährten aber nichts (das komplette 5-Punkte-Budget ging verloren).
+
+### Implementierte Änderungen
+
+**shared/src/cultures.ts**
+- `istZugewiesenerEintrag(eintrag)`: vollständig zugewiesen ist eine Zeile mit gesetzter `id` UND `name` (Mangel-3-Standard für Abschnitte).
+- `msgAbschnittEintragUnvollstaendig(feld)`: „Ungültiger Eintrag im Abschnitt {Talente/Waffentalente/Magieschulen/Stärken}: Eintrag mit Wert braucht eine Auswahl (Skill bzw. Stärke)." – klare, Ursache und Abschnitt benennende Meldung.
+- `gewaehrteStaerken` (Fund 1): filtert jetzt `istZugewiesenerEintrag && anzahl > 0` – eine Phantomzeile verdrängt keine zugewiesene Stärke mehr; Anzeige (Schritt „Kultur") und Kultur-Rechnung (Reducer) zeigen dasselbe.
+- `validateKultur` (Fund 2): Completeness-Prüfung je Abschnittseintrag – ein Eintrag mit Wert ≠ 0 braucht `id` und `name`. POST und PATCH `/api/library/cultures` lehnen solche Kulturen mit 400 und der Meldung ab; Platzhalterzeilen ohne Wert (Wert 0) bleiben zulässig (sie gewähren nichts und werden nirgends angezeigt).
+
+**shared/src/kulturEditor.ts (Live-Prüfung = Speicherprüfung)**
+- `staerkeAnzahlSetzen` und `talentPunkteSetzen`: Ein Wert > 0 auf einer Zeile ohne vollständige Auswahl wird live mit derselben Meldung wie beim Speichern blockiert und nicht übernommen. Wert 0 (Zurücksetzen, auch für Altbestand) bleibt möglich; die Zeile bleibt ohne Wert als Platzhalter stehen – der Editor bleibt ohne manuelles Zeilenlöschen speicherbar.
+
+**frontend/src/components/creation/KulturSelectStep.tsx**
+- `parseEntries` führt die `id` der Einträge mit und filtert auf demselben Mangel-3-Standard (`id` und `name`). Ohne die `id` hätte der neue `gewaehrteStaerken`-Filter auf dem Anzeige-Pfad jede Stärke ausgeblendet (die Map-Ergebnisse hatten keine `id`); jetzt fällt die Anzeige für alle Abschnitte dasselbe Urteil wie die Gewährung.
+
+**shared/src/reducers.ts**
+- Talent-Punkte der Kultur werden nur für vollständig zugewiesene Einträge (`id` und `name`) gewährt – Altbestands-Phantomzeilen (aus der Zeit vor der Prüfung, A3: kein Rewrite) vergeben keine Punkte an eine leere `id` mehr; Anzeige und Gewährung zeigen dasselbe.
+
+### Ergänzte und angepasste Tests
+- `backend/src/cultures/cultures.test.ts`: „gewaehrteStaerken: Anzahl 0 und Phantomzeilen gewähren nichts, höchstens eine Stärke je Kultur" (erweitert: Phantomzeile verdrängt keine Stärke; unvollständige Einträge ohne `name` bzw. ohne `id` gewähren nichts), „Kultur-Rechnung gewährt Phantomzeilen keine Punkte und keine Stärke (Review-Fund 1 und 2)", „Review Fund 2: Abschnittseinträge mit Wert brauchen eine vollständige Auswahl" (alle vier Abschnitte, Platzhalter mit Wert 0 zulässig, vollständige Einträge zulässig).
+- `backend/src/cultures/kultur-editor.test.ts`: „UI-Pfad: Stärke wählen steht direkt auf Stufe 1 …" (Anzahl > 0 ohne Zuweisung wird live blockiert; Altbestands-Phantom mit Wert beim Speichern abgelehnt und live blockiert; auf 0 zurücksetzen räumt auf), neu „UI-Pfad Review-Fund 2: Punkte auf einer Zeile ohne Auswahl werden live blockiert" (Talente frisch und Altbestand, Stärken-Abschnitt), „UI-Pfad F1 …" (freie Zeile: R1-Limitmeldung bleibt aus, stattdessen gilt der Mangel-3-Standard).
+- `backend/src/routes/library-cultures-test-child.ts`: POST mit Phantom-Punkten (talente, waffenTalente mit id ohne name) → 400; POST mit Phantom-Stärke neben zugewiesener Stärke (Fund 1 auf API-Ebene) → 400; POST mit Platzhalterzeile (Wert 0, keine Auswahl) → 201; PATCH mit Phantomzeilen (staerken, talente) → 400; alle abgelehnten Namen fehlen in der Liste, der Platzhalter steht darin.
+
+### Verifikation (lokal, Arbeitsstand vor der Übergabe)
+- `npm test`: 47 Tests grün, Exit-Code 0 ✓
+- Mutations-Check: Completeness-Prüfung in `validateKultur` aus → 4 Tests rot (Fund-2-Unit, zwei UI-Pfade, Route); `gewaehrteStaerken` ohne Mangel-3-Filter → 2 rot (Fund-1-Unit, Kultur-Rechnung); Live-Blockaden in `kulturEditor.ts` aus → 3 rot (UI-Pfade); Reducer ohne Filter → 1 rot (Kultur-Rechnung Phantomzeilen).
+- `npm run typecheck --workspace=backend`: Exit-Code 0 ✓
+- `npm run build --workspace=frontend`: Exit-Code 0 ✓ (Chunk-Größen-Hinweis > 500 kB besteht unverändert)
+
+### Nicht geändert – Beobachtungen (kein Umfang dieser Runde)
+- `frontend/tsconfig.tsbuildinfo` (PO-Entscheidung I): nicht geändert; der Build lässt die Datei unverändert.
+- Die Listenzusammenfassung im Bibliotheks-Tab filtert Stärken weiterhin auf `anzahl > 0 && name` – Phantomzeilen (ohne `name`) erscheinen dort nicht; die Speicherprüfung verhindert neu angelegte Kulturen mit Phantomzeilen ohnehin.
+
+## Schritt 23: Review-Nacharbeit Kultureditor – Runde 5: ganze Zahlen in Gruppen (G), R6 erzwungen (H) (2026-11-24)
+
+### Ausgangslage (INT-000015, PO-Wiedereinstieg 24.11. 17:28)
+Runde 4 hatte F3 umgesetzt und zwei „Nicht geändert"-Punkte benannt. Der PO hat daraus zwei verbindliche Entscheidungen gemacht; Umfang dieser Runde ist ausschließlich G und H:
+- G: Gruppeneinträge mit Bruchwert („1,5 | 1,5") waren speicherbar, weil R4 nur die Wertesummen vergleicht.
+- H: R6 („ein Eintrag gehört höchstens einer Gruppe an") war nicht erzwungen – dieselbe id zugleich in Gruppe und Abschnitt oder in zwei Gruppen war per API speicherbar. Im Editor ist die Doppelzuordnung ebenfalls erreichbar: „Alternative hinzufügen" löst nur den eigenen Eintrag in die Gruppe; die Skill-Auswahl einer Seite listet alle Skills, auch die noch im Abschnitt oder in einer anderen Gruppe stehen.
+
+### Implementierte Änderungen
+
+**G – Werte in Entweder/Oder-Gruppen sind ganze Zahlen ab 1**
+- `shared/src/cultures.ts`: `MSG_GRUPPE_PUNKTE_UNGUELTIG` („Ungültiger Punktwert in einer Entweder/Oder-Gruppe: Werte müssen ganze Zahlen ab 1 sein."). `pruefeGruppe` prüft nach der Struktur jeden Eintrag auf `Number.isInteger` – vor R1 (Stufe) und R4 (Gleichwertigkeit). 0 und negative Werte behalten ihre bisherige Meldung („Eintrag ohne Auswahl oder Wert").
+- Wirkung: POST und PATCH `/api/library/cultures` mit Bruchwerten in einer Gruppe → 400, nichts gespeichert – auch für „1,5 | 1,5", „2 | 1,5", Stärken-Gruppen („Zäh 1,5 | Schnell 1,5") und als String übergebene Werte.
+- Der Editor kann keine Bruchwerte erzeugen (`eingabeWert` liefert ganze Zahlen); Altbestand bzw. per API angelegte Daten mit Bruchwert zeigen die Live-Meldung an der Gruppe.
+
+**H – R6 erzwungen: ein Eintrag gehört höchstens einer Gruppe an**
+- `shared/src/cultures.ts`: `msgMehrfachZugeordnet(name)` („Ungültige Gruppe: Eintrag {Name} ist mehrfach zugeordnet (Abschnitt oder mehrere Gruppen).") und `pruefeMehrfachZuordnung(regeln, index)`. Abgelehnt wird eine Gruppe, deren Eintrag (gleiche `id`) zugleich in einem Abschnitt steht (Talente, Waffentalente, Magieschulen oder Stärken – unabhängig vom Wert des Abschnittseintrags, wie bei R1) oder in einer weiteren Gruppe. Dieselbe id auf den beiden Seiten derselben Gruppe bleibt zulässig („Athletik 2 | Athletik 1 + Heimlichkeit 1"): Der Eintrag gehört zu genau dieser einen Gruppe, je Gruppe ist genau eine Seite aktiv (R5).
+- Neue Funktion `pruefeGruppeImKontext(regeln, index, kostenById)`: `pruefeGruppe` (Struktur → Wertformat → R1 → R4), danach die Zuordnung (R6). `validateKultur` fragt je Gruppe genau diese Funktion ab – Live- und Speicherprüfung liefern für eine Gruppe dieselbe Meldung.
+- `frontend/.../CultureAlternatives.tsx`: Die Live-Meldung an der Gruppe (`role="alert"`) kommt aus `pruefeGruppeImKontext`. Dafür erhält die Komponente statt `alternativen` die ganze Kultur (`regeln`) – die Abschnitte braucht die Prüfung für R6. `LibraryTable.tsx` übergibt `parseKulturRegeln(configFields)`.
+- Wirkung: Steht ein Eintrag zugleich im Abschnitt und in einer Gruppe oder in zwei Gruppen, zeigt die Gruppe die Meldung sofort (bei zwei betroffenen Gruppen beide); POST und PATCH → 400, nichts gespeichert.
+
+### Angepasster Test
+- `backend/src/cultures/cultures.test.ts` „Parser akzeptiert doppelt kodierte JSON-Strings wie echte Arrays": Das Fixture hielt „Athletik 2" und „Akrobatik 1" zugleich im Abschnitt und in der Gruppe – eine Doppelzuordnung, die H nun ablehnt. Der Abschnitt enthält jetzt „Handwerk 3" (Summe unverändert 3, TC-11-Konstellation); der Testzweck (tolerantes Parsen) ist unverändert.
+
+### Ergänzte Tests
+- `backend/src/cultures/cultures.test.ts`: „PO G: …" (Bruchwert gleich- und ungleichwertig, Stärken-Gruppe, String; 0/negativ unverändert; ganze Zahlen zulässig), „PO H (R6): Eintrag zugleich in einer Gruppenseite und im Abschnitt …", „PO H (R6): Eintrag in zwei Gruppen … – Live-Meldung an beiden Gruppen", „PO G/H: Reihenfolge der Meldungen …".
+- `backend/src/cultures/kultur-editor.test.ts`: „UI-Pfad PO G/H: Live-Meldung an der Gruppe …" (Editor-Pfad in beiden Richtungen: Auswahl auf Seite 2, später neu gewählter Abschnittseintrag; `eingabeWert` erzeugt keine Bruchwerte).
+- `backend/src/routes/library-cultures-test-child.ts`: POST (Bruchwert, Doppelzuordnung Abschnitt, zwei Gruppen) → 400 mit Meldung; PATCH (Bruchwert, Doppelzuordnung, zwei Gruppen) → 400; die gespeicherte Kultur ist unverändert, keines der Beispiele steht in der Liste; gleiche id auf beiden Seiten derselben Gruppe → 201.
+
+### Verifikation (lokal, Arbeitsstand vor der Übergabe)
+- `npm test`: 44 Tests grün, Exit-Code 0 ✓
+- Mutations-Check: ohne die G-Prüfung sind 4 Tests rot (Unit G, Reihenfolge, UI-Pfad, Route); ohne die H-Prüfung ebenfalls 4 (Unit H ×2, UI-Pfad, Route).
+- `npm run typecheck --workspace=backend`: Exit-Code 0 ✓
+- `npm run build --workspace=frontend`: Exit-Code 0 ✓ (Chunk-Größen-Hinweis > 500 kB besteht unverändert)
+
+### Nicht geändert – Beobachtungen (kein Umfang dieser Runde)
+- Dieselbe id zweimal auf derselben Seite einer Gruppe („… | Athletik 1 + Athletik 1") ist weder „Abschnitt und Gruppe" noch „zwei Gruppen" und bleibt speicherbar; die Seite ist im Folgeticket auflösbar.
+- Doppelte Abschnittseinträge ohne Gruppen („Athletik 2, Athletik 1" im selben Abschnitt) sind unverändert zugelassen – bestehendes Verhalten, nicht Teil von R6.
+- `frontend/tsconfig.tsbuildinfo` (PO-Entscheidung I): nicht geändert; der Build lässt die Datei unverändert (vorher/nachher identische Prüfsumme).
+
+## Schritt 22: Review-Nacharbeit Kultureditor – Runde 4: Punkte als ganze Zahlen ab 0 (F3), UI-Test „Anzahl" (F1) (2026-11-24)
+
+### Ausgangslage (INT-000015, PO-Wiedereinstieg 24.11. 17:07 nach dem Review 24.11. 17:00)
+Das Review listet zehn Funde (F1–F10). Im Arbeitsstand (Schritte 19–21) sind F1, F2, F4 und F5 umgesetzt; F3 war offen. Die im Ticket gespeicherte Kopie des Reviewtextes bricht mitten in F5 ab – F6 bis F10 waren beim Umsetzen dieser Runde nicht lesbar (Rückfrage an den PO offen).
+
+### Implementierte Änderungen
+
+**F3 – negative bzw. nicht ganzzahlige Punkte umgingen R2/R5 über direktes POST/PATCH**
+- `shared/src/cultures.ts`: `istGueltigerPunktwert(wert)` (ganze Zahl ab 0) und `MSG_PUNKTE_UNGUELTIG` („Ungültiger Punktwert: Punkte müssen ganze Zahlen ab 0 sein (Talente, Waffentalente und Magieschulen).").
+- `validateKultur` prüft nach R1 jeden Abschnittseintrag der drei Talentbereiche – unabhängig von `id` und `name`. Prüfreihenfolge: R1 Anzahl der Stärken → R1 je Stärken-Eintrag → Punkte ganze Zahlen ab 0 → je Gruppe (R3/K2c/R1/R4) → R5 über alle Ergebnisse.
+- Wirkung: POST und PATCH `/api/library/cultures` mit negativen oder nicht ganzzahligen Punkten antworten mit 400 und der Meldung, es wird nichts gespeichert – auch für die Basissumme von R5 bei Kulturen mit Gruppen (Review-Repro: −5 + 10 ergäbe 5). Ganze Zahlen ab 0 (einschließlich 0) bleiben unverändert zugelassen, die Summe 5 weiterhin zulässig.
+- Der Editor kann solche Werte nicht erzeugen (`eingabeWert`); die Prüfung schließt den direkten API-Weg.
+
+**F1 – Test für den UI-Pfad „Anzahl setzen"**
+- Die Korrektur stand bereits aus Schritt 21 (`staerkeAnzahlSetzen` nutzt dieselbe Abschnittsprüfung wie das Wählen). Ergänzt ist der Test zum Review-Repro: Altbestand „Zäh" Anzahl 1 + „Schnell" Anzahl 0, bei „Schnell" Anzahl 1 eintragen → live „Maximal eine Stärke pro Kultur.", der Wert wird nicht übernommen.
+
+### Ergänzte Tests
+- `backend/src/cultures/cultures.test.ts` („Review F3 …"): Review-Repro, alle drei Bereiche, String-Werte, nicht ganzzahlig trotz passender Summe, Basissumme in R5, unverändert zulässige Werte, Wertprüfung selbst.
+- `backend/src/cultures/kultur-editor.test.ts` („UI-Pfad F1 …").
+- `backend/src/routes/library-cultures-test-child.ts`: POST (negativ, halbzahlig bereichsübergreifend, als String, negative Basis bei einer Gruppe) → 400; PATCH (negativ, halbzahlig) → 400; die gespeicherte Kultur ist unverändert, keines der regelwidrigen Beispiele steht in der Liste; eine Kultur mit 0 Punkten wird gespeichert (201).
+
+### Verifikation (lokal, Arbeitsstand vor der Übergabe)
+- `npm test`: 39 Tests grün, Exit-Code 0 ✓
+- Mutations-Check: ohne die F3-Prüfung sind genau die beiden F3-Tests rot (Unit: `null` statt der Meldung; Route: `201 !== 400`).
+- `npm run typecheck --workspace=backend`: Exit-Code 0 ✓
+- `npm run build --workspace=frontend`: Exit-Code 0 ✓ (Chunk-Größen-Hinweis > 500 kB besteht unverändert)
+
+### Nicht geändert – Beobachtungen (nicht Teil der lesbaren Review-Liste, Rückfrage offen)
+- Gruppeneinträge mit positiver, nicht ganzzahliger Wertangabe (z. B. „1,5 | 1,5") bestehen die Speicherprüfung; negative Gruppeneinträge werden bereits abgelehnt („Eintrag ohne Auswahl oder Wert").
+- R6 („ein Eintrag gehört höchstens einer Gruppe an") ist nicht erzwungen: derselbe Talent-Eintrag in Gruppe und Abschnitt oder in zwei Gruppen ist speicherbar (im Editor nicht anlegbar, nur per API).
+
+## Schritt 21: Review-Nacharbeit Kultureditor – Runde 3: UI-Pfad testbar, Live-Meldung an der Gruppe (2026-11-24)
+
+### Ausgangslage (INT-000015, PO-Wiedereinstieg 24.11. 14:42 mit Verifikations-Gate)
+Die Review-Mängel 1–3 waren im Arbeitsstand behoben. Offen waren zwei Punkte aus dem PO-Umfang: Der UI-Pfad der Abschnitte (Fundort des HIGH-Befunds: Stärke wählen/Anzahl setzen in `LibraryTable.tsx`) war nur über die von den Handlern aufgerufenen Prüffunktionen getestet – die Handler selbst nicht –, und für unvollständige Gruppenseiten (MEDIUM 3) gab es nur die Speicherprüfung, keine Live-Prüfung im Editor. Zusätzlich war kein belegtes Ergebnis der Projektprüfungen vorhanden.
+
+### Implementierte Änderungen
+
+**1) UI-Pfad des Kultureditors als reine Editor-Schritte – `shared/src/kulturEditor.ts` (neu)**
+- `staerkeWaehlen`, `staerkeAnzahlSetzen`, `talentPunkteSetzen`, `alternativeAnlegen`: reine Funktionen über den Configfeldern des Editors; jeder Schritt liefert `{ felder, fehler }` (neue Felder und die sichtbare Meldung). Die Live-Logik ist damit ohne Browser testbar.
+- `pruefeStaerkenAbschnitt(liste, selbstIdx)` (aus `cultures.ts` hierher gewandert) zählt über den Zeilenindex: jede andere Zeile mit gesetzter `id` ist eine zugewiesene Stärke – unabhängig vom Anzahl-Wert. Auch die bereits zugewiesene Stärke ein zweites Mal (neue Zeile) wird live mit „Maximal eine Stärke pro Kultur." blockiert.
+- `frontend/.../LibraryTable.tsx`: `setzeStaerke`, `setzeAnzahl`, `setzeTalentPunkte` und `alternativeHinzufuegen` sind nur noch Aufrufe der Editor-Schritte (`anwenden`); die Regellogik liegt nicht mehr in der Komponente.
+- Unverändert gilt: Eine gewählte Stärke steht direkt auf Stufe 1; Anzahl ≠ 1 (auch 0) und Kosten ≠ 1 werden live, beim Speichern und serverseitig abgelehnt; `KulturSelectStep`/Reducer gewähren höchstens eine Stärke (`gewaehrteStaerken`); „Gruppe entfernen" stellt nur Seite 1 wieder her (`entferneGruppe`).
+
+**2) Live-Meldung direkt an der Entweder/Oder-Gruppe (MEDIUM 3: Live- und Speicherprüfung)**
+- `shared/src/cultures.ts`: `pruefeGruppeStruktur` (R3: jede Seite braucht mindestens einen vollständigen Eintrag; K2c: keine gemischte Gruppe) und `pruefeGruppe` (Struktur → R1 je Stärken-Eintrag → R4 Gleichwertigkeit); `msgUngleichwertig` und `MSG_GRUPPE_GEMISCHT`.
+- `validateKultur` prüft jede Gruppe mit derselben `pruefeGruppe` – Live- und Speicherprüfung liefern für eine Gruppe dieselbe Meldung. Reihenfolge: R1 Anzahl der Stärken → R1 je Abschnitts-Eintrag → je Gruppe R3/K2c/R1/R4 → R5 über alle Ergebnisse.
+- `frontend/.../CultureAlternatives.tsx`: Die Meldung steht mit `role="alert"` direkt unter der Gruppenzusammenfassung – z. B. unmittelbar nach „Alternative hinzufügen": „Ungültige Gruppe: Seite 2 ist leer – jede Seite braucht mindestens einen Eintrag." Steht dieselbe Meldung bereits im Formular-Banner (nach „Erstellen"/„Speichern"), wird sie an der Gruppe nicht wiederholt (Prop `formError`).
+
+**3) Gemischte Gruppen (K2c) werden serverseitig abgelehnt**
+- Im Editor nicht anlegbar; POST/PATCH mit Stärken- und Talent-Einträgen in einer Gruppe → 400 „Ungültige Gruppe: Stärken und Talente dürfen nicht in einer Gruppe gemischt werden." Bereichsübergreifende Talent-Gruppen (K2b) und Stärken-Gruppen (K2a) bleiben zulässig.
+
+### Ergänzte Tests
+- `backend/src/cultures/kultur-editor.test.ts` (neu, im `test`-Skript des Backends): 7 Fälle zum UI-Pfad mit `anzahl: 0`-Fixtures – zweite Stärke blockiert und frische Zeile entfernt (TC-04), zugewiesene Stärke mit Anzahl 0 blockiert (Review-Fund 1), Stärke wählen steht direkt auf Stufe 1 und Anzahl 0/2 wird nicht übernommen, Stufe 2/Kosten 2 (TC-05/TC-06), Talentpunkte bereichsübergreifend (TC-01/02/03), Alternative anlegen (TC-08/TC-10), „Gruppe entfernen" nach Stärkengruppe (Review-Fund 2).
+- `backend/src/cultures/cultures.test.ts`: TC-04 auf die Zeilen-Sicht umgestellt; drei neue Fälle (Live-Prüfung `pruefeGruppe` für leere/unvollständige Seiten, R1/R4 je Gruppe, gemischte Gruppe).
+- `backend/src/routes/library-cultures-test-child.ts`: gemischte Gruppe → 400; PATCH mit Anzahl 0, Kosten 2 (Anzahl 0) und leerer Seite → 400; die abgelehnten PATCH-Aufrufe verändern die gespeicherte Kultur nicht.
+
+### Verifikation (lokal, Arbeitsstand vor der Übergabe)
+- `npm test`: 37 Tests grün ✓
+- `npm run typecheck --workspace=backend`: ohne Befund ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓ (Chunk-Größen-Hinweis > 500 kB besteht unverändert)
+- `npm audit --omit=dev --omit=peer` (CI-Schritt): 0 Schwachstellen ✓
+
+## Schritt 20: Review-Nacharbeit Kultureditor – Runde 2 (2026-11-24)
+
+### Ausgangslage (INT-000015, PO-Umfang nach Review zu PR #2)
+Der PO gab die nächste Umsetzungsrunde mit drei verbindlichen Punkten frei: (1) R1 weiterhin über Stärken mit `anzahl` 0 umgehbar – zusätzlich `setzeAnzahl` und `KulturSelectStep`, (2) `gruppeEntfernen` ungetestet, (3) R4 ohne Seiten-Konkretheit.
+
+### Implementierte Änderungen
+
+**1) HIGH – R1-Umgehung über `setzeAnzahl` und Kultur-Gewährung**
+- `frontend/.../LibraryTable.tsx` (`setzeAnzahl`): ruft zusätzlich `pruefeStaerkenAbschnitt` auf – eine danebenliegende zweite zugewiesene Stärke wird auch beim Ändern der Anzahl live mit „Maximal eine Stärke pro Kultur." abgelehnt (vorher nur `pruefeStaerkeWert`).
+- `shared/src/cultures.ts`: neue Funktion `gewaehrteStaerken(eintraege)` – filtert Einträge mit `anzahl > 0` und begrenzt auf `MAX_STAERKEN` (1). Damit gewährt eine Kultur auch bei Altbestand mit mehreren Einträgen höchstens eine Stärke.
+- `frontend/.../KulturSelectStep.tsx`: die Stärken-Sektion der Kulturanzeige läuft über `gewaehrteStaerken` – Anzahl 0 wird nicht mehr als gewährt angezeigt.
+- `shared/src/reducers.ts` (`kulturReducer`): die Gewährung in den Charakterzustand läuft über `gewaehrteStaerken` – Anzahl-0-Einträge gewähren nichts, es wird höchstens eine Stärke weitergegeben.
+
+**2) MEDIUM – „Gruppe entfernen" testbar gemacht**
+- `shared/src/cultures.ts`: neue Funktion `entferneGruppe(configFelder, index)` – verlagert die bisher im Frontend versteckte Logik (Seite 1 zurück in die Abschnitte, Seite 2 und Gruppe entfallen) nach shared und ist damit unit-testbar; liefert `null` bei unbekanntem Index.
+- `frontend/.../LibraryTable.tsx` (`gruppeEntfernen`): nur noch `setConfigFields(prev => entferneGruppe(prev, index) ?? prev)`.
+
+**3) MEDIUM – R4/Seiten-Konkretheit** war in Runde 1 umgesetzt (`msgSeiteLeer`, `msgEintragUnvollstaendig` in `validateKultur`, frontend- wie backendseitig); unverändert.
+
+### Ergänzte Tests (`backend/src/cultures/cultures.test.ts`)
+- `entferneGruppe`: nur Seite 1 wird zurückgeschrieben, Gruppe entfällt, R1/R2 bleiben erfüllt; Stärkengruppe stellt genau eine Stärke her; Mehrfach-Gruppen: nur die gewählte Gruppe wird entfernt.
+- `gewaehrteStaerken`: Anzahl 0 gewährt nichts, höchstens eine Stärke je Kultur.
+- `recalculateStats` (KulturSelectStep-Pfad): eine Kultur mit zwei Stärken gewährt genau eine; Anzahl 0 gewährt keine; Talente bleiben unberührt.
+
+### Verifikation
+- `npm test`: 27 Tests grün ✓
+- `npm run typecheck --workspace=backend`: ohne Befund ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓
+
+## Schritt 19: Review-Nacharbeit Kultureditor – Limits und Gruppenintegrität (2026-11-24)
+
+### Ausgangslage (INT-000015, Review zu PR #2)
+Der Review meldete drei belegbare Mängel: regelwidrige Kulturen konnten doch gespeichert bzw. der Editor in einen dauerhaft ungültigen Zustand gebracht werden.
+
+### Implementierte Änderungen
+
+**1) HIGH – R1 war über Stärken mit Anzahl 0 umgehbar**
+- `shared/src/cultures.ts`: Eine Stärke gilt über ihre gesetzte `id` als zugewiesen – unabhängig vom Wert. Neu: `staerkenZuweisungen(regeln)` (zählende Variante, gespeist in `validateKultur` und `wahlmoeglichkeiten`); `pruefeStaerkenAbschnitt` filtert nicht mehr nach `wert > 0`; `pruefeStaerkeWert` verlangt für eine zugewiesene Stärke zwingend Wert 1 (auch 0 verstößt gegen AK1.2)
+- `frontend/.../LibraryTable.tsx`: Beim Wählen einer Stärke wird die Anzahl sofort auf 1 gesetzt; das Anzahl-Feld blockiert jeden Wert ≠ 1 (auch 0/leer) live mit „Stärken nur mit Stufe 1 und Kosten 1."
+- Wirkung: POST mit zwei Stärken `anzahl: 0` → 400 „Maximal eine Stärke pro Kultur."; teure Stärke mit `anzahl: 0` → 400 „Stärken nur mit Stufe 1 und Kosten 1."
+
+**2) MEDIUM – „Gruppe entfernen" schrieb beide Seiten in die Abschnitte zurück**
+- Neue Shared-Funktion `gruppeAufloesen(alternative)` liefert ausschließlich Seite 1; `gruppeEntfernen` in `LibraryTable.tsx` nutzt sie. Im wählbaren Ergebnis ist pro Gruppe genau eine Seite aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben erzeugte per Konstruktion zwei zugewiesene Stärken (R1-Verstoß).
+
+**3) MEDIUM – R4 prüfte nur die Wertesummen**
+- Jede Gruppenseite braucht jetzt mindestens einen vollständigen Eintrag (`id`, `name`, `wert > 0`); Meldungen: „Ungültige Gruppe: Seite X ist leer – jede Seite braucht mindestens einen Eintrag." bzw. „Ungültige Gruppe: Seite X hat einen Eintrag ohne Auswahl oder Wert." (`msgSeiteLeer`, `msgEintragUnvollstaendig`)
+- Prüfreihenfolge in `validateKultur`: R1 Anzahl der Stärken → R3 Vollständigkeit der Seiten → R1 je Eintrag → R4 Gleichwertigkeit → R5 über alle Ergebnisse
+- UI: „Alternative hinzufügen" erscheint nur bei Einträgen mit zugewiesenem Wert (R3); in einer Gruppe setzt die Stärken-Auswahl den Wert automatisch auf 1; strukturell defekte `alternativen`-Einträge ohne `seiten` werden beim Parsen übersprungen (tolerantes Parsing bleibt erhalten)
+
+### Ergänzte Tests
+- `backend/src/cultures/cultures.test.ts`: 4 neue Fälle (Anzahl 0 in Abschnitt/Ergebnis, leere Seite, Eintrag ohne Auswahl/Wert, „Gruppe entfernen" stellt nur Seite 1 wieder her) sowie TC-05 angepasst (zugewiesene Stärke mit Anzahl 0 ⇒ Fehler)
+- `backend/src/routes/library-cultures-test-child.ts`: 5 neue Route-Fälle mit 400 plus Prüfung, dass keine dieser Kulturen persistiert wird
+
+### Verifikation
+- `npm test && npm run typecheck --workspace=backend`: 22 Tests grün ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓
+
+## Schritt 18: Kultureditor – Stärken-/Talentlimits und Entweder/Oder-Alternativen (2026-11-24)
+
+### Anforderungen (SF-000009 / INT-000015, K1–K4 aus der PO-Klärung)
+- R1: pro Kultur höchstens eine Stärke, Stufe (Anzahl) 1 und Kosten 1
+- R2: höchstens 5 Punkte für Talente + Waffentalente + Magieschulen zusammen (Summe 5 zulässig, bereichsübergreifend)
+- R3/R4: zu einer Zuweisung kann eine gleichwertige Alternative (Entweder/Oder-Gruppe mit „Seite 1"/„Seite 2") angelegt werden; die Wertesummen beider Seiten müssen gleich sein
+- R5: jedes wählbare Ergebnis (je Gruppe genau eine Seite) muss R1 und R2 erfüllen
+- Nicht im Umfang: Auswahl-UI im Schritt „Kultur" der Charaktererstellung (Folgeticket INT-000016)
+
+### Implementierte Änderungen
+
+**`shared/src/cultures.ts` (neu)**
+- Zentrale, reine Regellogik für Editor und Backend: `parseKulturRegeln` (tolerant gegenüber doppelt kodierten JSON-Strings und echten Arrays), `pruefeTalentPunkte`, `pruefeStaerkenAbschnitt`, `pruefeStaerkeWert`, `validateKultur` (R1 je Eintrag → R4 Gleichwertigkeit → R5 über alle wählbaren Ergebnisse), `wahlmoeglichkeiten` (Aufzählung, ab 13 Gruppen äquivalenter Worst Case), `formatAlternative` („Athletik 2 | Akrobatik 1 + Heimlichkeit 1")
+- Feste Meldungstexte: „Maximal 5 Punkte insgesamt für Talente, Waffentalente und Magieschulen.", „Maximal eine Stärke pro Kultur.", „Stärken nur mit Stufe 1 und Kosten 1.", „Ungleichwertig: Seite 1 = X Punkte, Seite 2 = Y Punkte", Zusatz „ (in einem wählbaren Ergebnis verletzt)"
+
+**`backend/src/routes/library.ts`**
+- POST/PATCH `cultures` validieren die Config gegen die Regeln und antworten mit 400 + `message`; regelwidrige Kulturen werden nicht abgelegt (auch wenn das Frontend umgangen wird)
+- Kosten der Stärken kommen aus der Library-Tabelle `strengths` (`parseKosten`); unbekannte Kosten (Altbestand ohne Feld) werden nicht beanstandet
+
+**`frontend/src/components/library/CultureAlternatives.tsx` (neu)**
+- Block „Entweder/Oder-Gruppen" im Kulturformular: Zusammenfassung im Format „Athletik 2 | Akrobatik 1 + Heimlichkeit 1", Seiten als benannte Feldsets „Seite 1"/„Seite 2" mit Eintrags-Zeilen, „+ Eintrag hinzufügen" je Talentseite (Stärkenseiten führen genau eine Stärke, K2a), „Gruppe entfernen"
+
+**`frontend/src/components/library/LibraryTable.tsx`**
+- Live-Prüfung beim Zuweisen: Talentpunkte-Summe über alle drei Bereiche (blockiert + frische Zeile entfernt), zweite Stärke blockiert (Select revertiert), Stufe/Kosten ≠ 1 blockiert (Anzahl revertiert); Meldung im Formular mit `role="alert"`
+- „Alternative hinzufügen" je Talent-/Stärkeneintrag: der Eintrag wandert in die Gruppe (Seite 1) und zählt nicht mehr im Abschnitt
+- Speichern (`Erstellen`/`Speichern`) führt `validateKultur` aus und zeigt serverseitige 400-Meldungen; Zusammenfassung in der Liste enthält die Gruppen
+- A11y: Abschnitte und Gruppenseiten als `fieldset`/`legend`, Eingaben mit `aria-label`, Name/Beschreibung label-gebunden
+
+**`frontend/src/components/library/StrengthsView.tsx`**
+- Felder des Stärken-Formulars label-gebunden (`htmlFor`/`id` für Name, Beschreibung, Kategorie, Unterkategorie, „Kosten (Punkte)"), damit QA das Feld über den Accessibility Tree eindeutig anspricht (Voraussetzung für AK1.2/TC-06: Stärke mit Kosten 2 anlegen bzw. setzen)
+
+### Verifikation
+- `npm test && npm run typecheck --workspace=backend`: 18 Tests grün (Regel-Unit-Tests TC-01–TC-14, Seed-Test, Route-Integrationstest mit Temp-Datenbank) ✓
+- `npm run build --workspace=frontend`: Build ohne Fehler ✓
+
 ## Schritt 17: XP-System in der Chronik (Level-Balken, Sessions, Verlauf, Ausgeben) (2026-10-21)
 
 ### Anforderungen (Tester/Max)

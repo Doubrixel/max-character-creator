@@ -1,6 +1,22 @@
 import { useState, useEffect } from 'react'
 import { TYPE_SCHEMAS, SKILL_OPTIONS, STRENGTH_OPTIONS, MASTERY_OPTIONS, MAGIC_SCHOOL_OPTIONS, FULL_MAGIC_SKILLS, SCHOOL_SHORT_MAP, type FieldSchema } from './typeSchemas'
 import { useAppContext } from '../../context/AppContext'
+import CultureAlternatives from './CultureAlternatives'
+import {
+  alternativeAnlegen,
+  entferneGruppe,
+  formatAlternative,
+  parseKosten,
+  parseKulturRegeln,
+  staerkeAnzahlSetzen,
+  staerkeWaehlen,
+  talentPunkteSetzen,
+  talentWaehlen,
+  validateKultur,
+  type EditorSchritt,
+  type KulturAlternative,
+  type KulturFeld,
+} from '@mcc/shared'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -11,6 +27,19 @@ interface LibraryEntry {
   config: string | null
   createdAt: number | null
   updatedAt: number | null
+}
+
+interface StrengthOption {
+  id: string
+  name: string
+  kosten: number | null
+}
+
+interface AbschnittEintrag {
+  id: string
+  name: string
+  punkte?: number
+  anzahl?: number
 }
 
 interface LibraryTableProps {
@@ -70,10 +99,17 @@ export default function LibraryTable({ type }: LibraryTableProps) {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
   const [races, setRaces] = useState<LibraryEntry[]>([])
   const [skills, setSkills] = useState<{ id: string; name: string; type: string }[]>([])
-  const [strengths, setStrengths] = useState<{ id: string; name: string }[]>([])
+  const [strengths, setStrengths] = useState<StrengthOption[]>([])
+  const [formError, setFormError] = useState<string | null>(null)
 
   const schema = TYPE_SCHEMAS[type]
   const fields = schema?.fields ?? []
+
+  // Kosten (Punkte) der Stärken für die Prüfung „Stufe 1 und Kosten 1" (R1).
+  const kostenById: Record<string, number> = {}
+  for (const option of strengths) {
+    if (option.kosten !== null) kostenById[option.id] = option.kosten
+  }
 
   const load = () => {
     fetch(`${API_BASE}/api/library/${type}`)
@@ -88,7 +124,9 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     if (type === 'cultures') {
       fetch(`${API_BASE}/api/library/races`).then(r => r.json()).then(setRaces).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
       fetch(`${API_BASE}/api/library/skills`).then(r => r.json()).then((data: { id: string; name: string; type: string }[]) => setSkills(data)).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
-      fetch(`${API_BASE}/api/library/strengths`).then(r => r.json()).then((data: { id: string; name: string }[]) => setStrengths(data)).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
+      fetch(`${API_BASE}/api/library/strengths`).then(r => r.json()).then((data: LibraryEntry[]) => {
+        setStrengths(data.map(entry => ({ id: entry.id, name: entry.name, kosten: parseKosten(entry.config) })))
+      }).catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
     }
   }, [type])
 
@@ -97,27 +135,43 @@ export default function LibraryTable({ type }: LibraryTableProps) {
     setDescription('')
     setConfigFields({})
     setEditingId(null)
+    setFormError(null)
   }
 
   const handleSubmit = async () => {
     if (!name.trim()) return
+    if (type === 'cultures') {
+      // R1/R2/R4/R5: regelwidrige Kulturen werden nicht gespeichert.
+      const fehler = validateKultur(configFields, kostenById)
+      if (fehler) {
+        setFormError(fehler)
+        return
+      }
+    }
     const body = {
       name: name.trim(),
       description: description.trim() || null,
       config: JSON.stringify(configFields) || null,
     }
-    if (editingId) {
-      await fetch(`${API_BASE}/api/library/${type}/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-    } else {
-      await fetch(`${API_BASE}/api/library/${type}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
+    const res = editingId
+      ? await fetch(`${API_BASE}/api/library/${type}/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      : await fetch(`${API_BASE}/api/library/${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+    if (!res.ok) {
+      let message = 'Speichern fehlgeschlagen'
+      try {
+        const data = await res.json()
+        message = data.message || data.error || message
+      } catch {}
+      setFormError(message)
+      return
     }
     resetForm()
     setShowForm(false)
@@ -153,11 +207,108 @@ export default function LibraryTable({ type }: LibraryTableProps) {
       setConfigFields({})
     }
     setEditingId(entry.id)
+    setFormError(null)
     setShowForm(true)
   }
 
   const setField = (key: string, value: string) => {
     setConfigFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  const leseListe = (key: string): AbschnittEintrag[] => {
+    try {
+      const parsed = JSON.parse(configFields[key] || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  const schreibeListe = (key: string, liste: AbschnittEintrag[]) => {
+    setField(key, JSON.stringify(liste))
+    // Fund 3: Zeile hinzufügen/entfernen ist ein erfolgreicher Editor-Schritt –
+    // eine überholte Meldung aus einem früheren Fehlversuch verschwindet.
+    setFormError(null)
+  }
+
+  const setAlternativen = (alternativen: KulturAlternative[]) => {
+    setConfigFields(prev => {
+      const next = { ...prev }
+      if (alternativen.length === 0) delete next.alternativen
+      else next.alternativen = JSON.stringify(alternativen)
+      return next
+    })
+    // Fund 3: Jede Änderung in der Alternativpflege ist ein erfolgreicher
+    // Editor-Schritt – das Banner zeigt keine überholte Meldung mehr und die
+    // Live-Meldung an der Gruppe wird nicht mehr durch den Alt-Text
+    // unterdrückt.
+    setFormError(null)
+  }
+
+  /**
+   * Übernimmt einen Editor-Schritt: neue Configfelder und die Meldung.
+   * Fund 3: `fehler` ist bei einem erfolgreichen Schritt null – das Banner
+   * leert sich damit bei jedem erfolgreichen Schritt statt eine überholte
+   * Meldung stehen zu lassen (die auch die Live-Meldung an der Gruppe
+   * unterdrücken würde).
+   */
+  const anwenden = (schritt: EditorSchritt) => {
+    setFormError(schritt.fehler)
+    setConfigFields(schritt.felder)
+  }
+
+  /**
+   * Die Schritte selbst (inklusive Live-Prüfung R1/R2) sind reine Funktionen in
+   * `@mcc/shared` (kulturEditor.ts) und dort getestet – die Komponenten rufen
+   * sie nur auf.
+   */
+
+  /** R2 beim Zuweisen: Summe über Talente, Waffentalente und Magieschulen ≤ 5. */
+  const setzeTalentPunkte = (feld: KulturFeld, idx: number, roh: string) => {
+    anwenden(talentPunkteSetzen(configFields, feld, idx, roh))
+  }
+
+  /**
+   * Skill zuweisen/abwählen in einer Talentzeile (Fund 1, Runde 6): Auch der
+   * Select läuft über den Shared-Schritt `talentWaehlen` – eine Abwahl setzt
+   * die Punkte der Zeile auf 0, damit keine Phantomzeile mit Wert übrig bleibt
+   * und die Kultur ohne manuelles Zeilenlöschen speicherbar bleibt.
+   */
+  const setzeTalent = (feld: KulturFeld, idx: number, newId: string) => {
+    const skill = skills.find(s => s.id === newId)
+    anwenden(talentWaehlen(configFields, feld, idx, { id: newId, name: skill?.name || newId }))
+  }
+
+  /** R1 beim Zuweisen: höchstens eine Stärke, Stufe 1 und Kosten 1. */
+  const setzeStaerke = (idx: number, newId: string) => {
+    const option = strengths.find(s => s.id === newId)
+    anwenden(staerkeWaehlen(configFields, idx, { id: newId, name: option?.name || newId }, kostenById))
+  }
+
+  /** R1 beim Zuweisen: Anzahl (Stufe) 1 und Kosten 1 – auch 0 ist bei zugewiesener Stärke unzulässig. */
+  const setzeAnzahl = (idx: number, roh: string) => {
+    anwenden(staerkeAnzahlSetzen(configFields, idx, roh, kostenById))
+  }
+
+  /** R3: aus einem Abschnittseintrag eine Entweder/Oder-Gruppe machen. */
+  const alternativeHinzufuegen = (feld: KulturFeld, idx: number) => {
+    const felder = alternativeAnlegen(configFields, feld, idx)
+    if (felder) {
+      setConfigFields(felder)
+      setFormError(null)
+    }
+  }
+
+  /**
+   * Gruppe auflösen: Zurück in die Abschnitte kommt ausschließlich Seite 1
+   * (`entferneGruppe`, in shared getestet). Im wählbaren Ergebnis ist pro Gruppe
+   * genau eine Seite aktiv (R5) – beide Seiten gleichzeitig zurückzuschreiben
+   * würde per Konstruktion einen regelwidrigen Zustand erzeugen (Review-Fund
+   * INT-000015).
+   */
+  const gruppeEntfernen = (index: number) => {
+    setConfigFields(prev => entferneGruppe(prev, index) ?? prev)
+    setFormError(null)
   }
 
   const parseStaerkenFile = (content: string): { name: string; description: string; config: Record<string, string> }[] => {
@@ -387,9 +538,23 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
       {showForm && (
         <div style={styles.form}>
+          {formError && (
+            <div role="alert" style={styles.errorBanner}>
+              {formError}
+              <button
+                type="button"
+                style={styles.errorClose}
+                aria-label="Fehlermeldung schließen"
+                onClick={() => setFormError(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div style={styles.formRow}>
-            <label style={styles.label}>Name *</label>
+            <label style={styles.label} htmlFor="library-entry-name">Name *</label>
             <input
+              id="library-entry-name"
               style={styles.input}
               placeholder="Name"
               value={name}
@@ -397,8 +562,9 @@ export default function LibraryTable({ type }: LibraryTableProps) {
             />
           </div>
           <div style={styles.formRow}>
-            <label style={styles.label}>Beschreibung</label>
+            <label style={styles.label} htmlFor="library-entry-description">Beschreibung</label>
             <textarea
+              id="library-entry-description"
               style={styles.textarea}
               placeholder="Beschreibung..."
               value={description}
@@ -409,7 +575,7 @@ export default function LibraryTable({ type }: LibraryTableProps) {
 
           {fields.map(field => (
             <div key={field.key} style={styles.formRow}>
-              {field.type !== 'checkbox' && (
+              {field.type !== 'checkbox' && field.type !== 'skillPoints' && field.type !== 'strengthPoints' && (
                 <label style={styles.label}>{field.label}</label>
               )}
 
@@ -522,57 +688,58 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                   })}
                 </div>
               ) : field.type === 'skillPoints' ? (
-                <div>
+                <fieldset style={styles.fieldset}>
+                  <legend style={styles.label}>{field.label}</legend>
                   <div style={styles.pointsList}>
                     {(() => {
-                      let arr: { id: string; name: string; punkte: number }[] = []
-                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      const arr = leseListe(field.key)
                       const filteredSkills = field.key === 'magieSchulen'
                         ? skills.filter(s => s.type === 'magie')
                         : field.key === 'waffenTalente'
                           ? skills.filter(s => s.type === 'kampf')
                           : skills.filter(s => s.type === 'fertigkeit')
                       return arr.map((item, idx) => (
-                        <div key={idx} style={styles.pointsRow}>
-                          <select
-                            style={{ ...styles.input, flex: 2 }}
-                            value={item.id}
-                            onChange={e => {
-                              const newId = e.target.value
-                              const skill = skills.find(s => s.id === newId)
-                              const newArr = [...arr]
-                              newArr[idx] = { id: newId, name: skill?.name || newId, punkte: item.punkte }
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          >
-                            <option value="">Skill wählen...</option>
-                            {filteredSkills.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                          <input
-                            style={{ ...styles.input, flex: 1, textAlign: 'center' }}
-                            type="number"
-                            min={0}
-                            max={18}
-                            placeholder="Punkte"
-                            value={item.punkte}
-                            onChange={e => {
-                              const newArr = [...arr]
-                              newArr[idx] = { ...item, punkte: parseInt(e.target.value, 10) || 0 }
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          />
-                          <button
-                            type="button"
-                            style={styles.removeBtn}
-                            onClick={() => {
-                              const newArr = arr.filter((_, i) => i !== idx)
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          >
-                            ×
-                          </button>
+                        <div key={idx} style={styles.rowItem}>
+                          <div style={styles.pointsRow}>
+                            <select
+                              style={{ ...styles.input, flex: 2 }}
+                              aria-label={`${field.label} Eintrag ${idx + 1} – Skill wählen`}
+                              value={item.id ?? ''}
+                              onChange={e => setzeTalent(field.key as KulturFeld, idx, e.target.value)}
+                            >
+                              <option value="">Skill wählen...</option>
+                              {filteredSkills.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              style={{ ...styles.input, flex: 1, textAlign: 'center' }}
+                              type="number"
+                              min={0}
+                              max={18}
+                              placeholder="Punkte"
+                              aria-label={`Punkte ${item.name || String(idx + 1)}`}
+                              value={item.punkte ?? 0}
+                              onChange={e => setzeTalentPunkte(field.key as KulturFeld, idx, e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              style={styles.removeBtn}
+                              aria-label={`${field.label} Eintrag ${idx + 1} entfernen`}
+                              onClick={() => schreibeListe(field.key, arr.filter((_, i) => i !== idx))}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {item.id && (item.punkte ?? 0) > 0 ? (
+                            <button
+                              type="button"
+                              style={styles.altBtn}
+                              onClick={() => alternativeHinzufuegen(field.key as KulturFeld, idx)}
+                            >
+                              Alternative hinzufügen
+                            </button>
+                          ) : null}
                         </div>
                       ))
                     })()}
@@ -581,62 +748,62 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                     type="button"
                     style={styles.addEntryBtn}
                     onClick={() => {
-                      let arr: { id: string; name: string; punkte: number }[] = []
-                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      const arr = leseListe(field.key)
                       arr.push({ id: '', name: '', punkte: 0 })
-                      setField(field.key, JSON.stringify(arr))
+                      schreibeListe(field.key, arr)
                     }}
                   >
                     + Eintrag hinzufügen
                   </button>
-                </div>
+                </fieldset>
               ) : field.type === 'strengthPoints' ? (
-                <div>
+                <fieldset style={styles.fieldset}>
+                  <legend style={styles.label}>{field.label}</legend>
                   <div style={styles.pointsList}>
                     {(() => {
-                      let arr: { id: string; name: string; anzahl: number }[] = []
-                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      const arr = leseListe(field.key)
                       return arr.map((item, idx) => (
-                        <div key={idx} style={styles.pointsRow}>
-                          <select
-                            style={{ ...styles.input, flex: 2 }}
-                            value={item.id}
-                            onChange={e => {
-                              const newId = e.target.value
-                              const strength = strengths.find(s => s.id === newId)
-                              const newArr = [...arr]
-                              newArr[idx] = { id: newId, name: strength?.name || newId, anzahl: item.anzahl }
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          >
-                            <option value="">Stärke wählen...</option>
-                            {strengths.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                          <input
-                            style={{ ...styles.input, flex: 1, textAlign: 'center' }}
-                            type="number"
-                            min={0}
-                            max={5}
-                            placeholder="Anzahl"
-                            value={item.anzahl}
-                            onChange={e => {
-                              const newArr = [...arr]
-                              newArr[idx] = { ...item, anzahl: parseInt(e.target.value, 10) || 0 }
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          />
-                          <button
-                            type="button"
-                            style={styles.removeBtn}
-                            onClick={() => {
-                              const newArr = arr.filter((_, i) => i !== idx)
-                              setField(field.key, JSON.stringify(newArr))
-                            }}
-                          >
-                            ×
-                          </button>
+                        <div key={idx} style={styles.rowItem}>
+                          <div style={styles.pointsRow}>
+                            <select
+                              style={{ ...styles.input, flex: 2 }}
+                              aria-label={`${field.label} Eintrag ${idx + 1} – Stärke wählen`}
+                              value={item.id ?? ''}
+                              onChange={e => setzeStaerke(idx, e.target.value)}
+                            >
+                              <option value="">Stärke wählen...</option>
+                              {strengths.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              style={{ ...styles.input, flex: 1, textAlign: 'center' }}
+                              type="number"
+                              min={0}
+                              max={5}
+                              placeholder="Anzahl"
+                              aria-label={`Anzahl ${item.name || String(idx + 1)}`}
+                              value={item.anzahl ?? 0}
+                              onChange={e => setzeAnzahl(idx, e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              style={styles.removeBtn}
+                              aria-label={`${field.label} Eintrag ${idx + 1} entfernen`}
+                              onClick={() => schreibeListe(field.key, arr.filter((_, i) => i !== idx))}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          {item.id && (item.anzahl ?? 0) > 0 ? (
+                            <button
+                              type="button"
+                              style={styles.altBtn}
+                              onClick={() => alternativeHinzufuegen(field.key as KulturFeld, idx)}
+                            >
+                              Alternative hinzufügen
+                            </button>
+                          ) : null}
                         </div>
                       ))
                     })()}
@@ -645,15 +812,14 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                     type="button"
                     style={styles.addEntryBtn}
                     onClick={() => {
-                      let arr: { id: string; name: string; anzahl: number }[] = []
-                      try { arr = JSON.parse(configFields[field.key] || '[]') } catch { arr = [] }
+                      const arr = leseListe(field.key)
                       arr.push({ id: '', name: '', anzahl: 0 })
-                      setField(field.key, JSON.stringify(arr))
+                      schreibeListe(field.key, arr)
                     }}
                   >
                     + Eintrag hinzufügen
                   </button>
-                </div>
+                </fieldset>
               ) : field.type === 'checkbox' ? (
                 <label style={styles.checkboxLabel}>
                   <input
@@ -674,6 +840,19 @@ export default function LibraryTable({ type }: LibraryTableProps) {
               )}
             </div>
           ))}
+
+          {type === 'cultures' && (
+            <CultureAlternatives
+              regeln={parseKulturRegeln(configFields)}
+              onChange={setAlternativen}
+              onGruppeEntfernen={gruppeEntfernen}
+              skills={skills}
+              strengths={strengths}
+              kostenById={kostenById}
+              onFehler={setFormError}
+              formError={formError}
+            />
+          )}
 
           <div style={styles.formActions}>
             <button style={styles.cancelBtn} onClick={() => { resetForm(); setShowForm(false) }}>
@@ -700,14 +879,20 @@ export default function LibraryTable({ type }: LibraryTableProps) {
                   const parsed = JSON.parse(v as string)
                   if (Array.isArray(parsed)) {
                     if (k === 'staerken') {
-                      return parsed.filter((s: { anzahl: number }) => s.anzahl > 0)
+                      return parsed.filter((s: { anzahl: number; name?: string }) => s.anzahl > 0 && s.name)
                         .map((s: { name: string; anzahl: number }) => s.anzahl > 1 ? `${s.name} ${toRoman(s.anzahl)}` : s.name)
-                        .join(', ')
+                        .join(', ') || null
                     }
                     if (k === 'talente' || k === 'waffenTalente' || k === 'magieSchulen') {
-                      return parsed.filter((s: { punkte: number }) => s.punkte > 0)
+                      return parsed.filter((s: { punkte: number; name?: string }) => s.punkte > 0 && s.name)
                         .map((s: { name: string; punkte: number }) => `${s.name} ${s.punkte}`)
-                        .join(', ')
+                        .join(', ') || null
+                    }
+                    if (k === 'alternativen') {
+                      return parsed
+                        .filter((a: { seiten?: unknown }) => a && Array.isArray(a.seiten))
+                        .map((a: KulturAlternative) => formatAlternative(a))
+                        .join(', ') || null
                     }
                     if (k === 'gaengigFuer') {
                       return parsed.length > 0 ? `${parsed.length} Rasse(n)` : null
@@ -801,8 +986,23 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8, padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12,
   },
   formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
+  fieldset: {
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: 10,
+    margin: 0,
+    minWidth: 0,
+  },
   label: {
     fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+  },
+  rowItem: {
+    display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8,
+  },
+  altBtn: {
+    background: 'transparent', border: '1px dashed var(--accent)',
+    color: 'var(--accent)', borderRadius: 6, padding: '4px 12px',
+    cursor: 'pointer', fontSize: 12, alignSelf: 'flex-start',
   },
   input: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',

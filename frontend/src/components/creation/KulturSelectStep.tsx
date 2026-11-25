@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { gewaehrteStaerken, istZugewiesenerEintrag } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 
 // --- Robustes Parsen der Kultur-Config --------------------------------------
@@ -9,6 +10,7 @@ import { useAppContext } from '../../context/AppContext'
 // normalisieren beides und werfen nie (kein Crash bei kaputten Einträgen).
 
 interface KulturEntry {
+  id: string
   name: string
   punkte: number
   anzahl: number
@@ -62,11 +64,18 @@ function parseEntries(value: unknown): KulturEntry[] {
   return asArray(value)
     .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
     .map(entry => ({
+      id: entryField(entry, 'id'),
       name: entryField(entry, 'name'),
       punkte: entryNumber(entry, 'punkte'),
       anzahl: entryNumber(entry, 'anzahl'),
     }))
-    .filter(entry => entry.name !== '')
+    // Mangel-3-Standard für Abschnitte (Review-Fund 1 und 2): Nur vollständig
+    // zugewiesene Einträge (id und name) werden angezeigt – Phantomzeilen aus
+    // „+ Eintrag hinzufügen" ohne Auswahl stehen weder in der Anzeige noch in
+    // der Gewährung (Reducer prüft denselben Standard). Die `id` wird mitgeführt,
+    // damit `gewaehrteStaerken` hier dasselbe Urteil wie in der Kultur-Rechnung
+    // fällt (Fund 1: eine Phantomzeile verdrängt keine zugewiesene Stärke).
+    .filter(istZugewiesenerEintrag)
 }
 
 function parseKulturConfig(config: string | null): KulturConfig {
@@ -83,7 +92,9 @@ function parseKulturConfig(config: string | null): KulturConfig {
     talente: parseEntries(cfg.talente),
     waffenTalente: parseEntries(cfg.waffenTalente),
     magieSchulen: parseEntries(cfg.magieSchulen),
-    staerken: parseEntries(cfg.staerken),
+    // R1: Eine Kultur gewährt höchstens eine Stärke (PO INT-000015) – auch wenn
+    // Altbestand mehrere Einträge enthält. Anzahl 0 gewährt nichts.
+    staerken: gewaehrteStaerken(parseEntries(cfg.staerken)),
   }
 }
 

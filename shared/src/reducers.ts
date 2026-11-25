@@ -1,5 +1,6 @@
 import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
 import { attributeModifier } from './attributes'
+import { gewaehrteStaerken } from './cultures'
 import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
 import {
   StepKey,
@@ -88,9 +89,15 @@ const kulturReducer: Reducer = (stats, delta) => {
     // Skills aus talente, waffenTalente, magieSchulen
     for (const key of ['talente', 'waffenTalente', 'magieSchulen']) {
       try {
-        const arr = JSON.parse(kulturConfig[key] || '[]') as Array<{ id: string; punkte: number }>
+        const arr = JSON.parse(kulturConfig[key] || '[]') as Array<{ id: string; name?: string; punkte: number }>
         for (const item of arr) {
-          if (item.punkte > 0) {
+          // Fund 4 (Runde 6): Die Gewährung hängt an der id – ein Eintrag mit
+          // gesetzter id gewährt seine Punkte, auch wenn `name` fehlt
+          // (Altbestand verliert keinen Wert stillschweigend). Phantomzeilen
+          // ohne Auswahl (leere id) gewähren nichts – ihre Punkte würden an
+          // eine leere id vergeben. Die Anzeige im Schritt „Kultur" verlangt
+          // zusätzlich den `name` (Mangel-3-Standard).
+          if (item.punkte > 0 && (item.id ?? '') !== '') {
             kulturSkills[item.id] = (kulturSkills[item.id] ?? 0) + item.punkte
           }
         }
@@ -99,10 +106,11 @@ const kulturReducer: Reducer = (stats, delta) => {
       }
     }
     
-    // Stärken mit anzahl
+    // Stärken mit anzahl – R1: Eine Kultur gewährt höchstens eine Stärke,
+    // Einträge mit Anzahl 0 gewähren nichts (PO INT-000015).
     try {
       const staerkenArr = JSON.parse(kulturConfig.staerken || '[]') as Array<{ id: string; anzahl: number }>
-      for (const item of staerkenArr) {
+      for (const item of gewaehrteStaerken(staerkenArr)) {
         for (let i = 0; i < item.anzahl; i++) {
           kulturStaerken.push(item.id)
         }
