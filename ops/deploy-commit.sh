@@ -20,6 +20,7 @@ NODE=$NODE_BIN_DIR/node
 NPM=$NODE_BIN_DIR/npm
 PORT=3000
 LOCK=/run/lock/max-character-creator-deploy.lock
+RELEASE_ENV_HELPER=/usr/local/sbin/mcc-release-env
 
 log() {
   logger -t max-character-creator-deploy "$*" 2>/dev/null || true
@@ -143,6 +144,17 @@ if [ "$mode" = main ] && [ "$target" != "$main_sha" ]; then
   fail 'Main changed while the deployment target was being resolved.'
 fi
 
+# INT-000018: SYSTEM=TEST ist der einzige Wert, der den Testmodus aktiviert.
+# Der Wert wird beim Deploy aus der Aufruf-Umgebung in die release-lokale
+# .release.env geschrieben, die der systemd-Dienst per EnvironmentFile liest.
+# Wird SYSTEM nicht explizit mitgegeben (z. B. beim Timer-Update), fehlt die
+# Zeile und das System verhält sich unverändert – kein Button, keine Regression.
+# Die Schreiblogik liegt in einem gemeinsamen Helfer, damit Deployment und
+# automatisierte Tests exakt dieselbe Logik ausführen.
+write_release_env() {
+  APP_GROUP="$APP_GROUP" "$RELEASE_ENV_HELPER" write "$1" "$target"
+}
+
 release="$RELEASES/$target"
 staging=
 archive=
@@ -165,6 +177,10 @@ run_app() {
 if [ -d "$release" ]; then
   grep -Fxq "APP_GIT_SHA=$target" "$release/.release.env" \
     || fail "Existing release directory does not identify commit $target."
+  # Auch bei einem bereits vorhandenen Release die Environment-Datei aus der
+  # aktuellen Aufruf-Umgebung (neu) schreiben, damit SYSTEM=TEST nachträglich
+  # gesetzt und ohne SYSTEM wieder entfernt werden kann.
+  write_release_env "$release/.release.env"
 else
   staging=$(mktemp -d "$RELEASES/.staging-${target}.XXXXXX")
   archive=$(mktemp /tmp/max-character-creator-archive.XXXXXX)
@@ -172,7 +188,7 @@ else
   tar -xf "$archive" -C "$staging"
   rm -f -- "$archive"
   archive=
-  printf 'APP_GIT_SHA=%s\n' "$target" > "$staging/.release.env"
+  write_release_env "$staging/.release.env"
   chown -R "$APP_USER:$APP_GROUP" "$staging"
 
   run_app "$staging" "$NPM" ci --omit=peer
@@ -204,6 +220,26 @@ wait_for_commit() {
     body=$(curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/health" 2>/dev/null || true)
     case "$body" in
       *"\"commitSha\":\"$expected\""*) return 0 ;;
+    esac
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
+# INT-000018: Der Health-Check prüfte bisher nur den Commit, nicht den
+# Testmodus-Status. Der laufende Prozess muss zusätzlich genau den Wert
+# melden, der aus der Aufruf-Umgebung in .release.env geschrieben wurde.
+expected_test_mode=false
+if [ "${SYSTEM:-}" = "TEST" ]; then expected_test_mode=true; fi
+
+wait_for_test_mode() {
+  expected=$1
+  attempt=0
+  while [ "$attempt" -lt 30 ]; do
+    body=$(curl -fsS --max-time 2 "http://127.0.0.1:$PORT/api/config" 2>/dev/null || true)
+    case "$body" in
+      *"\"testMode\":$expected"*) return 0 ;;
     esac
     attempt=$((attempt + 1))
     sleep 1
@@ -245,8 +281,16 @@ verify_data_counts() {
 }
 
 if [ "$old_sha" = "$target" ]; then
-  systemctl start "$SERVICE"
-  if wait_for_commit "$target"; then
+  # INT-000018: .release.env wurde oben neu geschrieben. systemd liest die
+  # EnvironmentFile nur beim Start eines Prozesses; `systemctl start` ist bei
+  # einem bereits aktiven Dienst ein No-op und würde den alten SYSTEM-Wert im
+  # laufenden Node-Prozess belassen (/api/config bliebe falsch bzw. bliebe nach
+  # einem Timer-Update ohne SYSTEM true). `refresh` schreibt die Datei und
+  # startet den Dienst wirklich neu, damit das Flag wirksam wird.
+  if APP_GROUP="$APP_GROUP" "$RELEASE_ENV_HELPER" refresh \
+       "$release/.release.env" "$target" "$SERVICE" \
+     && wait_for_commit "$target" \
+     && wait_for_test_mode "$expected_test_mode"; then
     printf '%s\n' "$target" > "$STATE.$$"
     chown root:"$APP_GROUP" "$STATE.$$"
     chmod 0640 "$STATE.$$"
@@ -314,6 +358,10 @@ fi
 if ! wait_for_commit "$target"; then
   restore_previous
   fail "Health check did not report $target; restored ${old_sha:-empty}."
+fi
+if ! wait_for_test_mode "$expected_test_mode"; then
+  restore_previous
+  fail "Test-mode flag did not match expected $expected_test_mode; restored ${old_sha:-empty}."
 fi
 if ! verify_data_counts; then
   restore_previous
