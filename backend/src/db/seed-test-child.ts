@@ -77,6 +77,15 @@ try {
   assert.equal(missingDefault.length, 1);
   assert.equal(missingDefault[0].config, JSON.stringify({ formel: 'GK' }));
 
+  // INT-000019 (SF-000011): Der GES-Default wird wie jeder andere fehlende
+  // Standard ergänzt — Bestandsdatenbanken erhalten „Geschwindigkeit" beim
+  // nächsten Start, ohne dass individuelle Einträge angetastet werden.
+  await db.delete(derivedValues).where(eq(derivedValues.name, 'Geschwindigkeit'));
+  await seedIfNeeded();
+  const gesDefault = await db.select().from(derivedValues).where(eq(derivedValues.name, 'Geschwindigkeit'));
+  assert.equal(gesDefault.length, 1);
+  assert.equal(gesDefault[0].config, JSON.stringify({ formel: 'GK + GE' }));
+
   const crossOriginHealth = await app.request('/api/health', {
     headers: { Origin: 'https://attacker.example' },
   });

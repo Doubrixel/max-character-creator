@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm'
 import {
   recalculateStats,
   buildFinalCharacter,
+  geschwindigkeit,
   isStepKey,
   STEP_ORDER,
   StepDeltas,
@@ -110,7 +111,27 @@ app.get('/api/characters/:id/state', async (c) => {
   }
 
   if (character[0].state) {
-    const final = JSON.parse(character[0].state)
+    const final = JSON.parse(character[0].state) as Record<string, unknown>
+    // INT-000019 (SF-000011): GES ist rein abgeleitet (GES = GK + GE) und wird
+    // an dieser Stelle aus den vorhandenen Daten ermittelt. Damit erhalten auch
+    // Bestandscharaktere, die vor der Einführung von GES abgeschlossen wurden,
+    // denselben Wert wie neue Charaktere — der gespeicherte Zustand selbst
+    // bleibt unverändert (keine Datenmigration nötig).
+    const derived = final.derived
+    if (derived && typeof derived === 'object' && !Array.isArray(derived)) {
+      const rasse = final.rasse as { groessenklasse?: unknown } | null | undefined
+      const groessenklasse = typeof final.groessenklasse === 'number'
+        ? final.groessenklasse
+        : typeof rasse?.groessenklasse === 'number' ? rasse.groessenklasse : 3
+      const attribute = final.attribute
+      const gewandheit = attribute && typeof attribute === 'object' && !Array.isArray(attribute)
+        ? (attribute as Record<string, unknown>).GEW
+        : undefined
+      ;(derived as Record<string, number>).GES = geschwindigkeit(
+        groessenklasse,
+        typeof gewandheit === 'number' ? gewandheit : undefined,
+      )
+    }
     return c.json({ state: final, deltas: null })
   }
 

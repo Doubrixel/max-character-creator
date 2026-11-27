@@ -1,4 +1,5 @@
 import type { SchicksalDelta, RasseDelta, AbstammungDelta, KulturDelta, PickedItem, PickedSpell } from './steps'
+import { attributeModifier } from './attributes'
 
 export interface AttributeValues {
   MUT?: number
@@ -22,6 +23,21 @@ export interface DerivedValues {
   GW: number
   SS: number
   INI: number
+  GES: number
+}
+
+/**
+ * INT-000019 (SF-000011): Geschwindigkeit (GES) ist ein rein abgeleiteter Wert
+ * mit der verbindlichen Formel GES = GK + GE — Größenklasse plus Modifikator
+ * des Attributs Gewandheit (GEW). Die Berechnung steht zentral hier, damit
+ * Erstellung, Chronik und Bibliothek konsistent denselben Wert liefern
+ * (die Kachel der Erstellung nutzt dieselbe Semantik über die Formel „GK + GE").
+ * Fehlt GEW (unvollständige Daten), gilt der durchschnittliche Attributswert 10
+ * (Modifikator 0). Der Wert ist nicht manuell editierbar und aktualisiert sich
+ * automatisch, sobald GK oder GE sich ändern.
+ */
+export function geschwindigkeit(groessenklasse: number, gewandheit: number | undefined): number {
+  return groessenklasse + attributeModifier(gewandheit ?? 10)
 }
 
 export interface CharacterState {
