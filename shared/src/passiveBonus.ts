@@ -49,6 +49,17 @@ export const PASSIVE_STAT_KEYS: readonly string[] = [
   ...PASSIVE_DERIVED_STATS.map((s) => s.key),
 ]
 
+/**
+ * INT-000021: Beschriftung der Bonus-Eingabefelder in der Bibliothek.
+ *
+ * Es erscheint ausschließlich das im System etablierte Kürzel (`key`),
+ * nie der vollständige Langname (`label`). Die Zuordnung Kürzel → Feld
+ * bleibt dabei unverändert; `key` ist zugleich der Schlüssel im `config`-JSON.
+ */
+export function passiveStatFieldLabel(stat: PassiveStatDefinition): string {
+  return stat.key
+}
+
 export type PassiveBonus = Record<string, number>
 
 export interface PassiveBonusConfig {

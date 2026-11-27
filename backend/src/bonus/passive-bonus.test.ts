@@ -5,6 +5,32 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
+import {
+  PASSIVE_ATTRIBUTE_STATS,
+  PASSIVE_DERIVED_STATS,
+  passiveStatFieldLabel,
+} from '@mcc/shared';
+
+test('INT-000021: Bonus-Felder der Bibliothek tragen ausschließlich die etablierten Kürzel', () => {
+  const expectedKeys = [
+    'MUT', 'KLU', 'INT', 'CHA', 'HIN', 'MYS', 'FF', 'GEW', 'KON', 'KRA',
+    'LP', 'FK', 'SP', 'VTD', 'KW', 'GW', 'SS', 'INI', 'GK', 'GES',
+  ];
+  const stats = [...PASSIVE_ATTRIBUTE_STATS, ...PASSIVE_DERIVED_STATS];
+
+  // Reihenfolge und Zuordnung Kürzel → Feld bleiben unverändert.
+  assert.deepEqual(stats.map((stat) => stat.key), expectedKeys);
+  assert.deepEqual(stats.map(passiveStatFieldLabel), expectedKeys);
+
+  // Die angezeigte Beschriftung ist immer das Kürzel, niemals ein Langname.
+  for (const stat of stats) {
+    assert.equal(passiveStatFieldLabel(stat), stat.key);
+    assert.ok(
+      !/\s/.test(passiveStatFieldLabel(stat)),
+      `Langname als Feldbezeichnung: ${stat.label}`,
+    );
+  }
+});
 
 test('INT-000020: passive Boni werden validiert, in Erstellung und Chronik additiv angewandt', async () => {
   const tempDir = await mkdtemp(join(tmpdir(), 'max-character-creator-bonus-'));

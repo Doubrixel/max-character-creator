@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   isIntegerInput,
+  passiveStatFieldLabel,
   PASSIVE_ATTRIBUTE_STATS,
   PASSIVE_DERIVED_STATS,
 } from '@mcc/shared'
@@ -106,15 +107,20 @@ export default function PassiveBonusFields({
         <div style={styles.values} role="group" aria-label="Passive Boni">
           <div style={styles.valuesTitle}>Passive Boni</div>
           <div style={styles.grid}>
-            {STATS.map(({ key, label }) => (
-              <IntegerField
-                key={key}
-                id={`${idPrefix}-passive-${key}`}
-                label={label}
-                value={werte[key]}
-                onChange={(value) => setValue(key, value)}
-              />
-            ))}
+            {STATS.map((stat) => {
+              // INT-000021: nur das etablierte Kürzel als Feldbezeichnung,
+              // kein vollständiger Attribut-/Wert-Name.
+              const label = passiveStatFieldLabel(stat)
+              return (
+                <IntegerField
+                  key={stat.key}
+                  id={`${idPrefix}-passive-${stat.key}`}
+                  label={label}
+                  value={werte[stat.key]}
+                  onChange={(value) => setValue(stat.key, value)}
+                />
+              )
+            })}
           </div>
         </div>
       )}
