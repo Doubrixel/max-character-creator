@@ -7,6 +7,7 @@ Inhalt:
 
 - Testmodus: Schritte schnell mit Zufallswerten überspringen (INT-000018 / SF-000010)
 - Kultur mit Entweder/Oder-Alternativen wählen (INT-000016 / SF-000009)
+- Geschwindigkeit (GES) als abgeleiteter Wert (INT-000019 / SF-000011)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -170,3 +171,97 @@ Einträge der anderen Seite nicht.
   in der Bibliothek erzwungen; die Erstellung rechnet die Werte nicht neu.
 - **Bestand:** Bereits fertig erstellte Charaktere werden durch diese Funktion nicht
   geändert; die Wahl gilt für neue Erstellungs- und Bearbeitungsvorgänge.
+
+---
+
+## Geschwindigkeit (GES) als abgeleiteter Wert (INT-000019 / SF-000011)
+
+Anwenderhandbuch zur Geschwindigkeit in der Charaktererstellung, in der Chronik und
+in der Bibliothek (Stand: 27.11.2026). Die Geschwindigkeit wird **`GES`** genannt
+und immer als **GES = GK + GE** berechnet: Größenklasse der gewählten Rasse plus
+Modifikator des Attributs Gewandheit. Sie ist ein abgeleiteter Wert — Sie geben ihn
+nicht selbst ein, er ändert sich automatisch, wenn sich GK oder GE ändern.
+Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+Die Größenklasse (GK) kommt aus der gewählten Rasse (z. B. Mensch 3, Elf 2).
+Gewandheit (GEW) ist eines der zehn Attribute; maßgeblich für GES ist nicht der
+Attributwert selbst, sondern sein Modifikator: 18 → +4, 14 → +2, 12 → +1,
+10/11 → 0, 9/8 → −1. Beispiel: Mensch mit GK 3 und Gewandheit 18 (+4) ergibt
+**GES 7**.
+
+### Voraussetzungen
+
+- Sie haben die App geöffnet und in der Seitenleiste **„Creation"** einen
+  Erstellvorgang gestartet und bis zum Schritt **„7. Attribute"** geführt; dabei
+  ist in „2. Rasse" eine Rasse gewählt (damit die Größenklasse feststeht).
+- Für die Chronik: Ein fertiggestellter Charakter ist in **„Chronik"** vorhanden.
+- Für die Bibliothek: Die Seitenleiste mit dem Tab **„Abgeleitete Werte"** ist
+  erreichbar.
+
+### Geschwindigkeit in der Erstellung ablesen und beeinflussen
+
+1. Öffnen Sie im Erstellvorgang den Schritt **„7. Attribute"** und scrollen Sie
+   unter die Attributzuordnung zum Abschnitt **„Abgeleitete Werte"**.
+2. Suchen Sie die Kachel **„Geschwindigkeit"** (auch „GES" möglich). Sie zeigt die
+   Formel **„GK + GE"** und darunter den Wert.
+3. Ordnen Sie im Bereich „Attribute zuordnen" dem Kasten **„GEW Gewandheit"**
+   einen Wert aus dem Werte-Pool zu, z. B. **18**. Neben dem Attributwert erscheint
+   der Modifikator „+4", und die Geschwindigkeits-Kachel zeigt sofort **7** — ohne
+   dass Sie die Seite neu laden.
+4. Um den Wert zu ändern, ändern Sie eine der beiden Eingangsgrößen: Wählen Sie
+   für GEW z. B. **14** (Modifikator „+2" → GES **5**), oder wechseln Sie in
+   „2. Rasse" zu **Elf** (Größenklasse 2 → GES **4**). Die Kachel passt sich sofort
+   an.
+
+### Geschwindigkeit in Chronik und Bibliothek finden
+
+- **Chronik:** Öffnen Sie den Charakter, sodass der Charakterbogen sichtbar wird.
+  Im Abschnitt **„Abgeleitete Werte"** steht der Eintrag **„GES"** mit dem Wert.
+  Er ist identisch zu dem Wert, den Sie in der Erstellung gesehen haben. Auch
+  Charaktere, die schon vor der Einführung der Geschwindigkeit angelegt wurden,
+  zeigen ihn — Sie müssen dafür nichts nachtragen.
+- **Bibliothek:** Öffnen Sie den Tab **„Abgeleitete Werte"**. Der Eintrag
+  **„Geschwindigkeit"** (Beschreibung „Bewegungsrate eines Charakters im Kampf")
+  zeigt in der kursiven Zeile die Formel **„GK + GE"**. Die übrigen Einträge und
+  Formeln bleiben unverändert.
+
+### Erwartete Rückmeldungen
+
+- Die Kachel in der Erstellung zeigt Beschriftung, Formel „GK + GE" und den
+  berechneten Wert (Mensch/GEW 18 → „7").
+- Jede Änderung an Gewandheit oder Rasse wirkt sofort und ohne Neuladen.
+- Der Charakterbogen zeigt denselben GES-Wert wie die Erstellung.
+- Die bereits bekannten abgeleiteten Werte (z. B. Lebenspunkte, Verteidigung,
+  Initiative) und ihre Formeln sind weiterhin vorhanden und unverändert.
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Die Kachel zeigt „—" statt einer Zahl | Gewandheit ist noch nicht zugeordnet. Ordnen Sie im Werte-Pool einen Wert dem Kasten „GEW Gewandheit" zu. Ein Wert, der nur im Pool liegt, aber keinem Attribut zugeordnet ist, reicht nicht. |
+| Der GES-Wert scheint falsch | Prüfen Sie die Größenklasse der gewählten Rasse und den Modifikator von Gewandheit (18→+4, 14→+2, 12→+1, 10/11→0, 9/8→−1). GES ist immer GK + dieser Modifikator, nie der Rohwert der Gewandheit. |
+| Sie möchten den Wert direkt korrigieren | Das geht bewusst nicht: GES ist abgeleitet. Ändern Sie stattdessen die Rasse (GK) oder den Gewandheitswert (GE). |
+| Der Eintrag fehlt in der Bibliothek | Die Bibliothek ergänzt den Eintrag „Geschwindigkeit" beim Start der Instanz automatisch. Laden Sie die Seite nach einem Update neu. |
+
+### Speicherung
+
+- Schließen Sie den Charakter mit **„Charakter fertigstellen"** ab, wird GES mit
+  ihm gespeichert und in der Chronik angezeigt.
+- Für Bestandscharaktere wird GES automatisch aus deren vorhandenen Werten
+  (Größenklasse und Gewandheit) berechnet. Sie müssen ältere Charaktere weder
+  neu speichern noch nachträglich bearbeiten; ihre übrigen Werte bleiben
+  unverändert.
+
+### Grenzen
+
+- **Nicht manuell editierbar:** Es gibt für GES kein Eingabefeld, keinen Zähler
+  und keine Auswahlliste — weder in der Erstellung noch im Charakterbogen.
+- **Platzhalter statt Zahl:** Solange Gewandheit nicht zugeordnet ist, steht „—".
+  Es wird weder „0" noch die Größenklasse allein angezeigt.
+- **Formelanzeige:** Die Formel „GK + GE" erscheint dort, wo auch die anderen
+  abgeleiteten Werte ihre Formel zeigen (Erstellung und Bibliothek). Im
+  Charakterbogen steht nur der Wert unter dem Kürzel „GES".
+- **Keine Regression:** Bestehende abgeleitete Werte und Formeln bleiben
+  unverändert; es werden keine vorhandenen Charakterdaten umgeschrieben.
