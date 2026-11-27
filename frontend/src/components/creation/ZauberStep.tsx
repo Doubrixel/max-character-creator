@@ -4,6 +4,11 @@ import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { pickRandom } from '../../testmode/random'
+import {
+  MEISTERSCHAFTS_SKILL_SCHWELLE,
+  istMeisterschaftsRelevanteKategorie,
+  masteryMatchesSkill,
+} from '@mcc/shared'
 import type { PickedItem, PflichtMeisterschaft, PickedSpell } from '@mcc/shared'
 
 interface LibraryItem {
@@ -26,6 +31,9 @@ interface MasteryInfo {
   effekt: string
   kategorieName: string | null
   schwelle: string | null
+  voraussetzungTyp: string | null
+  voraussetzungId: string | null
+  voraussetzungWert: string | null
 }
 
 interface QualifyingSkill {
@@ -110,6 +118,9 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
             effekt: typeof cfg.effekt === 'string' ? cfg.effekt : (m.description ?? ''),
             kategorieName: typeof cfg.kategorie_name === 'string' ? cfg.kategorie_name : null,
             schwelle: typeof cfg.schwelle === 'string' ? cfg.schwelle : null,
+            voraussetzungTyp: typeof cfg.voraussetzung_typ === 'string' ? cfg.voraussetzung_typ : null,
+            voraussetzungId: typeof cfg.voraussetzung_id === 'string' ? cfg.voraussetzung_id : null,
+            voraussetzungWert: typeof cfg.voraussetzung_wert === 'string' ? cfg.voraussetzung_wert : null,
           }
         }))
 
@@ -153,24 +164,34 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     return () => { initializedRef.current = false }
   }, [])
 
-  const masteryMatchesSkill = (m: MasteryInfo, skill: SkillRef): boolean => {
-    if (m.schwelle !== '1') return false
-    if (m.kategorieName === skill.name) return true
-    if (skill.category === 'kampf' && !['Schusswaffen', 'Wurfwaffen'].includes(skill.name) && m.kategorieName === 'Allgemeine Nahkampfmeisterschaften') return true
-    if (skill.category === 'magie' && m.kategorieName === 'Allgemeine Magieschulen-Meisterschaften') return true
-    return false
-  }
+  const masteryMatchesSkillFor = (m: MasteryInfo, skill: SkillRef, skillValue: number): boolean =>
+    masteryMatchesSkill(
+      {
+        id: m.id,
+        name: m.name,
+        schwelle: m.schwelle,
+        kategorieName: m.kategorieName,
+        voraussetzungTyp: m.voraussetzungTyp,
+        voraussetzungId: m.voraussetzungId,
+        voraussetzungWert: m.voraussetzungWert,
+      },
+      { id: skill.id, name: skill.name, category: skill.category },
+      skillValue,
+    )
 
   const qualifyingSkills: QualifyingSkill[] = skills
-    .filter((s) => ['fertigkeit', 'kampf', 'magie'].includes(s.category))
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      category: s.category,
-      value: baseSkills[s.id] ?? 0,
-      pool: masteries.filter((m) => masteryMatchesSkill(m, s)),
-    }))
-    .filter((s) => s.value >= 6 && s.pool.length > 0)
+    .filter((s) => istMeisterschaftsRelevanteKategorie(s.category))
+    .map((s) => {
+      const value = baseSkills[s.id] ?? 0
+      return {
+        id: s.id,
+        name: s.name,
+        category: s.category,
+        value,
+        pool: masteries.filter((m) => masteryMatchesSkillFor(m, s, value)),
+      }
+    })
+    .filter((s) => s.value >= MEISTERSCHAFTS_SKILL_SCHWELLE && s.pool.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const magicSchoolsWithValue = skills
@@ -301,11 +322,34 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
   const hasQualifyingSkills = qualifyingSkills.length > 0
   const hasMagicSchools = magicSchoolsWithValue.length > 0
 
+  // INT-000020: Die Hinweismeldung darf nur angezeigt werden, wenn sie zutrifft.
+  // Fertigkeiten, die den Wert-Schwellenwert erreichen, aber für die keine
+  // Pflicht-Meisterschaft wählbar ist, erhalten einen eigenen Hinweistext.
+  const schwellenSkills = skills.filter(
+    (s) => istMeisterschaftsRelevanteKategorie(s.category) && (baseSkills[s.id] ?? 0) >= MEISTERSCHAFTS_SKILL_SCHWELLE,
+  )
+  const schwellenOhneWahlmoeglichkeit = schwellenSkills.filter(
+    (s) => !qualifyingSkills.some((q) => q.id === s.id),
+  )
+
   if (!hasQualifyingSkills && !hasMagicSchools) {
+    if (schwellenSkills.length > 0) {
+      return (
+        <div style={styles.container}>
+          <p style={styles.hint}>
+            Fertigkeiten mit einem Wert von {MEISTERSCHAFTS_SKILL_SCHWELLE} oder mehr sind vorhanden
+            {schwellenOhneWahlmoeglichkeit.length > 0
+              ? `, aber für ${schwellenOhneWahlmoeglichkeit.map((s) => `„${s.name}“`).join(', ')} ist derzeit keine Pflicht-Meisterschaft wählbar (Schwelle 1 bzw. Voraussetzung nicht erfüllt)`
+              : ''}
+            . Es sind keine Pflicht-Meisterschaften oder Zauber nötig.
+          </p>
+        </div>
+      )
+    }
     return (
       <div style={styles.container}>
         <p style={styles.hint}>
-          Keine Talent-, Kampf- oder Magie-Fertigkeit hat einen Wert von 6 oder mehr.
+          Keine Talent-, Kampf- oder Magie-Fertigkeit hat einen Wert von {MEISTERSCHAFTS_SKILL_SCHWELLE} oder mehr.
           Es sind keine Pflicht-Meisterschaften oder Zauber nötig.
         </p>
       </div>
@@ -331,6 +375,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
                 </div>
                 <select
                   style={styles.select}
+                  aria-label={`Meisterschaft für ${skill.name}`}
                   value={selected?.id ?? ''}
                   onChange={(e) => {
                     const mastery = skill.pool.find((m) => m.id === e.target.value) ?? null
@@ -381,6 +426,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
                       <div style={styles.gradeContent}>
                         <select
                           style={styles.select}
+                          aria-label={`Zauber für ${school.name}, Grad ${grade}`}
                           value={picked?.spellId ?? ''}
                           onChange={(e) => {
                             const spell = available.find(s => s.id === e.target.value) ?? null
