@@ -10,6 +10,8 @@
  */
 
 import { geschwindigkeit } from './character'
+import { buildFinalCharacter } from './reducers'
+import type { StepDeltas } from './steps'
 
 export interface PassiveStatDefinition {
   key: string
@@ -263,4 +265,57 @@ export function applyPassiveBonuses(state: object, bonuses: readonly PassiveBonu
     stats[key] = (stats[key] ?? 0) + value
   }
   target.passiveBonusStats = stats
+}
+
+/**
+ * INT-000022: Passive Boni aller bereits getroffenen Erstellungsentscheidungen.
+ *
+ * Die Referenzen (Stärken/Vorteile, Rassenvorteile, Meisterschaften) werden
+ * exakt wie beim Fertigstellen des Charakters aus den Schritt-Deltas
+ * ermittelt. Damit verwenden Vorschau im Attribut-Schritt und fertiger
+ * Charakterbogen dieselbe Bonusmenge — auch bei Namens- statt Id-Verweisen
+ * aus Altbeständen.
+ */
+export function collectCreationPassiveBonuses(
+  catalog: BonusCatalog,
+  steps: StepDeltas,
+): PassiveBonus {
+  const final = buildFinalCharacter('', steps)
+  return collectPassiveBonuses(catalog, {
+    ids: [
+      ...(final.staerken ?? []),
+      ...(final.meisterschaften ?? []).map((m) => m.id),
+    ],
+    names: [
+      // staerken enthält je nach Datensatz Ids oder Namen (Altbestand).
+      ...(final.staerken ?? []),
+      ...final.rassenVorteile,
+      ...(final.meisterschaften ?? []).map((m) => m.name),
+    ],
+  })
+}
+
+export interface CreationPreviewStats {
+  attribute: Record<string, number>
+  derived: Record<string, number>
+  groessenklasse: number
+}
+
+/**
+ * INT-000022: Anrechnung der passiven Boni auf die im Attribut-Schritt
+ * angezeigten Rohwerte — mit derselben Funktion wie im fertigen Charakter.
+ * Die Eingabe wird nicht verändert; Rasse/Attribut-Schritt behalten ihre
+ * Roheingaben, damit eine Neuberechnung nicht doppelt zählt.
+ */
+export function previewStatsWithBonuses(
+  stats: CreationPreviewStats,
+  bonuses: readonly PassiveBonus[],
+): CreationPreviewStats {
+  const preview: CreationPreviewStats = {
+    attribute: { ...stats.attribute },
+    derived: { ...stats.derived },
+    groessenklasse: stats.groessenklasse,
+  }
+  applyPassiveBonuses(preview, bonuses)
+  return preview
 }
