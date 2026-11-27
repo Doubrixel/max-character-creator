@@ -9,6 +9,7 @@ Inhalt:
 - Kultur mit Entweder/Oder-Alternativen wählen (INT-000016 / SF-000009)
 - Geschwindigkeit (GES) als abgeleiteter Wert (INT-000019 / SF-000011)
 - Passive Boni auf Attribute und abgeleitete Werte (INT-000020 / SF-000012)
+- Bonus-Felder nur mit Kürzeln beschriftet (INT-000021)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -302,13 +303,16 @@ müssen den Bonus nicht selbst im Charakterbogen eintragen.
    **„Rassenvorteil/-nachteil"** mit Unterkategorie **„Vorteil"**.
 3. Aktivieren Sie die Checkbox **„Passiver Bonus"**. Das Formular klappt unten
    die Ansicht **„Passive Boni"** auf.
-4. Sie sehen zwanzig Felder: die zehn Attribute **MUT, KLU, INT, CHA, HIN, MYS,
-   FF, GEW, KON, KRA** und die zehn abgeleiteten Werte **Lebenspunkte, Focus,
-   Spirit, Verteidigung, Körperlicher Widerstand, Geistiger Widerstand,
-   Schadensschwelle, Initiative, GK, Geschwindigkeit**. Tragen Sie hinter dem
-   gewünschten Wert die Zahl ein, z. B. bei MUT eine **2** und bei Lebenspunkten
-   eine **5**. Nur ganze Zahlen sind möglich; ein leeres Feld oder 0 bedeutet
-   keinen Bonus, negative Werte wirken als Malus.
+4. Sie sehen zwanzig Felder, die ausschließlich mit den etablierten **Kürzeln**
+   beschriftet sind: die zehn Attribute **MUT, KLU, INT, CHA, HIN, MYS, FF, GEW,
+   KON, KRA** und die zehn abgeleiteten Werte **LP** (Lebenspunkte), **FK**
+   (Focus), **SP** (Spirit), **VTD** (Verteidigung), **KW** (Körperlicher
+   Widerstand), **GW** (Geistiger Widerstand), **SS** (Schadensschwelle), **INI**
+   (Initiative), **GK** und **GES** (Geschwindigkeit). Vollständige Namen wie
+   „Lebenspunkte" erscheinen hier nicht als Feldbezeichnung. Tragen Sie hinter
+   dem gewünschten Kürzel die Zahl ein, z. B. bei MUT eine **2** und bei LP eine
+   **5**. Nur ganze Zahlen sind möglich; ein leeres Feld oder 0 bedeutet keinen
+   Bonus, negative Werte wirken als Malus.
 5. Klicken Sie auf **„Erstellen"** bzw. **„Speichern"**. Öffnen Sie den Eintrag
    erneut mit **„Bearbeiten"**, stehen Aktivierung und Werte wieder im Formular.
 
@@ -341,6 +345,11 @@ müssen den Bonus nicht selbst im Charakterbogen eintragen.
 
 - Die Checkbox „Passiver Bonus" klappt die Werte-Ansicht auf; ohne Haken bleibt
    sie verborgen und es werden keine Boni gespeichert.
+- Jedes der zwanzig Felder trägt nur sein Kürzel (z. B. **LP** statt
+   „Lebenspunkte", **KW** statt „Körperlicher Widerstand") — als sichtbare
+   Beschriftung und für Screenreader als Name. Die Zuordnung Kürzel → Wert ist
+   unverändert; es sind die im System etablierten Kürzel, wie sie auch im
+   Charakterbogen verwendet werden.
 - Nach dem Speichern erscheinen die gesetzten Werte beim erneuten „Bearbeiten"
    wieder im Formular; geänderte Werte ersetzen die vorherigen.
 - Im Charakterbogen stehen die verbonusten Endwerte unter **„Attribute"** und
@@ -368,6 +377,9 @@ müssen den Bonus nicht selbst im Charakterbogen eintragen.
 
 - Es sind ausschließlich ganze Zahlen möglich; die zwanzig Attribute und
    abgeleiteten Werte sind fest vorgegeben, es kommen keine neuen Werte hinzu.
+- In der Bonus-Ansicht stehen nur die Kürzel als Feldbezeichnung; vollständige
+   Langnamen der abgeleiteten Werte erscheinen dort nicht. Eingabe, Speichern und
+   Anrechnung bleiben davon unberührt.
 - Boni wirken nur bei Wahl (Erstellung) oder XP-Vergabe (Chronik). Bereits fertig
    erstellte Charaktere werden nicht nachträglich verändert.
 - Bei abgeleiteten Werten kommt der Bonus nach der regulären Berechnung

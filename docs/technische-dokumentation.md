@@ -11,6 +11,7 @@ Inhalt:
 - Testmodus „Zufällig ausfüllen" (INT-000018 / SF-000010)
 - Geschwindigkeit (GES = GK + GE) als abgeleiteter Wert (INT-000019 / SF-000011)
 - Passive Attribut-/Wert-Boni für Meisterschaften und Vorteile (INT-000020 / SF-000012)
+- Bonus-Eingabefelder nur mit Kürzeln beschriften (INT-000021)
 
 ---
 
@@ -408,7 +409,7 @@ fertig erstellter Charaktere.
 | Bereich | Verhalten |
 |---|---|
 | Bibliothek | Im Erstellungs-/Bearbeitungsformular von Meisterschaften und Stärken/Vorteilen (Kategorie „Stärke" und „Rassenvorteil/-nachteil" mit Unterkategorie „Vorteil") aktiviert die Checkbox „Passiver Bonus" die Werte-Ansicht „Passive Boni". |
-| Werte-Ansicht | Zehn Attribute (MUT, KLU, INT, CHA, HIN, MYS, FF, GEW, KON, KRA) und zehn abgeleitete Werte (Lebenspunkte, Focus, Spirit, Verteidigung, Körperlicher Widerstand, Geistiger Widerstand, Schadensschwelle, Initiative, GK, Geschwindigkeit), je mit einem Eingabefeld. |
+| Werte-Ansicht | Zehn Attribute (MUT, KLU, INT, CHA, HIN, MYS, FF, GEW, KON, KRA) und zehn abgeleitete Werte (Lebenspunkte/LP, Focus/FK, Spirit/SP, Verteidigung/VTD, Körperlicher Widerstand/KW, Geistiger Widerstand/GW, Schadensschwelle/SS, Initiative/INI, GK, Geschwindigkeit/GES), je mit einem Eingabefeld. Die Felder sind ausschließlich mit den Kürzeln beschriftet (INT-000021, siehe unten). |
 | Eingabe | Nur ganze Zahlen (auch negative); ein leeres Feld oder 0 bedeutet keinen Bonus. |
 | Erstellung | Bei Wahl der Stärke/des Vorteils, des Rassenvorteils oder der Meisterschaft werden die gespeicherten Boni einmalig auf den fertigen Charakter angewendet. |
 | Chronik | Beim XP-Erlernen einer Stärke werden deren passive Boni auf den gespeicherten Zustand angewendet. |
@@ -418,8 +419,8 @@ fertig erstellter Charaktere.
 
 | Komponente | Aufgabe |
 |---|---|
-| `shared/src/passiveBonus.ts` | Zentrale Definition der 20 Stat-Keys, `isIntegerInput`/`sanitizeIntegerInput`, `readPassiveBonusConfig`, `buildBonusCatalog`, `collectPassiveBonuses` und `applyPassiveBonuses` — die einzige Stelle mit Lese-/Anwendungslogik, damit Bibliothek, Erstellung und Chronik dieselbe Semantik haben. |
-| `frontend/src/components/library/PassiveBonusFields.tsx` | Checkbox „Passiver Bonus" und Werte-Ansicht; `IntegerField` hält den Zwischenzustand „-" im Entwurf, sodass bestehende Werte negativ gemacht werden können. |
+| `shared/src/passiveBonus.ts` | Zentrale Definition der 20 Stat-Keys, `isIntegerInput`/`sanitizeIntegerInput`, `readPassiveBonusConfig`, `buildBonusCatalog`, `collectPassiveBonuses` und `applyPassiveBonuses` — die einzige Stelle mit Lese-/Anwendungslogik, damit Bibliothek, Erstellung und Chronik dieselbe Semantik haben. `passiveStatFieldLabel()` liefert als Feldbezeichnung ausschließlich den Stat-Key (Kürzel). |
+| `frontend/src/components/library/PassiveBonusFields.tsx` | Checkbox „Passiver Bonus" und Werte-Ansicht; `IntegerField` hält den Zwischenzustand „-" im Entwurf, sodass bestehende Werte negativ gemacht werden können. Verwendet `passiveStatFieldLabel()` für den `label`-Prop; `IntegerField` setzt ihn als sichtbares `<label>` und als `aria-label`. |
 | `frontend/src/components/library/MasteriesView.tsx` | Schreibt bei aktivem Bonus `passive_bonus_aktiv` und `passive_bonus` in das Meisterschafts-`config`; liest die Werte beim „Bearbeiten" über `readPassiveBonusConfig` zurück. |
 | `frontend/src/components/library/StrengthsView.tsx` | Dasselbe für Stärken und Rassenvorteile. |
 | `shared/src/meisterschaftWahl.ts` | Zentrale Matching-Logik des Schritts „9. Meisterschaften" (`masteryMatchesSkill`, `MEISTERSCHAFTS_SKILL_SCHWELLE = 6`), inkl. grenzwertiger skill-basierter Voraussetzungen. |
@@ -474,3 +475,73 @@ fertig erstellter Charaktere.
 - `backend/src/meisterschaft/meisterschaft-wahl.test.ts`: prüft die Sichtbarkeits-/Schwellenlogik — Fertigkeit exakt auf Schwellenwert, formularerstellte Meisterschaft ohne Voraussetzung, skill-basierte Voraussetzungen, blockierende Voraussetzungstypen, Schwelle ungleich 1, Kampf-/Magie-Gruppenlogik inkl. Schuss-/Wurfwaffen-Ausnahme und Hilfsfunktionen.
 - Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend`.
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über manuelle Testfälle für Anlegen und Bearbeiten von Boni in Meisterschaften, Stärken und Rassenvorteilen, die Nur-Ganzzahl-Eingabe sowie die Anwendung in Erstellung und Chronik.
+
+---
+
+## Bonus-Eingabefelder nur mit Kürzeln beschriften (INT-000021)
+
+Ziel-Ticket INT-000021: In der Bibliothek zeigt die Bonus-Ansicht („Passive Boni")
+beim Erstellen und Bearbeiten von Meisterschaften und Vorteilen (regulär und
+rassenspezifisch) die Eingabefelder ausschließlich mit den im System etablierten
+Kürzeln beschriftet — nie mit den vollständigen Langnamen. Stand: 27.11.2026.
+Dokumentiert ist ausschließlich das implementierte und QA-geprüfte Verhalten
+(PR #16, gemergt 27.11.2026 22:14 UTC; automatisierte Tests grün seit
+27.11.2026 22:13 UTC; QA-Testfälle INT21-TC-01 bis -08 bestanden). Baut auf
+INT-000020 auf; die Bonilogik selbst ist unverändert. Anwendersicht:
+[`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
+[`../README.md`](../README.md).
+
+Nicht im Umfang: neue oder geänderte Kürzel, Änderungen an Eingabe, Speicherung
+oder Anrechnung der Boni sowie Änderungen an Anzeigen außerhalb der Bonus-Ansicht.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Bonus-Ansicht | Die 20 Eingabefelder der Gruppe „Passive Boni" tragen als sichtbare Beschriftung und als zugänglichen Namen ausschließlich das Kürzel: MUT, KLU, INT, CHA, HIN, MYS, FF, GEW, KON, KRA, LP, FK, SP, VTD, KW, GW, SS, INI, GK, GES. |
+| Geltung | Meisterschaften sowie reguläre und rassenspezifische Vorteile/Stärken, jeweils im Erstellungs- und Bearbeitungsformular der Bibliothek (dieselbe geteilte Komponente). |
+| Zuordnung | Jedes Kürzel steht bei demselben Wert wie zuvor; `key` bleibt zugleich der Schlüssel im `config`-JSON. |
+
+Die Langnamen (z. B. „Lebenspunkte", „Körperlicher Widerstand", „Schadensschwelle")
+bleiben in den Stat-Definitionen als `label` hinterlegt und erscheinen dort, wo
+Werte mit Namen ausgewiesen werden (z. B. Bibliothek-Tab „Abgeleitete Werte");
+sie sind nur nicht mehr Feldbezeichnung der Bonus-Eingabe.
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/passiveBonus.ts` | `passiveStatFieldLabel(stat)` gibt `stat.key` (das Kürzel) zurück; exportiert über `shared/src/index.ts`. Das `label` der Stat-Definitionen bleibt als Langname erhalten, wird aber für die Bonus-Felder nicht verwendet. |
+| `frontend/src/components/library/PassiveBonusFields.tsx` | Nutzt `passiveStatFieldLabel()` für den `label`-Prop von `IntegerField`. Die geteilte Komponente wird von `MasteriesView` und `StrengthsView` für Meisterschaften sowie reguläre und rassenspezifische Vorteile verwendet. |
+| `IntegerField` (in derselben Datei) | Setzt den übergebenen Wert sowohl als sichtbares `<label htmlFor>` als auch als `aria-label` des `<input>` — damit Langnamen weder als Beschriftung noch als zugänglicher Name auftreten. |
+
+### Datenfluss
+
+1. `PassiveBonusFields` iteriert über `[...PASSIVE_ATTRIBUTE_STATS, ...PASSIVE_DERIVED_STATS]` (20 Einträge in fester Reihenfolge) und berechnet je Stat `label = passiveStatFieldLabel(stat)` = `stat.key`.
+2. Der Wert geht als `label` an `IntegerField`, der ihn in `<label>` und `aria-label` schreibt; die `id` bleibt `${idPrefix}-passive-${stat.key}`.
+3. Die Eingabe läuft unverändert über `setValue(stat.key, …)` in das `werte`-Objekt; der gespeicherte Schlüssel ist weiterhin der Stat-Key, unabhängig von der Anzeige.
+
+### Validierung
+
+- Die Anzeige ändert keine Validierung: `isIntegerInput`, `sanitizeIntegerInput`, `readPassiveBonusConfig` und `applyPassiveBonuses` bleiben unverändert (Nur-Ganzzahl-Eingabe, Whitelist bekannter Keys, sichere ganze Zahlen).
+- Die Beschriftung ist rein aus `stat.key` abgeleitet; es gibt keine separate pflegbare Label-Eingabe und keine neuen Kürzel.
+
+### Fehlerverhalten
+
+- Es gibt keine unbekannten oder manipulierbaren Labels: Die Liste stammt ausschließlich aus den 20 festen Stat-Definitionen. Defekte `config`-Werte werden wie zuvor tolerant als „kein Bonus" behandelt; die Anzeige bleibt eingabebereit, ohne Fehlermeldung.
+- Leeres Feld, Wert 0 und Nicht-Ganzzahl-Eingaben verhalten sich unverändert (siehe Abschnitt „Passive Attribut-/Wert-Boni" oben).
+
+### Persistenz
+
+- Keine Änderung: Die Boni liegen weiter im `config`-JSON von `masteries`/`strengths`; gespeichert wird Stat-Key → ganze Zahl. Die Umstellung betrifft nur die Beschriftung, nicht das Format — bestehende Einträge und fertig erstellte Charaktere bleiben unverändert.
+
+### Sicherheitsgrenzen
+
+- Keine neuen Endpunkte und keine neuen Berechtigungswege; keine clientseitige Möglichkeit, Bonuswerte oder abgeleitete Werte direkt zu setzen.
+- Die Anzeige verwendet ausschließlich fest definierte Kürzel ohne externe Daten; keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/bonus/passive-bonus.test.ts` (in `backend/package.json` registriert): prüft Reihenfolge und Kürzelliste der 20 Felder, die Whitespace-freie Beschriftung (`passiveStatFieldLabel(stat) === stat.key`) sowie, dass kein Langname als Feldbezeichnung erscheint.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 27.11.2026 22:13 UTC).
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über INT21-TC-01 bis -08 (Erstellen und Bearbeiten von Meisterschaften sowie regulären und rassenspezifischen Vorteilen, Kürzel als zugänglicher Name und sichtbares Label, Negativprüfung auf Langnamen, Ganzzahl-Eingabe, Zuordnung/Persistenz). Alle Fälle am 27.11.2026 auf Commit `f987acf` bestanden.
