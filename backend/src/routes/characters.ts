@@ -152,22 +152,30 @@ app.get('/api/characters/:id/state', async (c) => {
     // bleibt unverändert (keine Datenmigration nötig).
     const derived = final.derived
     if (derived && typeof derived === 'object' && !Array.isArray(derived)) {
-      const rasse = final.rasse as { groessenklasse?: unknown } | null | undefined
-      const groessenklasse = typeof final.groessenklasse === 'number'
-        ? final.groessenklasse
-        : typeof rasse?.groessenklasse === 'number' ? rasse.groessenklasse : 3
-      const attribute = final.attribute
-      const gewandheit = attribute && typeof attribute === 'object' && !Array.isArray(attribute)
-        ? (attribute as Record<string, unknown>).GEW
-        : undefined
-      // INT-000020: Ein ggf. vergebener GES-Bonus bleibt beim Neuberechnen
-      // des rein abgeleiteten GES erhalten (Bestandscharaktere haben keinen).
-      const passiveStats = (final.passiveBonusStats ?? {}) as Record<string, unknown>
-      const gesBonus = typeof passiveStats.GES === 'number' ? passiveStats.GES : 0
-      ;(derived as Record<string, number>).GES = geschwindigkeit(
-        groessenklasse,
-        typeof gewandheit === 'number' ? gewandheit : undefined,
-      ) + gesBonus
+      // INT-000020 (Re-Review): Nur nachholen, wenn noch kein GES gespeichert
+      // ist. Bei neuen Charakteren wurde derived.GES bereits bei der Erstellung
+      // aus dem rohen GEW berechnet (inkl. eines ggf. vergebenen GES-/GK-Bonus)
+      // und gespeichert. Eine Neuberechnung aus `final.attribute.GEW` würde
+      // hier den passiven GEW-Attributbonus erneut in GES hineinwirken lassen —
+      // die Erstellung nutzt den rohen GEW —, sodass Erstellung und Chronik
+      // für denselben Wert auseinanderliefen. Der gespeicherte Wert ist die
+      // einzige konsistente Grundlage; nachgeholt wird nur für
+      // Bestandscharaktere ohne GES (siehe INT-000019).
+      const gesStored = (derived as Record<string, unknown>).GES
+      if (typeof gesStored !== 'number') {
+        const rasse = final.rasse as { groessenklasse?: unknown } | null | undefined
+        const groessenklasse = typeof final.groessenklasse === 'number'
+          ? final.groessenklasse
+          : typeof rasse?.groessenklasse === 'number' ? rasse.groessenklasse : 3
+        const attribute = final.attribute
+        const gewandheit = attribute && typeof attribute === 'object' && !Array.isArray(attribute)
+          ? (attribute as Record<string, unknown>).GEW
+          : undefined
+        ;(derived as Record<string, number>).GES = geschwindigkeit(
+          groessenklasse,
+          typeof gewandheit === 'number' ? gewandheit : undefined,
+        )
+      }
     }
     return c.json({ state: final, deltas: null })
   }

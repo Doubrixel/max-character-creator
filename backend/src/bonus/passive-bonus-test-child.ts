@@ -205,6 +205,44 @@ try {
   assert.equal(afterReload.state.derived.LP, 25);
   assert.ok(afterReload.state.staerken.includes(chronikId));
 
+  // --- Re-Review (INT-000020): GEW-Attributbonus darf GES beim Lesen nicht
+  // verändern. Erstellung berechnet GES aus dem rohen GEW (14 → Mod +2 → GES 5),
+  // der Bonus erhöht nur den Attributwert auf 16. Würde die Chronik GES beim
+  // Lesen aus dem verbonusten GEW neu berechnen, ergäbe sich 6 — Erstellung und
+  // Chronik wichen für denselben Wert auseinander.
+  const gewId = await postLibrary('strengths', 'QA GEW Bonus', {
+    kosten: '1', kategorie: 'staerke',
+    passive_bonus_aktiv: 'true', passive_bonus: { GEW: 2 },
+  });
+  const gewCreated = await createCharacter('QA GEW Bonuscharakter', {
+    rasse: RASSE_MENSCH,
+    attribute: attributeDelta(),
+    kindheit: { skills: {}, staerke: 'QA GEW Bonus' },
+  });
+  assert.equal(gewCreated.state.attribute.GEW, 16, 'GEW erhält +2 Bonus');
+  assert.equal(gewCreated.state.derived.GES, 5, 'GES bei Erstellung aus rohem GEW = GK 3 + GE 2');
+  const gewRead = await getState(gewCreated.id);
+  assert.equal(gewRead.state.attribute.GEW, 16, 'Chronik liest GEW mit Bonus');
+  assert.equal(gewRead.state.derived.GES, 5, 'GES beim Lesen bleibt 5 (GEW-Bonus wirkt nicht erneut)');
+
+  // Dasselbe Verhalten bei nachträglicher XP-Vergabe in der Chronik.
+  const gewChronik = await createCharacter('QA GEW Chronikcharakter', {
+    rasse: RASSE_MENSCH,
+    attribute: attributeDelta(),
+  });
+  const gewSpend = await app.request(`/api/characters/${gewChronik.id}/xp/spend`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      kind: 'learn_strength', targetId: gewId, targetName: 'QA GEW Bonus',
+      reason: 'Neu erlernen: Stärke', cost: 15,
+    }),
+  });
+  assert.equal(gewSpend.status, 200, await gewSpend.clone().text());
+  const gewChronikRead = await getState(gewChronik.id);
+  assert.equal(gewChronikRead.state.attribute.GEW, 16, 'Chronik-Vergabe erhöht GEW auf 16');
+  assert.equal(gewChronikRead.state.derived.GES, 5, 'GES bleibt 5 nach Chronik-Vergabe und Neuladen');
+
   // --- Ohne aktiven Bonus bleibt alles unverändert ---------------------------
   const neutralCharacter = await createCharacter('QA Neutralcharakter', {
     rasse: RASSE_MENSCH,
