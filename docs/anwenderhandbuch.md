@@ -10,6 +10,7 @@ Inhalt:
 - Geschwindigkeit (GES) als abgeleiteter Wert (INT-000019 / SF-000011)
 - Passive Boni auf Attribute und abgeleitete Werte (INT-000020 / SF-000012)
 - Bonus-Felder nur mit Kürzeln beschriftet (INT-000021)
+- Passive Boni schon im Schritt „7. Attribute" sehen (INT-000022)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -390,3 +391,96 @@ müssen den Bonus nicht selbst im Charakterbogen eintragen.
    vergebenen Boni; die Zusätze sind in den angezeigten Werten enthalten.
 - Passive Boni werden im Bibliotheksformular gepflegt; der Dateiimport legt
    keine passiven Boni an.
+
+---
+
+## Passive Boni schon im Schritt „7. Attribute" sehen (INT-000022)
+
+Anwenderhandbuch zur Charaktererstellung (Stand: 27.11.2026). Haben Sie vor dem
+Attribut-Schritt eine Stärke, einen Vorteil oder einen Rassenvorteil mit
+passivem Bonus gewählt, ist der Bonus bereits bei der Attributvergabe in den
+angezeigten Werten enthalten. Sie müssen nicht bis zum fertigen Charakterbogen
+warten, um Ihre Punkteverteilung zu planen. Das Anlegen und Pflegen der Boni in
+der Bibliothek bleibt unverändert (siehe vorheriger Abschnitt). Technische
+Details: [`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+Ein passiver Bonus auf ein Attribut wird direkt auf den angezeigten Attributwert
+addiert (z. B. Konstitution 14 + 2 = 16). Ein Bonus auf einen abgeleiteten Wert
+kommt nach dessen regulärer Berechnung obendrauf (z. B. Lebenspunkte 25 + 5 =
+30). Die Anzeige im Attribut-Schritt entspricht damit exakt dem Wert, der später
+im Charakterbogen steht. Es wird nichts weiter verändert: Ein GEW-Bonus ändert
+nicht die bereits berechnete Geschwindigkeit, ein KON-Bonus nicht die
+Lebenspunkte.
+
+### Voraussetzungen
+
+- Sie haben in der Seitenleiste **„Creation"** einen Erstellvorgang gestartet und
+  bis zum Schritt **„7. Attribute"** geführt.
+- In einem früheren Schritt haben Sie eine Stärke bzw. einen Vorteil mit
+  aktivem passiven Bonus gewählt (z. B. in „5. Kindheit" oder „6. Ausbildung"),
+  oder Ihre Rasse gewährt einen Rassenvorteil mit Bonus.
+- Der Bonus ist im Bibliothekseintrag aktiviert und mit einer ganzen Zahl
+  hinterlegt; nur ganze Zahlen (auch negative) wirken.
+
+### Bonus bei der Attributvergabe ablesen
+
+1. Gelangen Sie mit **„Weiter"** in den Schritt **„7. Attribute"**. Die Boni der
+   bereits getroffenen Auswahlen sind automatisch geladen; Sie müssen nichts
+   zusätzlich einstellen.
+2. Würfeln oder tragen Sie Werte im Bereich **„Werte-Pool"** ein und ordnen Sie
+   unter **„Attribute zuordnen"** jedem Attribut einen Wert zu.
+3. Lesen Sie den Wert im jeweiligen Attributblock ab — er enthält den Bonus
+   bereits. Beispiel: Haben Sie eine Stärke mit **KON +2** gewählt und ordnen
+   **14** zu, zeigt der Block **„KON Konstitution"** den Wert **16**, nicht 14.
+4. Scrollen Sie zum Abschnitt **„Abgeleitete Werte"**. Auch dort sind die Boni
+   schon enthalten: Mit einem zusätzlichen Bonus **LP +5** zeigt die Kachel
+   **„Lebenspunkte"** (Formel „( GK + KON ) * 5") den Wert **30** statt 25.
+5. Schließen Sie den Charakter wie gewohnt ab. Im Charakterbogen (**„Chronik"**)
+   stehen unter **„Attribute"** und **„Abgeleitete Werte"** dieselben Werte wie
+   in der Vorschau.
+
+### Erwartete Rückmeldungen
+
+- Die verbonusten Werte erscheinen direkt in den Attributblöcken und
+  Wert-Kacheln; es gibt kein gesondertes Bonus-Feld und keine Extra-Bestätigung.
+- Ändern Sie einen zugeordneten Wert, passt sich die Anzeige sofort an — mit dem
+  Bonus obendrauf. Ein Zurückspringen in frühere Schritte ist nicht nötig.
+- Der im Attribut-Schritt abgelesene Wert und der Wert im fertigen
+  Charakterbogen sind identisch (z. B. KON 16 in beiden Ansichten, LP 30 in
+  beiden Ansichten).
+- Ohne ausgewählten Bonus bleibt alles unverändert (KON 14, Lebenspunkte 25).
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Der Bonus fehlt im Attribut-Schritt | Prüfen Sie, ob die Bonusquelle in einem früheren Schritt tatsächlich gewählt wurde („5. Kindheit", „6. Ausbildung") bzw. ob Ihre Rasse den Rassenvorteil gewährt. Nur bis dahin bereits ausgewählte Quellen fließen ein. |
+| Der Bonus wirkt grundsätzlich nicht | Öffnen Sie den Eintrag in **Bibliothek → Stärken/Meisterschaften** mit **„Bearbeiten"**: Die Checkbox „Passiver Bonus" muss aktiv sein und hinter dem Kürzel muss eine ganze Zahl stehen. |
+| Der Wert ist überraschend hoch | Mehrere Bonusquellen addieren sich. Prüfen Sie Ihre gewählten Stärken/Vorteile und die von der Rasse gewährten Vorteile; inaktive oder leere Einträge zählen nicht. |
+| Fehlermeldung „Passive Boni konnten nicht geladen werden" | Laden Sie den Schritt erneut. Bis die Boni verfügbar sind, erscheinen die unveränderten Rohwerte; es werden keine falschen Werte gespeichert. |
+| Ein GEW-Bonus verändert die Geschwindigkeit nicht | Das ist erwartet: GES wird aus dem Rohwert der Gewandheit berechnet; der Bonus erhöht nur den angezeigten GEW-Wert. |
+
+### Speicherung
+
+- Die Vorschau ist nur eine Anzeige: Sie speichert nichts und verändert Ihre
+  eingegebenen Rohwerte nicht. Sie können die Attributvergabe beliebig oft
+  ändern.
+- Mit **„Charakter fertigstellen"** werden die Boni wie gewohnt in den Charakter
+  übernommen und mit ihm gespeichert. Der Bonus wird dabei nicht doppelt
+  gezählt.
+- Bereits fertig erstellte Charaktere werden durch die Vorschau nicht verändert.
+
+### Grenzen
+
+- Es zählen nur Bonusquellen, die bis zum Attribut-Schritt bereits ausgewählt
+  sind. Meisterschaften werden im Wizard üblicherweise erst in
+  „9. Meisterschaften" gewählt und können daher in der Vorschau noch nicht
+  erscheinen; ihr Bonus wird bei der Wahl berücksichtigt.
+- Der Charakterbogen zeigt die Endwerte, aber keine gesonderte Liste der
+  vergebenen Boni.
+- Es gibt keine Eingabefelder für Boni im Attribut-Schritt: Die Werte sind
+  abgeleitet und nur ablesbar.
+- Inaktive, leere oder ungültige Bonusangaben wirken nicht; negative ganze
+  Zahlen wirken als Malus.

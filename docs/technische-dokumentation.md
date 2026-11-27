@@ -12,6 +12,7 @@ Inhalt:
 - Geschwindigkeit (GES = GK + GE) als abgeleiteter Wert (INT-000019 / SF-000011)
 - Passive Attribut-/Wert-Boni für Meisterschaften und Vorteile (INT-000020 / SF-000012)
 - Bonus-Eingabefelder nur mit Kürzeln beschriften (INT-000021)
+- Passive Boni bereits im Attribut-Schritt sichtbar (INT-000022)
 
 ---
 
@@ -396,7 +397,9 @@ sowohl reguläre als auch rassenspezifische — können im Bibliotheksformular e
 passiven Bonus auf Attribute oder abgeleitete Werte definieren. Bei Wahl bzw.
 Vergabe des Eintrags in der Charaktererstellung oder in der Chronik wird der
 Bonus additiv angerechnet: auf Attribute direkt auf ihren Wert, auf abgeleitete
-Werte nach deren regulärer Berechnung obendrauf. Anwendersicht:
+Werte nach deren regulärer Berechnung obendrauf. Die Anzeige dieser Boni bereits
+im Attribut-Schritt der Erstellung beschreibt INT-000022 (siehe unten); die
+Anrechnungslogik selbst bleibt unverändert. Anwendersicht:
 [`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
 [`../README.md`](../README.md).
 
@@ -545,3 +548,137 @@ sie sind nur nicht mehr Feldbezeichnung der Bonus-Eingabe.
 - `backend/src/bonus/passive-bonus.test.ts` (in `backend/package.json` registriert): prüft Reihenfolge und Kürzelliste der 20 Felder, die Whitespace-freie Beschriftung (`passiveStatFieldLabel(stat) === stat.key`) sowie, dass kein Langname als Feldbezeichnung erscheint.
 - Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 27.11.2026 22:13 UTC).
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über INT21-TC-01 bis -08 (Erstellen und Bearbeiten von Meisterschaften sowie regulären und rassenspezifischen Vorteilen, Kürzel als zugänglicher Name und sichtbares Label, Negativprüfung auf Langnamen, Ganzzahl-Eingabe, Zuordnung/Persistenz). Alle Fälle am 27.11.2026 auf Commit `f987acf` bestanden.
+
+---
+
+## Passive Boni bereits im Attribut-Schritt sichtbar (INT-000022)
+
+Ziel-Ticket INT-000022: Passive Boni aus Vorteilen/Stärken (regulär und
+rassenspezifisch) und Meisterschaften, die zu diesem Zeitpunkt bereits
+ausgewählt wurden, werden bereits im Schritt „7. Attribute" in den angezeigten
+Attribut- und abgeleiteten Werten berücksichtigt — nicht erst im fertigen
+Charakterbogen. Dadurch kann die Punkteverteilung in Kenntnis der tatsächlichen
+Endwerte geplant werden. Stand: 27.11.2026. Baut fachlich auf INT-000020 auf;
+Datenmodell, Bonus-Config und Anrechnungslogik bleiben unverändert. Dokumentiert
+ist ausschließlich das implementierte und QA-geprüfte Verhalten (PR #18, gemergt
+27.11.2026; automatisierte Tests grün seit 27.11.2026 22:38 UTC; QA-Testfälle
+INT22-TC-01 bis -07 bestanden). Anwendersicht:
+[`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
+[`../README.md`](../README.md).
+
+Nicht im Umfang: neue Bonusquellen oder -werte, eine Änderung der Anrechnung
+und eine nachträgliche Veränderung bereits fertiger Charaktere. Bonusquellen,
+die erst nach dem Attribut-Schritt gewählt werden (z. B. Meisterschaften in
+„9. Meisterschaften"), können naturgemäß noch nicht in der Vorschau erscheinen;
+sie werden bei ihrer Wahl wie gewohnt auf den Endzustand angerechnet.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Schritt „7. Attribute" | Angezeigte Attributwerte und abgeleitete Werte enthalten die passiven Boni aller bis dahin bereits ausgewählten Bonusquellen. |
+| Attribute | Bonus additiv auf den angezeigten Attributwert (Grundwert + Bonus), z. B. KON 14 + 2 = 16. |
+| Abgeleitete Werte | Bonus nach der regulären Berechnung obendrauf (konsistent mit INT-000020), z. B. Lebenspunkte 25 + 5 = 30. |
+| Bonusquellen | Reguläre Stärken/Vorteile, über die Rasse gewährte Rassenvorteile und Meisterschaften, soweit sie in den Step-Deltas bereits vorhanden sind. |
+| Konsistenz | Vorschau im Attribut-Schritt und fertiger Charakterbogen verwenden dieselbe Bonusermittlung und -anwendung; keine Abweichung. |
+| Roheingaben | Werte-Pool, Slot-Zuordnung und `steps.attribute.attribute` bleiben unverändert; die Vorschau ist eine reine Anzeige. |
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/passiveBonus.ts` | Neu: `collectCreationPassiveBonuses(catalog, steps)` ermittelt die Bonusmenge über `buildFinalCharacter` und dieselbe Referenzauflösung wie beim Fertigstellen (Ids und Namen, inkl. Rassenvorteile und Meisterschaften, mit Deduplizierung). `previewStatsWithBonuses(stats, bonuses)` klont die Anzeigewerte und wendet `applyPassiveBonuses` unverändert an. `CreationPreviewStats` bündelt `attribute`, `derived` und `groessenklasse`. Exportiert über `shared/src/index.ts`. |
+| `backend/src/routes/characters.ts` | Neuer read-only-Endpoint `POST /api/characters/preview-bonuses` liefert `{ bonuses }` aus den Step-Deltas; `bonusesForSteps(steps)` bündelt Katalog und Sammlung und wird auch von `POST /api/characters` verwendet — Vorschau und Fertigstellung teilen damit dieselbe Bonusermittlung. |
+| `frontend/src/components/creation/AttributeStep.tsx` | Lädt die Boni beim Betreten des Schritts über `preview-bonuses`, berechnet die `preview` mit `previewStatsWithBonuses` aus Rohattributen und Kachelwerten und zeigt `preview.attribute` / `preview.derived` an. Der `bonusSourceKey` aus den Bonusquellen der Step-Deltas verhindert Refetches bei Attribut-Eingaben. |
+| `backend/src/bonus/creation-preview.test.ts`, `creation-preview-test-child.ts` | Automatisierte Prüfung der Vorschau und ihrer Übereinstimmung mit dem fertigen Charakter (siehe „Prüfungen"). |
+
+### Datenfluss
+
+1. Beim Rendern von „7. Attribute" bildet `AttributeStep` den `bonusSourceKey` aus
+   `rasse.statblock.vorteile`, `kultur.kulturConfig`, `kindheit.staerke`,
+   `ausbildung.staerken`, `Hobbybedarf.staerken` und `Zauber.pflicht`. Änderungen
+   an Werte-Pool oder Slot-Zuordnung verändern den Schlüssel nicht, sodass pro
+   Attribut-Eingabe kein Refetch stattfindet.
+2. `POST /api/characters/preview-bonuses` erhält `{ steps: stepDeltas }`. Das
+   Backend lädt den Bibliothekskatalog aus `strengths` und `masteries`, ermittelt
+   über `buildFinalCharacter('', steps)` die Referenzen (Ids und Namen,
+   einschließlich Rassenvorteile und Meisterschaften) und liefert die summierte
+   Bonusmenge. Der Endpoint schreibt nichts.
+3. Das Frontend berechnet aus den zugeordneten Rohattributen die Modifikatoren
+   und die Kachelwerte der abgeleiteten Werte aus den Bibliotheksformeln (z. B.
+   „( GK + KON ) * 5"), bildet daraus `CreationPreviewStats` und ruft
+   `previewStatsWithBonuses` auf. Diese Funktion klont `attribute` und `derived`
+   und wendet `applyPassiveBonuses` an — dieselbe Funktion wie beim Fertigstellen
+   des Charakters.
+4. Anzeige: Bei zugeordneten Attributen zeigt der Block den verbonusten Wert
+   (KON 16), bei abgeleiteten Werten wird der berechnete Kachelwert um den Bonus
+   ersetzt (Lebenspunkte 30). Ohne Bonus bleibt die Anzeige unverändert.
+5. Abschluss: `POST /api/characters` nutzt `bonusesForSteps(steps)` — exakt
+   dieselbe Bonusermittlung — und wendet sie auf den Endzustand an. Daher
+   stimmen Vorschau und Charakterbogen überein (INT22-TC-04, INT22-TC-07).
+
+### Validierung
+
+- Die Bonusmenge durchläuft `readPassiveBonusConfig` / `collectPassiveBonuses`:
+  nur aktive Einträge mit Werten, Whitelist bekannter Stat-Keys, sichere ganze
+  Zahlen und Deduplizierung von Id- und Namensverweisen. Ungültige oder
+  inaktive Einträge liefern keinen Bonus (INT22-TC-03).
+- `previewStatsWithBonuses` verändert die Eingabe nicht: `attribute` und
+  `derived` werden geklont; die Step-Deltas behalten die Roheingaben, sodass eine
+  spätere Neuberechnung nicht doppelt zählt.
+- Die Anrechnung entspricht INT-000020: Attribute additiv, abgeleitete Werte
+  nach regulärer Berechnung, GK-Sonderfall unverändert. Ein GEW-Attributbonus
+  wirkt nicht erneut auf die bereits berechnete Geschwindigkeit, ein KON-Bonus
+  nicht auf die Lebenspunkte (INT22-TC-05).
+
+### Fehlerverhalten
+
+- Schlägt der Fetch von `/api/characters/preview-bonuses` fehl, bleibt die
+  Bonusmenge leer; `reportApiError('Passive Boni konnten nicht geladen werden')`
+  meldet den Fehler, und die Anzeige zeigt die unveränderten Rohwerte — kein
+  Absturz und kein erfundener Bonus.
+- Fehlen Bonusquellen oder sind ihre Boni inaktiv beziehungsweise ungültig,
+  zeigt der Attribut-Schritt dieselben Werte wie ohne Bonus (INT22-TC-03);
+  keine Regression.
+- Erst nach dem Attribut-Schritt gewählte Bonusquellen (z. B. Meisterschaften
+  in Schritt 9) sind in der bereits durchlaufenen Vorschau nicht enthalten; der
+  finale Charakter erhält ihren Bonus dennoch bei Wahl.
+
+### Persistenz
+
+- Die Vorschau ist read-only: `POST /api/characters/preview-bonuses` speichert
+  nichts; es gibt keine neuen Datenbankspalten oder Step-Deltas.
+- Die angezeigten verbonusten Werte werden nicht in `character_steps.delta`
+  geschrieben. Dort bleiben Werte-Pool, Slot-Zuordnung und der Rohwert
+  `steps.attribute.attribute` erhalten.
+- Erst mit „Charakter fertigstellen" werden die Boni wie unter INT-000020
+  beschrieben in `characters.state` (und `passiveBonusStats`) persistiert;
+  bereits fertig erstellte Charaktere bleiben unverändert.
+
+### Sicherheitsgrenzen
+
+- Keine neuen Berechtigungswege: Der neue Endpoint ist read-only, nutzt die
+  vorhandenen Bibliotheksdaten und liefert ausschließlich die Bonusmenge;
+  Client-Eingaben (`steps`) werden über die bestehende Whitelist-Logik
+  ausgewertet.
+- Die Anzeige im Attribut-Schritt ist rein lesend; es gibt keine Eingabefläche
+  für Bonuswerte und keine clientseitige Möglichkeit, abgeleitete Werte direkt
+  zu setzen.
+- Keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/bonus/creation-preview.test.ts` (mit
+  `creation-preview-test-child.ts`, isolierte SQLite-DB, in
+  `backend/package.json` registriert): prüft den Vorschau-Endpoint und die
+  Übereinstimmung von Vorschau und fertigem Charakter für KON +2 (TC-01/04),
+  LP +5 (TC-02/07), den inaktiven Neutralfall (TC-03), GEW/GES (TC-05), den
+  namensbasierten Rassenvorteil (TC-06), eine Meisterschaft sowie die
+  Nicht-Mutation der Roheingaben.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend`
+  und `npm run build --workspace=frontend` — grün (automatisierte Tests seit
+  27.11.2026 22:38 UTC).
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt
+  über INT22-TC-01 bis -07 (Anzeige von Attribut- und abgeleiteten Boni im
+  Attribut-Schritt, Negativfall ohne Bonus, Übereinstimmung mit dem Charakterbogen,
+  GEW/GES, Rassenvorteil). Alle Fälle am 27.11.2026 auf dem QA-Commit bestanden.

@@ -6,14 +6,16 @@
   guide: the `SYSTEM=TEST` test mode (gate, components, validation, persistence,
   checks), the Entweder/Oder choice of culture alternatives in the character
   creation „Kultur" step, the derived value „Geschwindigkeit" (GES = GK + GE) in
-  creation, chronicle and library, and passive attribute/derived-value bonuses for
+  creation, chronicle and library, passive attribute/derived-value bonuses for
   masteries and advantages (config storage, application in creation and chronicle,
-  bonus fields labeled with abbreviations only).
+  bonus fields labeled with abbreviations only), and the read-only bonus preview
+  in the character creation „Attribute" step.
 - [`docs/anwenderhandbuch.md`](docs/anwenderhandbuch.md) – User manual (German):
   using the „Zufällig ausfüllen" test-mode button, choosing culture alternatives
   during character creation, reading the derived value „Geschwindigkeit" (GES),
-  and defining and receiving passive bonuses on masteries and advantages (bonus
-  fields show only the established abbreviations).
+  defining and receiving passive bonuses on masteries and advantages (bonus
+  fields show only the established abbreviations), and seeing those bonuses
+  already while assigning attributes in step „7. Attribute".
 - [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
   validation of the library culture editor (talent/strength limits, Entweder/Oder
   alternatives, all message texts).
