@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { db } from '../db'
-import { characters, characterXpLog, characterSteps } from '../db/schema'
+import { characters, characterXpLog, characterSteps, strengths, masteries } from '../db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
   recalculateStats,
@@ -11,9 +11,24 @@ import {
   StepDeltas,
   StepKey,
   CharacterState,
+  applyPassiveBonuses,
+  buildBonusCatalog,
+  collectPassiveBonuses,
 } from '@mcc/shared'
 
 const app = new Hono()
+
+/** Bibliothekskatalog der passiven Boni (Vorteile/Stärken und Meisterschaften). */
+async function loadBonusCatalog() {
+  const [staerken, meisterschaften] = await Promise.all([
+    db.select().from(strengths),
+    db.select().from(masteries),
+  ])
+  return buildBonusCatalog([
+    ...staerken.map((row) => ({ id: row.id, name: row.name, config: row.config })),
+    ...meisterschaften.map((row) => ({ id: row.id, name: row.name, config: row.config })),
+  ])
+}
 
 app.get('/api/characters', async (c) => {
   const result = await db.select({
@@ -35,6 +50,24 @@ app.post('/api/characters', async (c) => {
 
   if (steps) {
     const final = buildFinalCharacter(body.name, steps)
+
+    // INT-000020 (SF-000012): Passive Boni der gewählten Meisterschaften,
+    // Vorteile und Rassenvorteile einmalig additiv auf den fertigen Charakter
+    // anrechnen (Attribute direkt, abgeleitete Werte nach ihrer Berechnung).
+    const catalog = await loadBonusCatalog()
+    const bonuses = collectPassiveBonuses(catalog, {
+      ids: [
+        ...(final.staerken ?? []),
+        ...(final.meisterschaften ?? []).map((m) => m.id),
+      ],
+      names: [
+        // staerken enthält je nach Datensatz Ids oder Namen (Altbestand).
+        ...(final.staerken ?? []),
+        ...final.rassenVorteile,
+        ...(final.meisterschaften ?? []).map((m) => m.name),
+      ],
+    })
+    applyPassiveBonuses(final, [bonuses])
 
     await db.insert(characters).values({
       id,
@@ -119,18 +152,30 @@ app.get('/api/characters/:id/state', async (c) => {
     // bleibt unverändert (keine Datenmigration nötig).
     const derived = final.derived
     if (derived && typeof derived === 'object' && !Array.isArray(derived)) {
-      const rasse = final.rasse as { groessenklasse?: unknown } | null | undefined
-      const groessenklasse = typeof final.groessenklasse === 'number'
-        ? final.groessenklasse
-        : typeof rasse?.groessenklasse === 'number' ? rasse.groessenklasse : 3
-      const attribute = final.attribute
-      const gewandheit = attribute && typeof attribute === 'object' && !Array.isArray(attribute)
-        ? (attribute as Record<string, unknown>).GEW
-        : undefined
-      ;(derived as Record<string, number>).GES = geschwindigkeit(
-        groessenklasse,
-        typeof gewandheit === 'number' ? gewandheit : undefined,
-      )
+      // INT-000020 (Re-Review): Nur nachholen, wenn noch kein GES gespeichert
+      // ist. Bei neuen Charakteren wurde derived.GES bereits bei der Erstellung
+      // aus dem rohen GEW berechnet (inkl. eines ggf. vergebenen GES-/GK-Bonus)
+      // und gespeichert. Eine Neuberechnung aus `final.attribute.GEW` würde
+      // hier den passiven GEW-Attributbonus erneut in GES hineinwirken lassen —
+      // die Erstellung nutzt den rohen GEW —, sodass Erstellung und Chronik
+      // für denselben Wert auseinanderliefen. Der gespeicherte Wert ist die
+      // einzige konsistente Grundlage; nachgeholt wird nur für
+      // Bestandscharaktere ohne GES (siehe INT-000019).
+      const gesStored = (derived as Record<string, unknown>).GES
+      if (typeof gesStored !== 'number') {
+        const rasse = final.rasse as { groessenklasse?: unknown } | null | undefined
+        const groessenklasse = typeof final.groessenklasse === 'number'
+          ? final.groessenklasse
+          : typeof rasse?.groessenklasse === 'number' ? rasse.groessenklasse : 3
+        const attribute = final.attribute
+        const gewandheit = attribute && typeof attribute === 'object' && !Array.isArray(attribute)
+          ? (attribute as Record<string, unknown>).GEW
+          : undefined
+        ;(derived as Record<string, number>).GES = geschwindigkeit(
+          groessenklasse,
+          typeof gewandheit === 'number' ? gewandheit : undefined,
+        )
+      }
     }
     return c.json({ state: final, deltas: null })
   }
@@ -333,6 +378,21 @@ app.post('/api/characters/:id/xp/spend', async (c) => {
   }
   state.skills = skills
   state.staerken = staerken
+
+  // INT-000020 (SF-000012): Wird eine Stärke in der Chronik neu erlernt,
+  // werden ihre passiven Boni additiv auf den gespeicherten Zustand gelegt.
+  if (kind === 'learn_strength') {
+    const catalog = buildBonusCatalog(
+      (await db.select().from(strengths)).map((row) => ({
+        id: row.id, name: row.name, config: row.config,
+      })),
+    )
+    const bonus = collectPassiveBonuses(
+      catalog,
+      catalog.byId.has(targetId) ? { ids: [targetId] } : { names: [targetName] },
+    )
+    applyPassiveBonuses(state, [bonus])
+  }
 
   await db.insert(characterXpLog).values({
     id: crypto.randomUUID(),
