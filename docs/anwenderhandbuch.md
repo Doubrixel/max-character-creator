@@ -8,6 +8,7 @@ Inhalt:
 - Testmodus: Schritte schnell mit Zufallswerten überspringen (INT-000018 / SF-000010)
 - Kultur mit Entweder/Oder-Alternativen wählen (INT-000016 / SF-000009)
 - Geschwindigkeit (GES) als abgeleiteter Wert (INT-000019 / SF-000011)
+- Passive Boni auf Attribute und abgeleitete Werte (INT-000020 / SF-000012)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -265,3 +266,115 @@ Attributwert selbst, sondern sein Modifikator: 18 → +4, 14 → +2, 12 → +1,
   Charakterbogen steht nur der Wert unter dem Kürzel „GES".
 - **Keine Regression:** Bestehende abgeleitete Werte und Formeln bleiben
   unverändert; es werden keine vorhandenen Charakterdaten umgeschrieben.
+
+---
+
+## Passive Boni auf Attribute und abgeleitete Werte (INT-000020 / SF-000012)
+
+Anwenderhandbuch für die Bibliothek, die Charaktererstellung und die Chronik.
+Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+Meisterschaften und Vorteile/Stärken — auch rassenspezifische Vorteile — können
+einen passiven Bonus auf ein Attribut oder einen abgeleiteten Wert erhalten.
+Wählen Sie einen solchen Eintrag bei der Charaktererstellung oder vergeben Sie ihn
+in der Chronik, wird der Bonus automatisch addiert: Bei Attributen direkt auf den
+Wert, bei abgeleiteten Werten nach deren regulärer Berechnung obendrauf. Sie
+müssen den Bonus nicht selbst im Charakterbogen eintragen.
+
+### Voraussetzungen
+
+- Sie erreichen in der Seitenleiste **„Bibliothek"** und dort die Unterreiter
+  **„Meisterschaften"** und **„Stärken"**.
+- Zum Anlegen/Bearbeiten: Ein Eintrag kann neu erstellt oder über die Karte und
+  **„Bearbeiten"** geöffnet werden.
+- Zum Erhalten des Bonus: Sie führen einen Erstellvorgang bis zur Wahl der Stärke
+  („5. Kindheit") bzw. der Meisterschaft („9. Meisterschaften"), oder Sie öffnen
+  in der **„Chronik"** einen fertigen Charakter mit verfügbaren XP.
+
+### Passiven Bonus in der Bibliothek festlegen
+
+1. Öffnen Sie **Bibliothek → Meisterschaften** oder **Bibliothek → Stärken** und
+   klicken Sie auf **„+ Neu"** (oder wählen Sie eine Karte und **„Bearbeiten"**).
+2. Füllen Sie die gewohnten Felder aus (z. B. „Name", „Effekt" bzw.
+   „Beschreibung"). Bei Stärken wählen Sie als Kategorie **„Stärke"** oder
+   **„Rassenvorteil/-nachteil"** mit Unterkategorie **„Vorteil"**.
+3. Aktivieren Sie die Checkbox **„Passiver Bonus"**. Das Formular klappt unten
+   die Ansicht **„Passive Boni"** auf.
+4. Sie sehen zwanzig Felder: die zehn Attribute **MUT, KLU, INT, CHA, HIN, MYS,
+   FF, GEW, KON, KRA** und die zehn abgeleiteten Werte **Lebenspunkte, Focus,
+   Spirit, Verteidigung, Körperlicher Widerstand, Geistiger Widerstand,
+   Schadensschwelle, Initiative, GK, Geschwindigkeit**. Tragen Sie hinter dem
+   gewünschten Wert die Zahl ein, z. B. bei MUT eine **2** und bei Lebenspunkten
+   eine **5**. Nur ganze Zahlen sind möglich; ein leeres Feld oder 0 bedeutet
+   keinen Bonus, negative Werte wirken als Malus.
+5. Klicken Sie auf **„Erstellen"** bzw. **„Speichern"**. Öffnen Sie den Eintrag
+   erneut mit **„Bearbeiten"**, stehen Aktivierung und Werte wieder im Formular.
+
+### Bonus bei der Charaktererstellung erhalten
+
+- Wählen Sie in „5. Kindheit" eine Stärke mit passivem Bonus. Im fertigen
+  Charakter ist das Attribut entsprechend erhöht (Beispiel: KON-Bonus +2 aus
+  einer Stärke → Konstitution 14 wird zu 16).
+- Rassenvorteile mit Bonus wirken ebenfalls, wenn die Rasse diese Vorteile
+  gewährt.
+- In „9. Meisterschaften" erscheint für jede Fertigkeit ab Wert 6, für die eine
+  passende Meisterschaft mit Schwelle 1 verfügbar ist, ein Auswahlfeld
+  **„Meisterschaft für {Fertigkeit}"**. Wählen Sie die Meisterschaft; ihr Bonus
+  wird angerechnet (Beispiel: MUT-Bonus +2 → Mut 14 wird zu 16).
+- Schließen Sie mit **„Charakter fertigstellen"** ab. In der Chronik sehen Sie
+  die erhöhten Werte.
+
+### Bonus in der Chronik vergeben
+
+1. Öffnen Sie in der **Chronik** den Charakter und den Bereich **„XP ausgeben"**.
+2. Wählen Sie als Aktion **„Neu erlernen: Stärke"** und als Ziel den Vorteil mit
+   dem passiven Bonus.
+3. Klicken Sie auf **„Ausgeben (… XP)"** und bestätigen Sie mit
+   **„Ja, ausgeben"**.
+4. Die betroffenen Werte im Charakterbogen sind nun erhöht (Beispiel: KON +3 und
+   LP +5). Der Vorteil erscheint unter **„Stärken"**. Die Erhöhung bleibt auch
+   nach dem Verlassen und erneuten Öffnen des Charakters sichtbar.
+
+### Erwartete Rückmeldungen
+
+- Die Checkbox „Passiver Bonus" klappt die Werte-Ansicht auf; ohne Haken bleibt
+   sie verborgen und es werden keine Boni gespeichert.
+- Nach dem Speichern erscheinen die gesetzten Werte beim erneuten „Bearbeiten"
+   wieder im Formular; geänderte Werte ersetzen die vorherigen.
+- Im Charakterbogen stehen die verbonusten Endwerte unter **„Attribute"** und
+   **„Abgeleitete Werte"**; die gewählte Meisterschaft bzw. Stärke steht unter
+   **„Meisterschaften"** bzw. **„Stärken"**.
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Eine Dezimalzahl wird nicht übernommen | Es sind nur ganze Zahlen möglich. Aus „1,5" wird kein Dezimalbonus; geben Sie stattdessen eine ganze Zahl ein. |
+| Ein bestehender Wert lässt sich nicht negativ machen | Markieren Sie den Wert, tippen Sie zuerst „-" und dann die Ziffer. Das Minus bleibt beim Ändern erhalten. |
+| In „9. Meisterschaften" fehlt das Auswahlfeld | Die Fertigkeit erreicht den Wert 6 nicht, oder es ist keine Meisterschaft mit Schwelle 1 ohne blockierende Voraussetzung verfügbar. Lesen Sie den Hinweistext im Schritt und legen Sie die Meisterschaft ggf. entsprechend an. |
+| Der Bonus wirkt nicht im Charakter | Prüfen Sie im Bibliotheksformular, ob „Passiver Bonus" aktiv ist und ein Wert hinter dem Stat steht. Nur aktive Einträge mit Werten wirken, und nur bei Wahl/Erlernen des Eintrags. |
+
+### Speicherung
+
+- Die Boni werden mit dem Bibliothekseintrag gespeichert und beim Bearbeiten
+   wieder geladen.
+- Bei der Wahl oder Vergabe werden sie einmalig in den Charakter übernommen und
+   mit ihm gespeichert. Die ursprünglich eingegebenen Rohwerte bleiben erhalten;
+   ein erneutes Berechnen zählt den Bonus dadurch nicht doppelt.
+
+### Grenzen
+
+- Es sind ausschließlich ganze Zahlen möglich; die zwanzig Attribute und
+   abgeleiteten Werte sind fest vorgegeben, es kommen keine neuen Werte hinzu.
+- Boni wirken nur bei Wahl (Erstellung) oder XP-Vergabe (Chronik). Bereits fertig
+   erstellte Charaktere werden nicht nachträglich verändert.
+- Bei abgeleiteten Werten kommt der Bonus nach der regulären Berechnung
+   obendrauf; er verändert nicht die Berechnungsgrundlage anderer Werte. Ein
+   KON-Bonus verändert z. B. die Lebenspunkte nicht, ein GEW-Bonus lässt die
+   bereits berechnete Geschwindigkeit unverändert.
+- Der Charakterbogen zeigt die Endwerte, aber keine gesonderte Liste der
+   vergebenen Boni; die Zusätze sind in den angezeigten Werten enthalten.
+- Passive Boni werden im Bibliotheksformular gepflegt; der Dateiimport legt
+   keine passiven Boni an.

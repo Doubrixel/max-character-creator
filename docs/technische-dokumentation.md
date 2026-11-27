@@ -10,6 +10,7 @@ Inhalt:
 - Entweder/Oder-Wahl der Kulturalternativen (INT-000016 / SF-000009)
 - Testmodus „Zufällig ausfüllen" (INT-000018 / SF-000010)
 - Geschwindigkeit (GES = GK + GE) als abgeleiteter Wert (INT-000019 / SF-000011)
+- Passive Attribut-/Wert-Boni für Meisterschaften und Vorteile (INT-000020 / SF-000012)
 
 ---
 
@@ -384,3 +385,92 @@ den Wert unter dem Kürzel „GES".
 - `backend/src/routes/characters-ges.test.ts` (in `backend/package.json` registriert und damit über `npm test` lauffähig): prüft den Seed und die Formel „GK + GE", die Beispiele 3+4=7, 3+2=5, 2+2=4 und 3+1=4, den Platzhalter „—" ohne GEW, die Persistenz (GES 7), den Legacy-Fall (GES 4 zur Laufzeit, übrige Werte unverändert, gespeicherter Zustand ohne GES) sowie die Unverändertheit von LP/VTD/INI und der Verteidigungsformel.
 - Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 27.11.2026 09:33 UTC).
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über TC-GES-01 bis TC-GES-08 (Anzeige und Formel in Erstellung/Bibliothek, sofortige Aktualisierung bei GE/GK, Chronik neu und Bestand, Nicht-Editierbarkeit, Platzhalter). Alle Fälle am 27.11.2026 bestanden.
+
+---
+
+## Passive Attribut-/Wert-Boni für Meisterschaften und Vorteile (INT-000020 / SF-000012)
+
+Ziel-Ticket INT-000020 (SF-000012): Meisterschaften sowie Vorteile/Stärken —
+sowohl reguläre als auch rassenspezifische — können im Bibliotheksformular einen
+passiven Bonus auf Attribute oder abgeleitete Werte definieren. Bei Wahl bzw.
+Vergabe des Eintrags in der Charaktererstellung oder in der Chronik wird der
+Bonus additiv angerechnet: auf Attribute direkt auf ihren Wert, auf abgeleitete
+Werte nach deren regulärer Berechnung obendrauf. Anwendersicht:
+[`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
+[`../README.md`](../README.md).
+
+Nicht im Umfang: neue Attribute oder abgeleitete Werte, Änderungen an bestehenden
+Formeln, passive Boni per Dateiimport und eine nachträgliche Änderung bereits
+fertig erstellter Charaktere.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Bibliothek | Im Erstellungs-/Bearbeitungsformular von Meisterschaften und Stärken/Vorteilen (Kategorie „Stärke" und „Rassenvorteil/-nachteil" mit Unterkategorie „Vorteil") aktiviert die Checkbox „Passiver Bonus" die Werte-Ansicht „Passive Boni". |
+| Werte-Ansicht | Zehn Attribute (MUT, KLU, INT, CHA, HIN, MYS, FF, GEW, KON, KRA) und zehn abgeleitete Werte (Lebenspunkte, Focus, Spirit, Verteidigung, Körperlicher Widerstand, Geistiger Widerstand, Schadensschwelle, Initiative, GK, Geschwindigkeit), je mit einem Eingabefeld. |
+| Eingabe | Nur ganze Zahlen (auch negative); ein leeres Feld oder 0 bedeutet keinen Bonus. |
+| Erstellung | Bei Wahl der Stärke/des Vorteils, des Rassenvorteils oder der Meisterschaft werden die gespeicherten Boni einmalig auf den fertigen Charakter angewendet. |
+| Chronik | Beim XP-Erlernen einer Stärke werden deren passive Boni auf den gespeicherten Zustand angewendet. |
+| Meisterschaftswahl | Im Schritt „9. Meisterschaften" erhält jede Talent-, Kampf- oder Magie-Fertigkeit ab Wert 6, für die eine passende Pflicht-Meisterschaft (Schwelle 1) verfügbar ist, ein Auswahlfeld. |
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/passiveBonus.ts` | Zentrale Definition der 20 Stat-Keys, `isIntegerInput`/`sanitizeIntegerInput`, `readPassiveBonusConfig`, `buildBonusCatalog`, `collectPassiveBonuses` und `applyPassiveBonuses` — die einzige Stelle mit Lese-/Anwendungslogik, damit Bibliothek, Erstellung und Chronik dieselbe Semantik haben. |
+| `frontend/src/components/library/PassiveBonusFields.tsx` | Checkbox „Passiver Bonus" und Werte-Ansicht; `IntegerField` hält den Zwischenzustand „-" im Entwurf, sodass bestehende Werte negativ gemacht werden können. |
+| `frontend/src/components/library/MasteriesView.tsx` | Schreibt bei aktivem Bonus `passive_bonus_aktiv` und `passive_bonus` in das Meisterschafts-`config`; liest die Werte beim „Bearbeiten" über `readPassiveBonusConfig` zurück. |
+| `frontend/src/components/library/StrengthsView.tsx` | Dasselbe für Stärken und Rassenvorteile. |
+| `shared/src/meisterschaftWahl.ts` | Zentrale Matching-Logik des Schritts „9. Meisterschaften" (`masteryMatchesSkill`, `MEISTERSCHAFTS_SKILL_SCHWELLE = 6`), inkl. grenzwertiger skill-basierter Voraussetzungen. |
+| `frontend/src/components/creation/ZauberStep.tsx` | Bietet je qualifizierender Fertigkeit ein Auswahlfeld mit `aria-label` „Meisterschaft für {Fertigkeit}" an und schreibt die Wahl in das Step-Delta `Zauber`. |
+| `shared/src/reducers.ts` | `attributeReducer` berechnet die abgeleiteten Werte aus den Rohattributen; `buildFinalCharacter` übernimmt sie in den Endzustand. |
+| `backend/src/routes/characters.ts` | `POST /api/characters` und `POST /api/characters/:id/xp/spend` (Aktion `learn_strength`) wenden die Boni serverseitig an; `GET /api/characters/:id/state` liefert den gespeicherten Zustand. |
+| `backend/src/routes/library.ts`, `backend/src/db/schema.ts` | Speicherung der Boni im bestehenden `config`-JSON der Tabellen `masteries` und `strengths`; keine neuen Spalten. |
+| `backend/src/bonus/passive-bonus.test.ts`, `passive-bonus-test-child.ts`, `backend/src/meisterschaft/meisterschaft-wahl.test.ts` | Automatisierte Prüfungen (siehe „Prüfungen"). |
+
+### Datenfluss
+
+1. **Bibliothek:** Ist die Checkbox aktiv, speichert `buildConfig`/`handleSubmit` das `config` mit `passive_bonus_aktiv: 'true'` und `passive_bonus: { KEY: ganze Zahl }`. Nicht gesetzte Felder und der Wert 0 erscheinen nicht im Objekt. Beim „Bearbeiten" werden Aktivierung und Werte über `readPassiveBonusConfig` wieder in das Formular geladen.
+2. **Katalog:** `loadBonusCatalog` baut aus allen `strengths`- und `masteries`-Zeilen einen Katalog mit Id- und Namensindex. `collectPassiveBonuses` summiert die Boni der Referenzen; Id- und Namensverweise auf denselben Eintrag zählen nur einmal (Deduplizierung über `nameById`).
+3. **Erstellung:** `POST /api/characters` berechnet mit `buildFinalCharacter` den Rohzustand, sammelt die Boni der gewählten Stärken, Rassenvorteile und Meisterschaften und wendet sie mit `applyPassiveBonuses` an. Der verbonuste Endzustand wird in `characters.state` gespeichert; die Step-Deltas bleiben die Roheingaben.
+4. **Chronik:** Bei `learn_strength` in `/api/characters/:id/xp/spend` wird der Katalog geladen, der Bonus des Ziels (Id, sonst normalisierter Name) gesammelt und auf den gespeicherten Zustand angewendet. Das erneute Lesen zeigt die erhöhten Werte.
+5. **Meisterschaftswahl:** `ZauberStep` filtert Fertigkeiten mit `istMeisterschaftsRelevanteKategorie` und Wert ≥ 6 und bietet für jede Fertigkeit mit passendem `masteryMatchesSkill`-Pool ein Auswahlfeld an. Die Auswahl landet in `steps.Zauber.pflicht` und wird als `meisterschaften` in den Endzustand übernommen.
+6. **Lesen:** `GET /api/characters/:id/state` gibt den gespeicherten (bereits verbonusten) Zustand zurück. `derived.GES` wird nur nachgeholt, wenn kein GES gespeichert ist (Bestandscharaktere); bei neuen Charakteren bleibt der bei der Erstellung berechnete Wert maßgeblich.
+
+### Validierung
+
+- **Eingabe:** `isIntegerInput` erlaubt nur optionale Minus-Zeichen und Ziffern; `sanitizeIntegerInput` und `toInteger` akzeptieren ausschließlich sichere ganze Zahlen. Dezimal- und sonstige Nicht-Ganzzahl-Eingaben werden verworfen; der Zwischenzustand „-" bleibt im Eingabefeld erhalten, wird aber nicht gespeichert.
+- **Config:** `readPassiveBonusConfig` aktiviert Boni nur bei `passive_bonus_aktiv === true` bzw. `'true'`, übernimmt ausschließlich bekannte Stat-Keys und ganze Zahlen und ignoriert den Wert 0. Defekte oder unlesbare Configs werden tolerant als „kein Bonus" behandelt.
+- **Katalog:** Nur aktive Einträge mit mindestens einem Wert fließen ein. Die Sammlung verhindert Doppelzählung bei Id- und Namensverweisen.
+- **Anwendung:** `applyPassiveBonuses` klont `attribute` und `derived` vor dem Anwenden, prüft sichere ganze Zahlen und bekannte Keys und lässt die vom Request stammenden Step-Deltas unverändert. Ein Bonus auf `GK` wirkt zusätzlich auf `groessenklasse` und die daraus abgeleitete Geschwindigkeit.
+- **Meisterschaftswahl:** Wählbar sind nur Meisterschaften mit Schwelle `'1'`. Skill-basierte Voraussetzungen (`skill >= wert` / `magie >= wert`) werden grenzwertig geprüft (`skillValue >= minWert`, Zuordnung über Skill-Id oder -Name). Andere Voraussetzungstypen blockieren die Auswahl; der Hinweistext „keine Fertigkeit erreicht den Wert" erscheint nur, wenn tatsächlich keine Schwellenfertigkeit vorhanden ist.
+
+### Fehlerverhalten
+
+- **Nicht-Ganzzahl-Eingaben:** Eine Dezimaleingabe wie „1,5" wird nicht als Dezimalbonus übernommen; gespeichert wird kein Dezimalwert. Ein bestehender positiver Wert lässt sich durch Markieren und Eingabe von „-" negativ machen, ohne dass das Minus durch den Wert-Reset verloren geht.
+- **Defekte Daten:** Unlesbares `config` oder unbekannte/ungültige Werte führen zu „kein Bonus", nicht zu einem Fehler oder Absturz.
+- **Inaktive oder leere Einträge:** Eintrag ohne Aktivierung oder ohne Werte bleibt wirkungslos; die übrigen Werte des Charakters sind unverändert.
+- **Keine wählbare Meisterschaft:** Fehlt für eine Fertigkeit eine qualifizierende Meisterschaft, zeigt der Schritt einen zutreffenden Hinweis; „Weiter" bleibt nur gesperrt, solange eine Pflicht-Meisterschaft tatsächlich fehlt.
+- **Konsistenz Erstellung/Chronik:** Ein GEW-Attributbonus erhöht den GEW-Wert, wirkt aber nicht erneut auf die bereits berechnete Geschwindigkeit; Erstellung und Chronik zeigen denselben GES-Wert. Ebenso verändert ein KON-Bonus die aus dem Rohwert berechneten Lebenspunkte nicht.
+
+### Persistenz
+
+- Es gibt keine neuen Datenbankspalten: Die Boni liegen im `config`-JSON der bestehenden Einträge in `masteries` und `strengths`.
+- Die angewendeten Boni sind Teil des gespeicherten Endzustands in `characters.state`; zusätzlich hält der Zustand die Summe der angewandten Boni in `passiveBonusStats` fest.
+- Die persistierten `character_steps.delta` enthalten die Roheingaben. `applyPassiveBonuses` mutiert diese Referenzen nicht, sodass eine spätere Neuberechnung nicht doppelt zählt.
+- Bereits fertig erstellte Charaktere werden nicht nachträglich geändert; ein Bonus wirkt nur bei Wahl (Erstellung) oder XP-Vergabe (Chronik).
+
+### Sicherheitsgrenzen
+
+- Keine neuen Endpunkte und keine neuen Berechtigungswege; die Boni laufen über bestehende Bibliotheks- und Charakter-Routen.
+- Die Anwendung erfolgt serverseitig beim Erstellen und bei der XP-Ausgabe. Clientseitig gibt es keine Möglichkeit, abgeleitete Werte oder Bonuswerte direkt zu setzen.
+- Das Lesen der Config ist tolerant und whitelist-basiert (bekannte Stat-Keys, sichere ganze Zahlen); manipulierte oder defekte Configs können keine ungültigen Werte anwenden.
+- Keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/bonus/passive-bonus.test.ts` (mit `passive-bonus-test-child.ts`, isolierte SQLite-DB, in `backend/package.json` registriert): prüft Ganzzahl-Validierung und Config-Lesen, Deduplizierung von Id-/Namensverweisen, Nicht-Mutation der Eingabewerte, Bonusanwendung für Vorteil/Rassenvorteil/Meisterschaft in der Erstellung und bei Chronik-Vergabe, Bestehenbleiben des GES-Bonus beim Lesen, GEW/GES-Konsistenz sowie die Wirkungslosigkeit inaktiver Boni.
+- `backend/src/meisterschaft/meisterschaft-wahl.test.ts`: prüft die Sichtbarkeits-/Schwellenlogik — Fertigkeit exakt auf Schwellenwert, formularerstellte Meisterschaft ohne Voraussetzung, skill-basierte Voraussetzungen, blockierende Voraussetzungstypen, Schwelle ungleich 1, Kampf-/Magie-Gruppenlogik inkl. Schuss-/Wurfwaffen-Ausnahme und Hilfsfunktionen.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend`.
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über manuelle Testfälle für Anlegen und Bearbeiten von Boni in Meisterschaften, Stärken und Rassenvorteilen, die Nur-Ganzzahl-Eingabe sowie die Anwendung in Erstellung und Chronik.
