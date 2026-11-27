@@ -13,8 +13,10 @@ import {
   CharacterState,
   applyPassiveBonuses,
   buildBonusCatalog,
-  collectPassiveBonuses,
   collectCreationPassiveBonuses,
+  collectPassiveBonusesForSelections,
+  readMehrfachConfig,
+  zaehleAuswahlen,
 } from '@mcc/shared'
 
 const app = new Hono()
@@ -371,6 +373,7 @@ app.post('/api/characters/:id/xp/spend', async (c) => {
   const state = character[0].state ? JSON.parse(character[0].state) : {}
   const skills = (state.skills ?? {}) as Record<string, number>
   const staerken = (state.staerken ?? []) as string[]
+  let strengthRow: { id: string; name: string; config: string | null } | undefined
 
   if (kind === 'skill_up') {
     if (!(targetId in skills)) return c.json({ error: 'Skill ist dem Charakter nicht bekannt' }, 400)
@@ -379,8 +382,22 @@ app.post('/api/characters/:id/xp/spend', async (c) => {
     if (targetId in skills) return c.json({ error: 'Skill ist bereits bekannt' }, 400)
     skills[targetId] = 1
   } else {
-    if (staerken.includes(targetId)) return c.json({ error: 'Stärke ist bereits vorhanden' }, 400)
-    staerken.push(targetId)
+    // INT-000023: Mehrfach wählbare Stärken bleiben bis zur konfigurierten
+    // Obergrenze zum regulären Preis erwerbbar. Alle anderen verhalten sich
+    // unverändert (nach einem Kauf nicht erneut angeboten).
+    strengthRow = (await db.select().from(strengths).where(eq(strengths.id, targetId)))[0]
+    const mehrfach = readMehrfachConfig(strengthRow?.config)
+    const anzahl = zaehleAuswahlen(staerken, {
+      id: strengthRow?.id ?? targetId,
+      namen: [targetName, strengthRow?.name],
+    })
+    if (!mehrfach.aktiv && anzahl > 0) {
+      return c.json({ error: 'Stärke ist bereits vorhanden' }, 400)
+    }
+    if (mehrfach.aktiv && anzahl >= (mehrfach.max ?? 1)) {
+      return c.json({ error: `Maximale Auswahl-Obergrenze (${mehrfach.max}) erreicht` }, 400)
+    }
+    staerken.push(strengthRow?.id ?? targetId)
   }
   state.skills = skills
   state.staerken = staerken
@@ -393,10 +410,11 @@ app.post('/api/characters/:id/xp/spend', async (c) => {
         id: row.id, name: row.name, config: row.config,
       })),
     )
-    const bonus = collectPassiveBonuses(
-      catalog,
-      catalog.byId.has(targetId) ? { ids: [targetId] } : { names: [targetName] },
-    )
+    const bonus = collectPassiveBonusesForSelections(catalog, [
+      { id: strengthRow?.id ?? targetId, name: targetName },
+    ])
+    // Der gespeicherte Zustand enthält den Bonus bereits aus früheren
+    // Auswahlen; pro neuem Kauf wird genau ein Bonus hinzugefügt.
     applyPassiveBonuses(state, [bonus])
   }
 

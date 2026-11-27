@@ -16,7 +16,7 @@ import {
   characterSteps,
 } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { validateKultur, parseKosten } from '@mcc/shared'
+import { validateKultur, parseKosten, validateMehrfachConfig } from '@mcc/shared'
 
 const libraryTables = [
   { path: 'races', table: races },
@@ -48,6 +48,13 @@ function createLibraryRoutes() {
     return validateKultur(config, kostenById)
   }
 
+  /** INT-000023: ungültige Mehrfachauswahl-Konfigurationen abweisen. */
+  function mehrfachSpeicherFehler(path: string, config: unknown): string | null {
+    if (path !== 'strengths' && path !== 'masteries') return null
+    if (config === undefined || config === null) return null
+    return validateMehrfachConfig(config)
+  }
+
   for (const { path, table } of libraryTables) {
     router.get(`/library/${path}`, async (c) => {
       const data = await db.select().from(table)
@@ -60,6 +67,8 @@ function createLibraryRoutes() {
         const fehler = await kulturSpeicherFehler(body.config)
         if (fehler) return c.json({ message: fehler }, 400)
       }
+      const mehrfachFehler = mehrfachSpeicherFehler(path, body.config)
+      if (mehrfachFehler) return c.json({ message: mehrfachFehler }, 400)
       const entry = {
         id: crypto.randomUUID(),
         name: body.name,
@@ -93,6 +102,11 @@ function createLibraryRoutes() {
         const fehler = await kulturSpeicherFehler(config)
         if (fehler) return c.json({ message: fehler }, 400)
       }
+      const mehrfachFehler = mehrfachSpeicherFehler(
+        path,
+        body.config !== undefined ? body.config : existing[0].config,
+      )
+      if (mehrfachFehler) return c.json({ message: mehrfachFehler }, 400)
       const updated = {
         ...existing[0],
         ...body,

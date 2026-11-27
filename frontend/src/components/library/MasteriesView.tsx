@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { readPassiveBonusConfig } from '@mcc/shared'
+import { readPassiveBonusConfig, readMehrfachConfig, isPositiveIntegerInput } from '@mcc/shared'
 import { SKILL_OPTIONS, FULL_MAGIC_SKILLS } from './typeSchemas'
 import { useAppContext } from '../../context/AppContext'
 import FilterPanel from './FilterPanel'
@@ -209,6 +209,9 @@ export default function MasteriesView() {
   const [voraussetzungWert, setVoraussetzungWert] = useState('6')
   const [bonusAktiv, setBonusAktiv] = useState(false)
   const [bonusWerte, setBonusWerte] = useState<Record<string, number>>({})
+  const [mehrfach, setMehrfach] = useState(false)
+  const [maxAuswahl, setMaxAuswahl] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
 
   const [showFilter, setShowFilter] = useState(false)
   const [filterSelected, setFilterSelected] = useState<Map<number, Set<string>>>(() => new Map())
@@ -272,11 +275,14 @@ export default function MasteriesView() {
     setVoraussetzungWert('6')
     setBonusAktiv(false)
     setBonusWerte({})
+    setMehrfach(false)
+    setMaxAuswahl('')
+    setFormError(null)
     setEditingId(null)
   }
 
   const buildConfig = (): Record<string, unknown> => {
-    const cfg: Record<string, string> = {
+    const cfg: Record<string, unknown> = {
       effekt,
       kosten,
       kategorie,
@@ -289,13 +295,22 @@ export default function MasteriesView() {
     }
     if (bonusAktiv) {
       cfg.passive_bonus_aktiv = 'true'
-      return { ...cfg, passive_bonus: { ...bonusWerte } }
+      cfg.passive_bonus = { ...bonusWerte }
+    }
+    if (mehrfach) {
+      cfg.mehrfach_waehlbar = 'true'
+      cfg.max_auswahl = maxAuswahl
     }
     return cfg
   }
 
   const handleSubmit = async () => {
     if (!name.trim()) return
+    if (mehrfach && !isPositiveIntegerInput(maxAuswahl)) {
+      setFormError('Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3).')
+      return
+    }
+    setFormError(null)
     const body = {
       name: name.trim(),
       description: null,
@@ -346,6 +361,10 @@ export default function MasteriesView() {
     const bonus = readPassiveBonusConfig(cfg)
     setBonusAktiv(bonus.aktiv)
     setBonusWerte(bonus.werte)
+    const mehrfachCfg = readMehrfachConfig(cfg)
+    setMehrfach(mehrfachCfg.flag)
+    setMaxAuswahl(cfg.max_auswahl !== undefined && cfg.max_auswahl !== null ? String(cfg.max_auswahl) : '')
+    setFormError(null)
     setEditingId(entry.id)
     setShowForm(true)
   }
@@ -629,6 +648,40 @@ export default function MasteriesView() {
               </select>
             </div>
             {renderVoraussetzungFields()}
+            <div style={styles.formRow}>
+              <label style={styles.checkboxLabel} htmlFor="mastery-mehrfach">
+                <input
+                  id="mastery-mehrfach"
+                  type="checkbox"
+                  checked={mehrfach}
+                  onChange={e => { setMehrfach(e.target.checked); setFormError(null) }}
+                />
+                <span>mehrfach wählbar</span>
+              </label>
+            </div>
+            {mehrfach && (
+              <div style={styles.formRow}>
+                <label style={styles.label} htmlFor="mastery-max-auswahl">
+                  maximale Auswahl-Obergrenze
+                </label>
+                <input
+                  id="mastery-max-auswahl"
+                  style={styles.input}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="z. B. 2"
+                  aria-describedby="mastery-max-hinweis"
+                  value={maxAuswahl}
+                  onChange={e => { setMaxAuswahl(e.target.value); setFormError(null) }}
+                />
+                <span id="mastery-max-hinweis" style={styles.fieldHint}>
+                  Nur ganze positive Zahlen (1, 2, 3, …).
+                </span>
+              </div>
+            )}
+            {formError && (
+              <div style={styles.errorBanner} role="alert">{formError}</div>
+            )}
             <PassiveBonusFields
               aktiv={bonusAktiv}
               werte={bonusWerte}
@@ -661,6 +714,8 @@ export default function MasteriesView() {
                 parts.push(`Kosten: ${getKosten(selectedEntry)}`)
                 if (cfg.schwelle) parts.push(`Schwelle ${cfg.schwelle}`)
                 if (cfg.kategorie_name) parts.push(cfg.kategorie_name)
+                const mehrfach = readMehrfachConfig(cfg)
+                if (mehrfach.aktiv) parts.push(`mehrfach wählbar (max ${mehrfach.max})`)
                 return parts.join(' · ')
               })()}
             </div>
@@ -796,6 +851,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' },
+  fieldHint: { fontSize: 11, color: 'var(--text-tertiary)' },
+  checkboxLabel: {
+    display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text-primary)',
+    cursor: 'pointer',
+  },
   input: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)',

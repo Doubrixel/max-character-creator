@@ -186,6 +186,35 @@ export function collectPassiveBonuses(catalog: BonusCatalog, refs: BonusReferenc
   return sum
 }
 
+export interface BonusSelectionReference {
+  id?: string | null
+  name?: string | null
+}
+
+/**
+ * INT-000023: Boni für eine Liste von Auswahlen summieren. Jede Auswahl
+ * zählt genau einmal — wiederholte Verweise auf denselben Eintrag (mehrfach
+ * wählbare Vorteile/Meisterschaften) werden daher mehrfach addiert, ein
+ * Id- und Namensverweis derselben Auswahl hingegen nur einmal.
+ */
+export function collectPassiveBonusesForSelections(
+  catalog: BonusCatalog,
+  selections: readonly BonusSelectionReference[],
+): PassiveBonus {
+  const sum: PassiveBonus = {}
+  for (const selection of selections) {
+    const id = typeof selection.id === 'string' ? selection.id.trim() : ''
+    const name = typeof selection.name === 'string' ? selection.name.trim() : ''
+    let bonus = id ? catalog.byId.get(id) : undefined
+    if (!bonus && name) bonus = catalog.byName.get(normalizeName(name))
+    if (!bonus) continue
+    for (const [key, value] of Object.entries(bonus)) {
+      if (Number.isSafeInteger(value)) sum[key] = (sum[key] ?? 0) + value
+    }
+  }
+  return sum
+}
+
 interface MutableBonusTarget {
   attribute?: Record<string, number | undefined>
   derived?: Record<string, number | undefined>
@@ -281,18 +310,15 @@ export function collectCreationPassiveBonuses(
   steps: StepDeltas,
 ): PassiveBonus {
   const final = buildFinalCharacter('', steps)
-  return collectPassiveBonuses(catalog, {
-    ids: [
-      ...(final.staerken ?? []),
-      ...(final.meisterschaften ?? []).map((m) => m.id),
-    ],
-    names: [
-      // staerken enthält je nach Datensatz Ids oder Namen (Altbestand).
-      ...(final.staerken ?? []),
-      ...final.rassenVorteile,
-      ...(final.meisterschaften ?? []).map((m) => m.name),
-    ],
-  })
+  // INT-000023: Jede Auswahl ist eine eigene Referenz. Wiederholte Auswahlen
+  // desselben Eintrags addieren seinen Bonus mehrfach; Id und Name einer
+  // Auswahl werden über `collectPassiveBonusesForSelections` nicht doppelt
+  // gezählt. Die Reihenfolge entspricht weiterhin dem Fertigstellen.
+  return collectPassiveBonusesForSelections(catalog, [
+    ...(final.staerken ?? []).map((value) => ({ id: value, name: value })),
+    ...final.rassenVorteile.map((name) => ({ name })),
+    ...(final.meisterschaften ?? []).map((m) => ({ id: m.id, name: m.name })),
+  ])
 }
 
 export interface CreationPreviewStats {

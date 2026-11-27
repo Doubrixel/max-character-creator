@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --watch --import=tsx src/server.ts",
     "start": "node --import=tsx src/server.ts",
-    "test": "node --import=tsx --test src/db/seed.test.ts src/cultures/cultures.test.ts src/cultures/kultur-editor.test.ts src/cultures/kultur-wahl.test.ts src/routes/library-cultures.test.ts src/routes/characters-ges.test.ts src/bonus/passive-bonus.test.ts src/bonus/creation-preview.test.ts src/meisterschaft/meisterschaft-wahl.test.ts src/config.test.ts",
+    "test": "node --import=tsx --test src/db/seed.test.ts src/cultures/cultures.test.ts src/cultures/kultur-editor.test.ts src/cultures/kultur-wahl.test.ts src/routes/library-cultures.test.ts src/routes/characters-ges.test.ts src/bonus/passive-bonus.test.ts src/bonus/creation-preview.test.ts src/mehrfach/mehrfach-auswahl.test.ts src/meisterschaft/meisterschaft-wahl.test.ts src/config.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "seed": "tsx src/db/seed-cli.ts",

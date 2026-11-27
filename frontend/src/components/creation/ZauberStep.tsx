@@ -8,6 +8,8 @@ import {
   MEISTERSCHAFTS_SKILL_SCHWELLE,
   istMeisterschaftsRelevanteKategorie,
   masteryMatchesSkill,
+  readMehrfachConfig,
+  displayNameWithCount,
 } from '@mcc/shared'
 import type { PickedItem, PflichtMeisterschaft, PickedSpell } from '@mcc/shared'
 
@@ -34,6 +36,8 @@ interface MasteryInfo {
   voraussetzungTyp: string | null
   voraussetzungId: string | null
   voraussetzungWert: string | null
+  mehrfach: boolean
+  max: number | null
 }
 
 interface QualifyingSkill {
@@ -90,7 +94,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
   const [masteries, setMasteries] = useState<MasteryInfo[]>([])
   const [skills, setSkills] = useState<SkillRef[]>([])
   const [spells, setSpells] = useState<SpellInfo[]>([])
-  const [pflicht, setPflicht] = useState<Record<string, PickedItem>>({})
+  const [pflicht, setPflicht] = useState<Record<string, PickedItem[]>>({})
   const [pickedSpells, setPickedSpells] = useState<PickedSpell[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const initializedRef = useRef(false)
@@ -111,6 +115,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
 
         setMasteries(masteriesData.map((m) => {
           const cfg = parseConfig(m.config)
+          const mehrfach = readMehrfachConfig(cfg)
           return {
             id: m.id,
             name: m.name,
@@ -121,6 +126,8 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
             voraussetzungTyp: typeof cfg.voraussetzung_typ === 'string' ? cfg.voraussetzung_typ : null,
             voraussetzungId: typeof cfg.voraussetzung_id === 'string' ? cfg.voraussetzung_id : null,
             voraussetzungWert: typeof cfg.voraussetzung_wert === 'string' ? cfg.voraussetzung_wert : null,
+            mehrfach: mehrfach.aktiv,
+            max: mehrfach.max,
           }
         }))
 
@@ -152,9 +159,9 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     initializedRef.current = true
 
     const saved = stepData as { pflicht?: PflichtMeisterschaft[]; spells?: PickedSpell[] } | null
-    const restoredPflicht: Record<string, PickedItem> = {}
+    const restoredPflicht: Record<string, PickedItem[]> = {}
     for (const p of saved?.pflicht ?? []) {
-      restoredPflicht[p.skillId] = p.meisterschaft
+      ;(restoredPflicht[p.skillId] ??= []).push(p.meisterschaft)
     }
     setPflicht(restoredPflicht)
     setPickedSpells(saved?.spells ?? [])
@@ -203,7 +210,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const missingPflichtCount = qualifyingSkills.filter((s) => !pflicht[s.id]).length
+  const missingPflichtCount = qualifyingSkills.filter((s) => !(pflicht[s.id]?.length)).length
   const allPflichtCovered = missingPflichtCount === 0
 
   const allSpellsCovered = magicSchoolsWithValue.every(school => {
@@ -217,13 +224,37 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     onValid(allPflichtCovered && allSpellsCovered)
   }, [onValid, allPflichtCovered, allSpellsCovered])
 
-  const setPflichtForSkill = (skill: QualifyingSkill, m: PickedItem | null) => {
-    const next = { ...pflicht }
-    if (m) next[skill.id] = m
-    else delete next[skill.id]
+  const toPflichtArray = (values: Record<string, PickedItem[]>): PflichtMeisterschaft[] =>
+    Object.entries(values).flatMap(([skillId, items]) =>
+      items.map((meisterschaft) => ({ skillId, meisterschaft })),
+    )
+
+  const maxOf = (m: MasteryInfo): number => m.mehrfach && m.max !== null ? m.max : 1
+  const countOf = (skillId: string, masteryId: string): number =>
+    (pflicht[skillId] ?? []).filter((p) => p.id === masteryId).length
+
+  /** INT-000023: bis zur Obergrenze bleibt die Meisterschaft im Auswahlfeld. */
+  const availablePool = (skill: QualifyingSkill): MasteryInfo[] =>
+    skill.pool.filter((m) => countOf(skill.id, m.id) < maxOf(m))
+
+  const setPflichtForSkill = (skill: QualifyingSkill, m: PickedItem) => {
+    const next = { ...pflicht, [skill.id]: [...(pflicht[skill.id] ?? []), m] }
     setPflicht(next)
     updateStepDelta('Zauber', {
-      pflicht: Object.entries(next).map(([skillId, meisterschaft]) => ({ skillId, meisterschaft })),
+      pflicht: toPflichtArray(next),
+      spells: pickedSpells,
+    })
+  }
+
+  const removePflichtAt = (skillId: string, index: number) => {
+    const next = { ...pflicht }
+    const items = [...(next[skillId] ?? [])]
+    items.splice(index, 1)
+    if (items.length > 0) next[skillId] = items
+    else delete next[skillId]
+    setPflicht(next)
+    updateStepDelta('Zauber', {
+      pflicht: toPflichtArray(next),
       spells: pickedSpells,
     })
   }
@@ -255,7 +286,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     }
     setPickedSpells(next)
     updateStepDelta('Zauber', {
-      pflicht: Object.entries(pflicht).map(([skillId, meisterschaft]) => ({ skillId, meisterschaft })),
+      pflicht: toPflichtArray(pflicht),
       spells: next,
     })
   }
@@ -279,10 +310,10 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
   // INT-000018: Testmodus – alle geforderten Pflicht-Meisterschaften und
   // Zaubergrade mit zufällig gewählten, verfügbaren Einträgen belegen.
   const fillRandomly = () => {
-    const nextPflicht: Record<string, PickedItem> = {}
+    const nextPflicht: Record<string, PickedItem[]> = {}
     for (const skill of qualifyingSkills) {
-      const mastery = pickRandom(skill.pool)
-      if (mastery) nextPflicht[skill.id] = { id: mastery.id, name: mastery.name }
+      const mastery = pickRandom(availablePool(skill))
+      if (mastery) nextPflicht[skill.id] = [{ id: mastery.id, name: mastery.name }]
     }
 
     const nextSpells: PickedSpell[] = []
@@ -309,7 +340,7 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
     setPflicht(nextPflicht)
     setPickedSpells(nextSpells)
     updateStepDelta('Zauber', {
-      pflicht: Object.entries(nextPflicht).map(([skillId, meisterschaft]) => ({ skillId, meisterschaft })),
+      pflicht: toPflichtArray(nextPflicht),
       spells: nextSpells,
     })
   }
@@ -366,32 +397,59 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
             musst du genau eine Meisterschaft mit Schwelle 1 wählen.
           </p>
           {qualifyingSkills.map((skill) => {
-            const selected = pflicht[skill.id]
+            const selected = pflicht[skill.id] ?? []
+            const pool = availablePool(skill)
+            const anzahlProId = new Map<string, number>()
+            for (const p of selected) {
+              anzahlProId.set(p.id, (anzahlProId.get(p.id) ?? 0) + 1)
+            }
             return (
               <div key={skill.id} style={styles.skillRow}>
                 <div style={styles.skillInfo}>
                   <span style={styles.skillName}>{skill.name}</span>
                   <span style={styles.skillValue}>Wert {skill.value}</span>
                 </div>
-                <select
-                  style={styles.select}
-                  aria-label={`Meisterschaft für ${skill.name}`}
-                  value={selected?.id ?? ''}
-                  onChange={(e) => {
-                    const mastery = skill.pool.find((m) => m.id === e.target.value) ?? null
-                    setPflichtForSkill(skill, mastery ? { id: mastery.id, name: mastery.name } : null)
-                  }}
-                >
-                  <option value="">— Meisterschaft wählen —</option>
-                  {skill.pool.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-                {selected && skill.pool.find((m) => m.id === selected.id)?.effekt && (
-                  <span style={styles.masteryEffect}>
-                    {skill.pool.find((m) => m.id === selected.id)?.effekt}
-                  </span>
+                {selected.length > 0 && (
+                  <div style={styles.selectedMasteries}>
+                    {selected.map((p, i) => (
+                      <span key={i} style={styles.selectedMastery}>
+                        {displayNameWithCount(p.name, anzahlProId.get(p.id) ?? 1)}
+                        <button
+                          type="button"
+                          style={styles.removeMastery}
+                          aria-label={`${p.name} entfernen`}
+                          onClick={() => removePflichtAt(skill.id, i)}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 )}
+                {pool.length > 0 ? (
+                  <select
+                    style={styles.select}
+                    aria-label={`Meisterschaft für ${skill.name}`}
+                    value=""
+                    onChange={(e) => {
+                      const mastery = pool.find((m) => m.id === e.target.value)
+                      if (mastery) setPflichtForSkill(skill, { id: mastery.id, name: mastery.name })
+                    }}
+                  >
+                    <option value="">— Meisterschaft wählen —</option>
+                    {pool.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={styles.hint}>Keine weitere Meisterschaft verfügbar.</p>
+                )}
+                {selected.map((p, i) => {
+                  const effekt = skill.pool.find((m) => m.id === p.id)?.effekt
+                  return effekt
+                    ? <span key={`effekt-${i}`} style={styles.masteryEffect}>{effekt}</span>
+                    : null
+                })}
               </div>
             )
           })}
@@ -601,6 +659,18 @@ const styles: Record<string, React.CSSProperties> = {
   masteryEffect: {
     fontSize: 12,
     color: 'var(--text-secondary)',
+  },
+  selectedMasteries: {
+    display: 'flex', flexWrap: 'wrap', gap: 6,
+  },
+  selectedMastery: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '4px 8px', fontSize: 13, color: 'var(--text-primary)',
+  },
+  removeMastery: {
+    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0,
   },
   missingHint: {
     fontSize: 13,

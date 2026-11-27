@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { readPassiveBonusConfig } from '@mcc/shared'
+import { readPassiveBonusConfig, readMehrfachConfig, isPositiveIntegerInput } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 import PassiveBonusFields from './PassiveBonusFields'
 
@@ -34,6 +34,9 @@ export default function StrengthsView() {
   const [unterkategorie, setUnterkategorie] = useState('vorteil')
   const [bonusAktiv, setBonusAktiv] = useState(false)
   const [bonusWerte, setBonusWerte] = useState<Record<string, number>>({})
+  const [mehrfach, setMehrfach] = useState(false)
+  const [maxAuswahl, setMaxAuswahl] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
 
   const load = () => {
     fetch(`${API_BASE}/api/library/strengths`)
@@ -76,6 +79,14 @@ export default function StrengthsView() {
     } catch { return '' }
   }
 
+  const getMehrfachDisplay = (e: StrengthEntry): string | null => {
+    try {
+      const cfg = e.config ? JSON.parse(e.config) : {}
+      const mehrfach = readMehrfachConfig(cfg)
+      return mehrfach.aktiv ? `mehrfach wählbar (max ${mehrfach.max})` : null
+    } catch { return null }
+  }
+
   const creationOnly = entries.filter(e => getCreationOnly(e))
   const others = entries.filter(e => !getCreationOnly(e) && getKategorie(e) === 'staerke')
   const rassenVorteile = entries.filter(e => getKategorie(e) === 'rasse' && getUnterkategorie(e) === 'vorteil')
@@ -91,11 +102,19 @@ export default function StrengthsView() {
     setUnterkategorie('vorteil')
     setBonusAktiv(false)
     setBonusWerte({})
+    setMehrfach(false)
+    setMaxAuswahl('')
+    setFormError(null)
     setEditingId(null)
   }
 
   const handleSubmit = async () => {
     if (!name.trim()) return
+    if (mehrfach && !isPositiveIntegerInput(maxAuswahl)) {
+      setFormError('Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3).')
+      return
+    }
+    setFormError(null)
     const body = {
       name: name.trim(),
       description: description.trim() || null,
@@ -106,6 +125,9 @@ export default function StrengthsView() {
         ...(kategorie === 'rasse' ? { unterkategorie } : {}),
         ...(bonusAktiv
           ? { passive_bonus_aktiv: 'true', passive_bonus: { ...bonusWerte } }
+          : {}),
+        ...(mehrfach
+          ? { mehrfach_waehlbar: 'true', max_auswahl: maxAuswahl }
           : {}),
       }),
     }
@@ -153,6 +175,10 @@ export default function StrengthsView() {
       const bonus = readPassiveBonusConfig(cfg)
       setBonusAktiv(bonus.aktiv)
       setBonusWerte(bonus.werte)
+      const mehrfachCfg = readMehrfachConfig(cfg)
+      setMehrfach(mehrfachCfg.flag)
+      setMaxAuswahl(cfg.max_auswahl !== undefined && cfg.max_auswahl !== null ? String(cfg.max_auswahl) : '')
+      setFormError(null)
     } catch {
       setKosten('1')
       setNurBeiErstellung(false)
@@ -160,6 +186,9 @@ export default function StrengthsView() {
       setUnterkategorie('vorteil')
       setBonusAktiv(false)
       setBonusWerte({})
+      setMehrfach(false)
+      setMaxAuswahl('')
+      setFormError(null)
     }
     setEditingId(entry.id)
     setShowForm(true)
@@ -377,6 +406,40 @@ export default function StrengthsView() {
                 <span>Nur bei Erstellung wählbar</span>
               </label>
             </div>
+            <div style={styles.formRow}>
+              <label style={styles.checkboxLabel} htmlFor="strength-mehrfach">
+                <input
+                  id="strength-mehrfach"
+                  type="checkbox"
+                  checked={mehrfach}
+                  onChange={e => { setMehrfach(e.target.checked); setFormError(null) }}
+                />
+                <span>mehrfach wählbar</span>
+              </label>
+            </div>
+            {mehrfach && (
+              <div style={styles.formRow}>
+                <label style={styles.label} htmlFor="strength-max-auswahl">
+                  maximale Auswahl-Obergrenze
+                </label>
+                <input
+                  id="strength-max-auswahl"
+                  style={styles.input}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="z. B. 3"
+                  aria-describedby="strength-max-hinweis"
+                  value={maxAuswahl}
+                  onChange={e => { setMaxAuswahl(e.target.value); setFormError(null) }}
+                />
+                <span id="strength-max-hinweis" style={styles.fieldHint}>
+                  Nur ganze positive Zahlen (1, 2, 3, …).
+                </span>
+              </div>
+            )}
+            {formError && (
+              <div style={styles.errorBanner} role="alert">{formError}</div>
+            )}
             <PassiveBonusFields
               aktiv={bonusAktiv}
               werte={bonusWerte}
@@ -408,6 +471,7 @@ export default function StrengthsView() {
             <div style={styles.detailMeta}>
               Kosten: {getKosten(selectedEntry)}
               {getCreationOnly(selectedEntry) && ' · Nur bei Erstellung'}
+              {getMehrfachDisplay(selectedEntry) && ` · ${getMehrfachDisplay(selectedEntry)}`}
               {getKategorie(selectedEntry) === 'rasse' && (
                 <> · {getUnterkategorie(selectedEntry) === 'vorteil' ? 'Rassen-Vorteil' : 'Rassen-Nachteil'}</>
               )}
@@ -528,6 +592,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' },
+  fieldHint: { fontSize: 11, color: 'var(--text-tertiary)' },
   input: {
     background: 'var(--bg-primary)', border: '1px solid var(--border)',
     borderRadius: 6, padding: '10px 12px', fontSize: 14, color: 'var(--text-primary)',

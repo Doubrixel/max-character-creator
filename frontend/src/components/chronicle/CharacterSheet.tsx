@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAppContext } from '../../context/AppContext'
 import XpPanel from './XpPanel'
+import { readMehrfachConfig, zaehleAuswahlen, displayNameWithCount } from '@mcc/shared'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -36,6 +37,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
   const { reportApiError } = useAppContext()
   const [state, setState] = useState<Record<string, unknown> | null>(null)
   const [strengthNames, setStrengthNames] = useState<Record<string, string>>({})
+  const [strengthConfigs, setStrengthConfigs] = useState<Record<string, unknown>>({})
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -88,7 +90,7 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
     ])
       .then(([charData, strengthsData, skillsData, masteriesData, spellsData, racesData, culturesData]: [
         { state: Record<string, unknown> },
-        { id: string; name: string; description: string | null }[],
+        { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null }[],
         { id: string; name: string; description: string | null; config: string | null }[],
         { id: string; name: string; description: string | null; config: string | null }[],
@@ -100,6 +102,13 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
         const sMap: Record<string, string> = {}
         for (const s of strengthsData) sMap[s.id] = s.name
         setStrengthNames(sMap)
+
+        const sCfg: Record<string, unknown> = {}
+        for (const s of strengthsData) {
+          if (!s.config) continue
+          try { sCfg[s.id] = JSON.parse(s.config) } catch { sCfg[s.id] = {} }
+        }
+        setStrengthConfigs(sCfg)
         
         const strMap: Record<string, { name: string; description: string }> = {}
         for (const s of strengthsData) strMap[s.id] = { name: s.name, description: s.description || '' }
@@ -215,8 +224,43 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
     }
     return order.map((id) => {
       const data = counts.get(id)!
-      const displayName = data.count > 1 ? `${data.name} ${toRoman(data.count)}` : data.name
-      return { id: data.id, displayName }
+      return { id: data.id, displayName: displayNameWithCount(data.name, data.count) }
+    })
+  })()
+
+  // INT-000023: Mehrfach gewählte Meisterschaften erscheinen ebenfalls nur
+  // einmal mit römischer Zählung statt als mehrere gleichnamige Einträge.
+  const resolveMeisterschaftId = (raw: string): string => {
+    const value = (raw ?? '').trim()
+    if (!value || value.toLowerCase() === 'keine') return ''
+    if (masteryMap[value]) return value
+    const slug = value.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '_')
+    for (const [id, m] of Object.entries(masteryMap)) {
+      const nameSlug = m.name.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '_')
+      if (nameSlug === slug) return id
+    }
+    return value
+  }
+
+  const displayedMeisterschaften = (() => {
+    const meisterschaften = (state.meisterschaften ?? []) as { id: string; name: string }[]
+    const counts = new Map<string, { id: string; name: string; count: number }>()
+    const order: string[] = []
+    for (const m of meisterschaften) {
+      const id = resolveMeisterschaftId(m.id || m.name)
+      if (!id) continue
+      const name = masteryMap[id]?.name || m.name || id
+      const existing = counts.get(id)
+      if (existing === undefined) {
+        counts.set(id, { id, name, count: 1 })
+        order.push(id)
+      } else {
+        existing.count++
+      }
+    }
+    return order.map((id) => {
+      const data = counts.get(id)!
+      return { id: data.id, displayName: displayNameWithCount(data.name, data.count) }
     })
   })()
 
@@ -257,7 +301,15 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
             .filter(([id]) => !(id in skills))
             .map(([id, m]) => ({ id, name: m.name }))}
           learnableStrengths={Object.entries(strengthMap)
-            .filter(([id]) => !staerken.includes(id))
+            .filter(([id, m]) => {
+              // INT-000023: mehrfach wählbare Stärken bleiben bis zur
+              // Obergrenze zum regulären Preis erwerbbar.
+              const mehrfach = readMehrfachConfig(strengthConfigs[id])
+              const anzahl = zaehleAuswahlen(staerken, { id, namen: [m.name] })
+              return mehrfach.aktiv && mehrfach.max !== null
+                ? anzahl < mehrfach.max
+                : anzahl === 0
+            })
             .map(([id, m]) => ({ id, name: m.name }))}
           onChanged={load}
         />
@@ -430,28 +482,28 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
           </Section>
         )}
 
-        {((state.meisterschaften ?? []) as { id: string; name: string }[]).length > 0 && (
+        {displayedMeisterschaften.length > 0 && (
           <Section title="Meisterschaften">
             <div style={styles.tagList}>
-              {((state.meisterschaften ?? []) as { id: string; name: string }[]).map((m, i) => (
-                <span 
-                  key={i} 
+              {displayedMeisterschaften.map((item, i) => (
+                <span
+                  key={i}
                   style={{
                     ...styles.tag,
-                    ...(masteryMap[m.id]?.description || masteryMap[m.id]?.effekt ? styles.clickable : {})
+                    ...(masteryMap[item.id]?.description || masteryMap[item.id]?.effekt ? styles.clickable : {})
                   }}
                   onClick={() => {
-                    if (masteryMap[m.id]) {
+                    if (masteryMap[item.id]) {
                       setSelectedDetail({
                         type: 'Meisterschaft',
-                        name: m.name,
-                        description: masteryMap[m.id].description,
-                        extra: masteryMap[m.id].effekt
+                        name: item.displayName,
+                        description: masteryMap[item.id].description,
+                        extra: masteryMap[item.id].effekt
                       })
                     }
                   }}
                 >
-                  {m.name}
+                  {item.displayName}
                 </span>
               ))}
             </div>
@@ -573,19 +625,6 @@ export default function CharacterSheet({ characterId, onDelete }: CharacterSheet
       )}
     </div>
   )
-}
-
-function toRoman(n: number): string {
-  const numerals: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
-  let result = ''
-  let rest = n
-  for (const [value, symbol] of numerals) {
-    while (rest >= value) {
-      result += symbol
-      rest -= value
-    }
-  }
-  return result
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
