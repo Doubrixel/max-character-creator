@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { readPassiveBonusConfig } from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
+import PassiveBonusFields from './PassiveBonusFields'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -30,6 +32,8 @@ export default function StrengthsView() {
   const [nurBeiErstellung, setNurBeiErstellung] = useState(false)
   const [kategorie, setKategorie] = useState('staerke')
   const [unterkategorie, setUnterkategorie] = useState('vorteil')
+  const [bonusAktiv, setBonusAktiv] = useState(false)
+  const [bonusWerte, setBonusWerte] = useState<Record<string, number>>({})
 
   const load = () => {
     fetch(`${API_BASE}/api/library/strengths`)
@@ -85,6 +89,8 @@ export default function StrengthsView() {
     setNurBeiErstellung(false)
     setKategorie('staerke')
     setUnterkategorie('vorteil')
+    setBonusAktiv(false)
+    setBonusWerte({})
     setEditingId(null)
   }
 
@@ -98,6 +104,9 @@ export default function StrengthsView() {
         nur_bei_erstellung: nurBeiErstellung ? 'true' : 'false',
         kategorie,
         ...(kategorie === 'rasse' ? { unterkategorie } : {}),
+        ...(bonusAktiv
+          ? { passive_bonus_aktiv: 'true', passive_bonus: { ...bonusWerte } }
+          : {}),
       }),
     }
     if (editingId) {
@@ -141,11 +150,16 @@ export default function StrengthsView() {
       setNurBeiErstellung(cfg.nur_bei_erstellung === 'true')
       setKategorie(cfg.kategorie ?? 'staerke')
       setUnterkategorie(cfg.unterkategorie ?? 'vorteil')
+      const bonus = readPassiveBonusConfig(cfg)
+      setBonusAktiv(bonus.aktiv)
+      setBonusWerte(bonus.werte)
     } catch {
       setKosten('1')
       setNurBeiErstellung(false)
       setKategorie('staerke')
       setUnterkategorie('vorteil')
+      setBonusAktiv(false)
+      setBonusWerte({})
     }
     setEditingId(entry.id)
     setShowForm(true)
@@ -363,6 +377,13 @@ export default function StrengthsView() {
                 <span>Nur bei Erstellung wählbar</span>
               </label>
             </div>
+            <PassiveBonusFields
+              aktiv={bonusAktiv}
+              werte={bonusWerte}
+              onAktivChange={setBonusAktiv}
+              onWerteChange={setBonusWerte}
+              idPrefix="strength"
+            />
             <div style={styles.formActions}>
               <button style={styles.cancelBtn} onClick={() => { resetForm(); setShowForm(false) }}>
                 Abbrechen

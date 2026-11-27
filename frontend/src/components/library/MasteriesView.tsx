@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { readPassiveBonusConfig } from '@mcc/shared'
 import { SKILL_OPTIONS, FULL_MAGIC_SKILLS } from './typeSchemas'
 import { useAppContext } from '../../context/AppContext'
 import FilterPanel from './FilterPanel'
+import PassiveBonusFields from './PassiveBonusFields'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -205,6 +207,8 @@ export default function MasteriesView() {
   const [voraussetzungTyp, setVoraussetzungTyp] = useState('keine')
   const [voraussetzungId, setVoraussetzungId] = useState('')
   const [voraussetzungWert, setVoraussetzungWert] = useState('6')
+  const [bonusAktiv, setBonusAktiv] = useState(false)
+  const [bonusWerte, setBonusWerte] = useState<Record<string, number>>({})
 
   const [showFilter, setShowFilter] = useState(false)
   const [filterSelected, setFilterSelected] = useState<Map<number, Set<string>>>(() => new Map())
@@ -266,10 +270,12 @@ export default function MasteriesView() {
     setVoraussetzungTyp('keine')
     setVoraussetzungId('')
     setVoraussetzungWert('6')
+    setBonusAktiv(false)
+    setBonusWerte({})
     setEditingId(null)
   }
 
-  const buildConfig = () => {
+  const buildConfig = (): Record<string, unknown> => {
     const cfg: Record<string, string> = {
       effekt,
       kosten,
@@ -280,6 +286,10 @@ export default function MasteriesView() {
       cfg.voraussetzung_typ = voraussetzungTyp
       cfg.voraussetzung_id = voraussetzungId
       if (voraussetzungWert) cfg.voraussetzung_wert = voraussetzungWert
+    }
+    if (bonusAktiv) {
+      cfg.passive_bonus_aktiv = 'true'
+      return { ...cfg, passive_bonus: { ...bonusWerte } }
     }
     return cfg
   }
@@ -333,6 +343,9 @@ export default function MasteriesView() {
     setVoraussetzungTyp(cfg.voraussetzung_typ ?? 'keine')
     setVoraussetzungId(cfg.voraussetzung_id ?? '')
     setVoraussetzungWert(cfg.voraussetzung_wert ?? '6')
+    const bonus = readPassiveBonusConfig(cfg)
+    setBonusAktiv(bonus.aktiv)
+    setBonusWerte(bonus.werte)
     setEditingId(entry.id)
     setShowForm(true)
   }
@@ -616,6 +629,13 @@ export default function MasteriesView() {
               </select>
             </div>
             {renderVoraussetzungFields()}
+            <PassiveBonusFields
+              aktiv={bonusAktiv}
+              werte={bonusWerte}
+              onAktivChange={setBonusAktiv}
+              onWerteChange={setBonusWerte}
+              idPrefix="mastery"
+            />
             <div style={styles.formActions}>
               <button style={styles.cancelBtn} onClick={() => { resetForm(); setShowForm(false) }}>
                 Abbrechen
