@@ -9,6 +9,7 @@ Inhalt:
 
 - Entweder/Oder-Wahl der Kulturalternativen (INT-000016 / SF-000009)
 - Testmodus „Zufällig ausfüllen" (INT-000018 / SF-000010)
+- Geschwindigkeit (GES = GK + GE) als abgeleiteter Wert (INT-000019 / SF-000011)
 
 ---
 
@@ -296,3 +297,90 @@ passenden Einträge bereithält.
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die Bedienung des Buttons wird
   über manuelle QA-Fälle abgedeckt (Sichtbarkeit je Schritt, Zufälligkeit,
   Schrittisolierung, Kontrollinstanz ohne Variable, Bestandsvalidierung).
+
+---
+
+## Geschwindigkeit (GES = GK + GE) als abgeleiteter Wert (INT-000019 / SF-000011)
+
+Ziel-Ticket INT-000019 (SF-000011): Charaktere erhalten den abgeleiteten Wert
+„Geschwindigkeit" (GES) mit der verbindlichen Formel **GES = GK + GE** —
+Größenklasse plus Modifikator des Attributs Gewandheit (GEW). Er wird in der
+Charaktererstellung (Schritt „7. Attribute"), in der Chronik (Charakterbogen) und
+in der Bibliothek (Tab „Abgeleitete Werte") angezeigt.
+Stand: 27.11.2026. Dokumentiert ist ausschließlich das implementierte und
+QA-geprüfte Verhalten (PR #11, gemergt 27.11.2026; automatisierte Tests grün seit
+27.11.2026 09:33 UTC; QA-Testfälle TC-GES-01 bis TC-GES-08 bestanden).
+Anwendersicht: [`anwenderhandbuch.md`](anwenderhandbuch.md).
+
+Nicht im Umfang: eine manuell pflegbare GES-Eingabe, eine eigene Datenbankspalte
+bzw. Datenmigration und Änderungen an bestehenden abgeleiteten Werten oder deren
+Formeln.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Erstellung | Schritt „7. Attribute", Abschnitt „Abgeleitete Werte": Kachel „Geschwindigkeit" mit Formel „GK + GE" und berechnetem Wert. |
+| Chronik | Charakterbogen, Abschnitt „Abgeleitete Werte": Eintrag „GES" mit dem Wert — auch für Bestandscharaktere. |
+| Bibliothek | Tab „Abgeleitete Werte": Eintrag „Geschwindigkeit" mit der Formel „GK + GE" in der Zusammenfassungszeile. |
+| Ableitung | GES = GK + GE-Modifikator; `GE` bedeutet den Modifikator von `GEW`, nicht den Rohwert. Rein abgeleitet, nicht manuell editierbar, aktualisiert sich automatisch bei Änderung von GK oder GE. |
+
+Beispiele: Mensch (GK 3) mit GEW 18 (Modifikator +4) → GES 7; mit GEW 14 (+2) →
+GES 5; Elf (GK 2) mit GEW 14 → GES 4. Der Modifikator folgt
+`Math.floor((Wert − 10) / 2)` (18→+4, 14→+2, 12→+1, 10/11→0, 9/8→−1).
+Die Formel wird dort angezeigt, wo auch die übrigen abgeleiteten Werte ihre
+Formel zeigen (Erstellungskachel und Bibliothekszeile); der Charakterbogen zeigt
+den Wert unter dem Kürzel „GES".
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/character.ts` | `geschwindigkeit(gk, gewandheit)` — zentrale Berechnung `GK + attributeModifier(GEW)`; `DerivedValues`-Interface und `ZERO_DERIVED` um `GES` ergänzt. Fehlt `gewandheit`, wird der Durchschnittswert 10 (Modifikator 0) angenommen. |
+| `shared/src/attributes.ts` | `attributeModifier(value)` = `Math.floor((value − 10) / 2)` — dieselbe Modifikatorregel wie bei allen anderen Formeln. |
+| `shared/src/formula.ts` | `evaluateFormula` wertet die Kachelformel „GK + GE" aus; `GE` ist über `ATTRIBUTE_ALIASES` auf `GEW` abgebildet. Fehlt der Wert, liefert sie `{ value: null, display: '—' }`. |
+| `shared/src/reducers.ts` | `attributeReducer` setzt `derived.GES = geschwindigkeit(gk, attr.GEW)`; `buildFinalCharacter` übernimmt `derived` in den Endzustand. |
+| `backend/src/routes/characters.ts` | `POST /api/characters` persistiert `derived` inkl. GES; `GET /api/characters/:id/state` berechnet `derived.GES` beim Lesen aus GK/GEW neu, ohne den gespeicherten Zustand zu verändern. |
+| `backend/src/db/seed.ts` | `DERIVED_VALUE_SEED` mit „Geschwindigkeit" / „GK + GE"; `syncDerivedValues` ergänzt fehlende Einträge bei jedem Start. |
+| `frontend/src/components/creation/AttributeStep.tsx` | Lädt `/api/library/derived-values`, zeigt die Kachel mit Name, Formel und Wert; reiner Anzeigetext ohne Eingabeelement. |
+| `frontend/src/components/chronicle/CharacterSheet.tsx` | Gibt `derived` generisch im Abschnitt „Abgeleitete Werte" aus. |
+| `backend/src/routes/characters-ges.test.ts`, `characters-ges-test-child.ts` | Automatisierte Prüfung von Seed, Formelbeispielen, Persistenz und Legacy-Fall (siehe „Prüfungen"). |
+
+### Datenfluss
+
+1. **Bibliothek/Seed:** `seedIfNeeded` ruft bei jedem Serverstart `syncDerivedValues`. Fehlt der Eintrag „Geschwindigkeit", wird er mit `config = {"formel":"GK + GE"}` und der Beschreibung „Bewegungsrate eines Charakters im Kampf" angelegt; vorhandene Einträge bleiben unberührt.
+2. **Erstellung:** `AttributeStep` lädt die abgeleiteten Werte aus der Bibliothek und zeigt die Kachel „Geschwindigkeit" mit Formel „GK + GE". Die Größenklasse stammt aus dem Schritt „Rasse" (`groessenklasse`, sonst 3), `GE` aus dem Modifikator des zugeordneten GEW-Werts. `evaluateFormula` liefert z. B. 3 + 4 = 7. Ohne GEW-Zuordnung bleibt der Wert `null` und die Anzeige „—". Jede Änderung an GEW oder an der Rasse löst eine Neuberechnung aus — ohne Neuladen der Seite.
+3. **Abschluss:** `POST /api/characters` → `buildFinalCharacter` → `attributeReducer` schreibt `derived.GES = geschwindigkeit(GK, GEW)` in den gespeicherten Zustand des Charakters.
+4. **Chronik:** `GET /api/characters/:id/state` liest den Zustand und setzt `derived.GES` aus `groessenklasse` (bzw. `rasse.groessenklasse`, sonst 3) und `attribute.GEW` neu. Neue und Bestandscharaktere liefern damit denselben Wert; der gespeicherte Zustand wird nicht überschrieben. `CharacterSheet` stellt den Eintrag „GES" im Abschnitt „Abgeleitete Werte" dar.
+
+### Validierung
+
+- Es gibt keine eigene Eingabe- oder Grenzwertvalidierung für GES: der Wert ist ausschließlich aus GK und GEW abgeleitet und nirgends manuell setzbar.
+- In der Erstellung gilt ein Wert nur als auswertbar, wenn GEW zugeordnet ist; andernfalls zeigt `evaluateFormula` den Platzhalter „—" statt einer Zahl (TC-GES-08).
+- Die Bibliotheksdefinition wird nur ergänzt, nie überschrieben; die Formeln und Werte der übrigen abgeleiteten Werte bleiben unverändert (TC-GES-01, TC-GES-05).
+
+### Fehlerverhalten
+
+- **Ohne GEW in der Erstellung:** Die Kachel zeigt „—", weder „0" noch die Größenklasse allein. Ein im Werte-Pool liegender, aber nicht zugeordneter Wert zählt nicht als GEW (TC-GES-08).
+- **Ohne GEW im gespeicherten Zustand:** `geschwindigkeit` fällt auf den Attributwert 10 (Modifikator 0) zurück, d. h. GES = GK; es entsteht kein Fehler und kein leerer Wert.
+- **Unvollständige/defekte gespeicherte Daten:** `GET /api/characters/:id/state` prüft die Typen von `derived`, `groessenklasse` und `attribute.GEW`; fehlende oder falsche Typen führen zum Default (GK 3 bzw. `undefined`), nicht zu einem Absturz.
+- **Manipulationsversuche:** Die Kachel und der Charakterbogen sind reiner Text ohne `textbox`, `spinbutton` oder `combobox`; Direkteingaben ändern den Wert nicht (TC-GES-07). Änderungen entstehen ausschließlich über GK oder GE.
+
+### Persistenz
+
+- **Neue Charaktere:** GES wird als Teil von `derived` im JSON-Zustand (`characters.state`) gespeichert (`buildFinalCharacter`).
+- **Bestandscharaktere:** Kein gespeichertes GES, keine eigene Spalte, keine Datenmigration. Der Wert wird bei jedem Lesen über `/api/characters/:id/state` aus den vorhandenen Daten GK/GEW berechnet und nur in der Antwort ergänzt; der Datenbankzustand bleibt unverändert (automatisiert geprüft).
+- **Bibliothek:** Der Eintrag liegt in `derived_values` mit `config.formel = "GK + GE"` und wird durch `syncDerivedValues` auch in bestehenden Datenbanken beim Serverstart nachgetragen.
+
+### Sicherheitsgrenzen
+
+- Keine neuen Endpunkte und keine neuen Berechtigungswege; GES wird über die bestehenden Bibliotheks- und Charakter-Routen ausgeliefert.
+- Der Wert ist rein abgeleitet: Es gibt kein clientseitiges Setzen von `derived.GES` und keine editierbare UI-Fläche.
+- Bestandsdaten werden nicht umgeschrieben; die Ergänzung erfolgt ausschließlich in der Leseantwort (keine destruktive Migration).
+- Keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/routes/characters-ges.test.ts` (in `backend/package.json` registriert und damit über `npm test` lauffähig): prüft den Seed und die Formel „GK + GE", die Beispiele 3+4=7, 3+2=5, 2+2=4 und 3+1=4, den Platzhalter „—" ohne GEW, die Persistenz (GES 7), den Legacy-Fall (GES 4 zur Laufzeit, übrige Werte unverändert, gespeicherter Zustand ohne GES) sowie die Unverändertheit von LP/VTD/INI und der Verteidigungsformel.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 27.11.2026 09:33 UTC).
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über TC-GES-01 bis TC-GES-08 (Anzeige und Formel in Erstellung/Bibliothek, sofortige Aktualisierung bei GE/GK, Chronik neu und Bestand, Nicht-Editierbarkeit, Platzhalter). Alle Fälle am 27.11.2026 bestanden.

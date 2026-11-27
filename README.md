@@ -4,11 +4,12 @@
 
 - [`docs/technische-dokumentation.md`](docs/technische-dokumentation.md) – Technical
   guide: the `SYSTEM=TEST` test mode (gate, components, validation, persistence,
-  checks) and the Entweder/Oder choice of culture alternatives in the character
-  creation „Kultur" step.
+  checks), the Entweder/Oder choice of culture alternatives in the character
+  creation „Kultur" step, and the derived value „Geschwindigkeit" (GES = GK + GE)
+  in creation, chronicle and library.
 - [`docs/anwenderhandbuch.md`](docs/anwenderhandbuch.md) – User manual (German):
-  using the „Zufällig ausfüllen" test-mode button and choosing culture alternatives
-  during character creation.
+  using the „Zufällig ausfüllen" test-mode button, choosing culture alternatives
+  during character creation, and reading the derived value „Geschwindigkeit" (GES).
 - [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
   validation of the library culture editor (talent/strength limits, Entweder/Oder
   alternatives, all message texts).
