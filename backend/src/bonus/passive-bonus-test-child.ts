@@ -113,10 +113,14 @@ try {
   ]);
   const once = collectPassiveBonuses(catalog, { ids: ['v1'], names: ['QA Vorteil'] });
   assert.deepEqual(once, { KON: 2 }, 'Id- und Namensverweis zählen denselben Eintrag nur einmal');
-  const state: Record<string, unknown> = { attribute: { KON: 12 }, derived: { LP: 20 }, groessenklasse: 3 };
+  const inputAttribute = { KON: 12 };
+  const state: Record<string, unknown> = { attribute: inputAttribute, derived: { LP: 20 }, groessenklasse: 3 };
   applyPassiveBonuses(state, [{ KON: 2, LP: 5 }]);
   assert.deepEqual(state.attribute, { KON: 14 });
   assert.deepEqual(state.derived, { LP: 25 });
+  // Regression (Review INT-000020): die Eingabestruktur darf nicht mutiert
+  // werden — sie ist dieselbe Referenz wie der Schritt-Delta des Requests.
+  assert.deepEqual(inputAttribute, { KON: 12 }, 'Eingabe-Attributobjekt bleibt unverändert');
 
   // --- Bibliothekseinträge mit passiven Boni anlegen -------------------------
   const vorteilId = await postLibrary('strengths', 'QA Vorteil Bonus', {
@@ -161,6 +165,16 @@ try {
   assert.equal(created.state.derived.LP, 20, 'LP bleibt ohne Bonus unverändert berechnet');
   assert.ok(vorteilId && created.state.staerken.includes('QA Vorteil Bonus'), 'Vorteil ist im Charakter gespeichert');
   assert.ok(created.state.rassenVorteile.includes('QA Rassenvorteil Bonus'));
+
+  // Regression (Review INT-000020): die persistierten Erstellungsschritte
+  // müssen die Roheingaben enthalten. Würde applyPassiveBonuses das von
+  // `steps.attribute.attribute` geteilte Objekt mutieren, landeten die
+  // verbonusten Werte in characterSteps und eine Neuberechnung zählte doppelt.
+  const rawStepRes = await app.request(`/api/characters/${created.id}/steps/attribute`);
+  assert.equal(rawStepRes.status, 200);
+  const rawStep = await rawStepRes.json() as { delta: { attribute: Record<string, number> } };
+  assert.equal(rawStep.delta.attribute.KON, 12, 'gespeicherter KON-Rohwert bleibt 12');
+  assert.equal(rawStep.delta.attribute.MUT, 14, 'gespeicherter MUT-Rohwert bleibt 14');
 
   const read = await getState(created.id);
   assert.equal(read.state.attribute.KON, 14, 'Chronik liest den KON-Bonus');

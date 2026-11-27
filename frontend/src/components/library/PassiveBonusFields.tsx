@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   isIntegerInput,
   PASSIVE_ATTRIBUTE_STATS,
@@ -27,8 +27,19 @@ function IntegerField({
   onChange: (value: number | undefined) => void
 }) {
   const [draft, setDraft] = useState(value === undefined ? '' : String(value))
+  // Letzter von dieser Komponente an den Parent gemeldeter Wert. Damit lässt
+  // sich der Reset auf wirklich externe Änderungen beschränken (z. B. Laden
+  // eines anderen Bibliothekseintrags).
+  const reported = useRef<number | undefined>(value)
 
   useEffect(() => {
+    // Nur bei extern geänderten Werten überschreiben. Insbesondere der
+    // Zwischenzustand "-" (Vorzeichen ohne Ziffer) muss erhalten bleiben,
+    // sonst lässt sich ein bestehender Wert nicht mehr negativ machen: das
+    // onChange(undefined) entfernt den Schlüssel und würde den Effekt mit
+    // value -> undefined auslösen, der das Minus dann löscht.
+    if (value === reported.current) return
+    reported.current = value
     setDraft(value === undefined ? '' : String(value))
   }, [value])
 
@@ -38,8 +49,11 @@ function IntegerField({
     setDraft(raw)
     if (/^-?\d+$/.test(raw)) {
       const parsed = Number.parseInt(raw, 10)
-      onChange(Number.isSafeInteger(parsed) ? parsed : undefined)
+      const next = Number.isSafeInteger(parsed) ? parsed : undefined
+      reported.current = next
+      onChange(next)
     } else {
+      reported.current = undefined
       onChange(undefined)
     }
   }

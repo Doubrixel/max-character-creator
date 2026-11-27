@@ -205,7 +205,12 @@ export function applyPassiveBonuses(state: object, bonuses: readonly PassiveBonu
   }
   if (Object.keys(merged).length === 0) return
 
-  const attribute = asRecord(target.attribute) ?? {}
+  // Wichtig: nie die vom Request stammenden Objekte mutieren. `final.attribute`
+  // teilt die Referenz mit `steps.attribute.attribute` (siehe attributeReducer);
+  // ein direktes Überschreiben würde die gespeicherten Roheingaben in
+  // `characterSteps` verbonsten und bei Neuberechnung doppelt zählen lassen.
+  const sourceAttribute = asRecord(target.attribute)
+  const attribute: Record<string, number | undefined> = sourceAttribute ? { ...sourceAttribute } : {}
   let attributeChanged = false
   for (const { key } of PASSIVE_ATTRIBUTE_STATS) {
     const bonus = merged[key]
@@ -216,7 +221,8 @@ export function applyPassiveBonuses(state: object, bonuses: readonly PassiveBonu
   }
   if (attributeChanged) target.attribute = attribute
 
-  const derived = asRecord(target.derived) ?? {}
+  const sourceDerived = asRecord(target.derived)
+  const derived: Record<string, number | undefined> = sourceDerived ? { ...sourceDerived } : {}
   let derivedChanged = false
   for (const { key } of PASSIVE_DERIVED_STATS) {
     if (key === 'GK') continue
