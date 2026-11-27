@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { distributePoints, pickRandom } from '../../testmode/random'
+import { readMehrfachConfig } from '@mcc/shared'
 
 const INITIAL_POINTS = 20
 
@@ -31,10 +32,13 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number; kategorie: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{
+    id: string; name: string; desc: string; kosten: number; kategorie: string;
+    mehrfach: boolean; max: number | null;
+  }[]>([])
   const [skillsLoading, setSkillsLoading] = useState(true)
   const [skillDelta, setSkillDelta] = useState<Record<string, number>>({})
-  const [staerke, setStaerke] = useState<string>('')
+  const [staerken, setStaerken] = useState<string[]>([])
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -54,7 +58,16 @@ export default function KulturStep({ onValid }: KulturStepProps) {
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setStaerkenData(strengthsData.map((s) => {
           const cfg = s.config ? JSON.parse(s.config) : {}
-          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1, kategorie: cfg.kategorie || 'staerke' }
+          const mehrfach = readMehrfachConfig(cfg)
+          return {
+            id: s.id,
+            name: s.name,
+            desc: s.description || '',
+            kosten: parseInt(cfg.kosten) || 1,
+            kategorie: cfg.kategorie || 'staerke',
+            mehrfach: mehrfach.aktiv,
+            max: mehrfach.max,
+          }
         }).filter(s => s.kategorie !== 'rasse'))
       })
       .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
@@ -70,10 +83,17 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     const saved = stepData as {
       skills?: Record<string, number>
       staerke?: string
+      staerken?: string[]
     } | null
 
     setSkillDelta(saved?.skills ?? {})
-    setStaerke(saved?.staerke ?? '')
+    setStaerken(
+      saved?.staerken?.length
+        ? saved.staerken
+        : saved?.staerke
+          ? [saved.staerke]
+          : [],
+    )
   }, [stepData, skillsLoading, talents, weapons, magicSchools])
 
   useEffect(() => {
@@ -85,22 +105,32 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
   const getSkillValue = (id: string) => (baseSkills[id] ?? 0) + (skillDelta[id] ?? 0)
 
-  const saveDelta = (newDelta: Record<string, number>, newStaerke?: string) => {
+  const saveDelta = (newDelta: Record<string, number>, newStaerken: string[] = staerken) => {
     const cleaned: Record<string, number> = {}
     for (const [k, v] of Object.entries(newDelta)) {
       if (v > 0) cleaned[k] = v
     }
-    updateStepDelta('kindheit', { skills: cleaned, staerke: newStaerke ?? staerke })
+    updateStepDelta('kindheit', {
+      skills: cleaned,
+      staerke: newStaerken[0] ?? '',
+      staerken: [...newStaerken],
+    })
   }
 
   const eligibleStaerken = staerkenData.filter((s) => s.kosten === 1)
-  const staerkeUsed = staerke ? 1 : 0
-  const staerkeAvailable = 1 - staerkeUsed
+  const countOf = (id: string): number => staerken.filter((value) => value === id).length
+  const maxOf = (s: { mehrfach: boolean; max: number | null }): number =>
+    s.mehrfach && s.max !== null ? s.max : 1
+  // INT-000023: Eine mehrfach wählbare Stärke bleibt angeboten, bis ihre
+  // Obergrenze erreicht ist; danach verschwindet sie aus der Auswahl.
+  const selectableStaerken = eligibleStaerken.filter(
+    (s) => s.mehrfach ? countOf(s.id) < maxOf(s) : true,
+  )
 
   useEffect(() => {
-    const valid = staerke !== '' && availablePoints <= 0
+    const valid = staerken.length > 0 && availablePoints <= 0
     onValid(valid)
-  }, [staerke, availablePoints, onValid])
+  }, [staerken, availablePoints, onValid])
 
   const incrementSkill = (id: string) => {
     const current = getSkillValue(id)
@@ -128,9 +158,17 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     return 6;
   }
 
-  const handleStaerke = (id: string) => {
-    setStaerke(id)
-    saveDelta(skillDelta, id)
+  const handleStaerke = (s: { id: string; mehrfach: boolean; max: number | null }) => {
+    if (s.mehrfach) {
+      if (countOf(s.id) >= maxOf(s)) return
+      const next = [...staerken, s.id]
+      setStaerken(next)
+      saveDelta(skillDelta, next)
+    } else {
+      const next = [s.id]
+      setStaerken(next)
+      saveDelta(skillDelta, next)
+    }
   }
 
   // INT-000018: Testmodus – alle 20 Fertigkeitspunkte zufällig verteilen und
@@ -148,8 +186,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       INITIAL_POINTS,
     )
     setSkillDelta(next)
-    setStaerke(staerkeId)
-    saveDelta(next, staerkeId)
+    setStaerken([staerkeId])
+    saveDelta(next, [staerkeId])
   }
   useStepFill(fillRandomly, !skillsLoading && talents.length > 0)
 
@@ -205,8 +243,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       {skillsLoading && <div style={styles.loading}>Lade Skills...</div>}
 
       <div style={styles.counters}>
-        <div style={{ ...styles.counter, ...(staerkeAvailable === 0 ? styles.counterZero : {}) }}>
-          Stärke: {staerkeAvailable}
+        <div style={{ ...styles.counter, ...(staerken.length > 0 ? styles.counterZero : {}) }}>
+          Stärken gewählt: {staerken.length}
         </div>
         <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
           Fertigkeits-Punkte: {availablePoints}
@@ -226,16 +264,20 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
         <div style={styles.staerkenGrid}>
-          {eligibleStaerken.map((s) => (
+          {selectableStaerken.map((s) => (
             <button
               key={s.id}
-              style={{ ...styles.staerkeCard, ...(staerke === s.id ? styles.staerkeCardSelected : {}) }}
-              onClick={() => handleStaerke(s.id)}
+              style={{ ...styles.staerkeCard, ...(countOf(s.id) > 0 ? styles.staerkeCardSelected : {}) }}
+              aria-pressed={countOf(s.id) > 0}
+              onClick={() => handleStaerke(s)}
             >
               <div style={styles.staerkeHeader}>
                 <span style={styles.staerkeName}>{s.name}</span>
                 <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
               </div>
+              {s.mehrfach && (
+                <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
+              )}
               <span style={styles.staerkeDesc}>{s.desc}</span>
             </button>
           ))}
@@ -384,5 +426,10 @@ const styles: Record<string, React.CSSProperties> = {
   staerkeDesc: {
     fontSize: 12,
     color: 'var(--text-secondary)',
+  },
+  staerkeCount: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--accent)',
   },
 }

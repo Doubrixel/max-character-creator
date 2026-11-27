@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, ReactNode } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { distributePoints, pickExactCostSubset, pickRandom } from '../../testmode/random'
-import { ALL_RESOURCES } from '@mcc/shared'
+import { ALL_RESOURCES, readMehrfachConfig, displayNameWithCount } from '@mcc/shared'
 
 const DEFAULT_SKILL_MAX = 6
 
@@ -53,7 +53,10 @@ export default function PointDistributionStep({
   const [talents, setTalents] = useState<{ id: string; name: string }[]>([])
   const [weapons, setWeapons] = useState<{ id: string; name: string }[]>([])
   const [magicSchools, setMagicSchools] = useState<{ id: string; name: string }[]>([])
-  const [staerkenData, setStaerkenData] = useState<{ id: string; name: string; desc: string; kosten: number; kategorie: string }[]>([])
+  const [staerkenData, setStaerkenData] = useState<{
+    id: string; name: string; desc: string; kosten: number; kategorie: string;
+    mehrfach: boolean; max: number | null;
+  }[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [skills, setSkills] = useState<Record<string, number>>({})
   const [staerken, setStaerken] = useState<string[]>([])
@@ -78,7 +81,16 @@ export default function PointDistributionStep({
         setMagicSchools(parsed.filter((s) => s.config.kategorie === 'magie').map((s) => ({ id: s.id, name: s.name })))
         setStaerkenData(strengthsData.map((s) => {
           const cfg = s.config ? JSON.parse(s.config) : {}
-          return { id: s.id, name: s.name, desc: s.description || '', kosten: parseInt(cfg.kosten) || 1, kategorie: cfg.kategorie || 'staerke' }
+          const mehrfach = readMehrfachConfig(cfg)
+          return {
+            id: s.id,
+            name: s.name,
+            desc: s.description || '',
+            kosten: parseInt(cfg.kosten) || 1,
+            kategorie: cfg.kategorie || 'staerke',
+            mehrfach: mehrfach.aktiv,
+            max: mehrfach.max,
+          }
         }).filter(s => s.kategorie !== 'rasse'))
       })
       .catch(() => reportApiError('Bibliotheksdaten konnten nicht geladen werden'))
@@ -128,7 +140,13 @@ export default function PointDistributionStep({
 
   const skillAvailable = skillPoints - skillUsed
 
-  const eligibleStaerken = staerkenData.filter((s) => s.kosten <= staerkenMaxKosten)
+  const countOf = (id: string): number => staerken.filter((value) => value === id).length
+  const maxOf = (s: { mehrfach: boolean; max: number | null }): number =>
+    s.mehrfach && s.max !== null ? s.max : 1
+  // INT-000023: mehrfach wählbare Stärken werden bis zur Obergrenze angeboten.
+  const eligibleStaerken = staerkenData.filter(
+    (s) => s.kosten <= staerkenMaxKosten && (!s.mehrfach || countOf(s.id) < maxOf(s)),
+  )
   const staerkenUsed = staerken.reduce((sum, id) => {
     const s = staerkenData.find((x) => x.id === id)
     return sum + (s?.kosten ?? 1)
@@ -212,17 +230,27 @@ export default function PointDistributionStep({
     persist(next, staerken, resourceLevels)
   }
 
-  const handleStaerke = (id: string) => {
-    if (staerken.includes(id)) {
-      const next = staerken.filter((s) => s !== id)
+  const handleStaerke = (s: { id: string; kosten: number; mehrfach: boolean; max: number | null }) => {
+    if (!s.mehrfach && staerken.includes(s.id)) {
+      const next = staerken.filter((value) => value !== s.id)
       setStaerken(next)
       persist(skills, next, resourceLevels)
-    } else {
-      if (staerkenAvailable <= 0) return
-      const next = [...staerken, id]
-      setStaerken(next)
-      persist(skills, next, resourceLevels)
+      return
     }
+    if (s.mehrfach && countOf(s.id) >= maxOf(s)) return
+    if (staerkenAvailable < s.kosten) return
+    const next = [...staerken, s.id]
+    setStaerken(next)
+    persist(skills, next, resourceLevels)
+  }
+
+  const removeOneStaerke = (id: string) => {
+    const index = staerken.indexOf(id)
+    if (index < 0) return
+    const next = [...staerken]
+    next.splice(index, 1)
+    setStaerken(next)
+    persist(skills, next, resourceLevels)
   }
 
   const incrementResource = (name: string) => {
@@ -397,9 +425,28 @@ export default function PointDistributionStep({
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>{staerkenPoints} Stärken wählen</h3>
+        {staerkenData.some((s) => s.mehrfach && countOf(s.id) > 0) && (
+          <div style={styles.selectedStaerken}>
+            {staerkenData
+              .filter((s) => s.mehrfach && countOf(s.id) > 0)
+              .map((s) => (
+                <span key={s.id} style={styles.selectedStaerke}>
+                  {displayNameWithCount(s.name, countOf(s.id))}
+                  <button
+                    type="button"
+                    style={styles.removeStaerke}
+                    aria-label={`${s.name} entfernen`}
+                    onClick={() => removeOneStaerke(s.id)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+          </div>
+        )}
         <div style={styles.staerkenGrid}>
           {eligibleStaerken.map((s) => {
-            const isSelected = staerken.includes(s.id)
+            const isSelected = countOf(s.id) > 0
             const isDisabled = !isSelected && staerkenAvailable < s.kosten
             return (
               <button
@@ -409,13 +456,17 @@ export default function PointDistributionStep({
                   ...(isSelected ? styles.staerkeCardSelected : {}),
                   ...(isDisabled ? styles.staerkeCardDisabled : {}),
                 }}
-                onClick={() => handleStaerke(s.id)}
+                aria-pressed={isSelected}
+                onClick={() => handleStaerke(s)}
                 disabled={isDisabled}
               >
                 <div style={styles.staerkeHeader}>
                   <span style={styles.staerkeName}>{s.name}</span>
                   <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
                 </div>
+                {s.mehrfach && (
+                  <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
+                )}
                 <span style={styles.staerkeDesc}>{s.desc}</span>
               </button>
             )
@@ -573,5 +624,22 @@ const styles: Record<string, React.CSSProperties> = {
   staerkeDesc: {
     fontSize: 12,
     color: 'var(--text-secondary)',
+  },
+  staerkeCount: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--accent)',
+  },
+  selectedStaerken: {
+    display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12,
+  },
+  selectedStaerke: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '4px 8px', fontSize: 13, color: 'var(--text-primary)',
+  },
+  removeStaerke: {
+    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0,
   },
 }

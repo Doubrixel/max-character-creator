@@ -61,7 +61,10 @@ export interface KulturDelta {
 
 export interface KindheitDelta {
   skills: Record<string, number>
+  /** Erste Stärke (Altbestand / Kompatibilität mit bestehenden Deltas). */
   staerke: string
+  /** Alle gewählten Stärken; bei mehrfach wählbaren Einträgen mehrere Ids. */
+  staerken?: string[]
 }
 
 export interface AusbildungDelta {

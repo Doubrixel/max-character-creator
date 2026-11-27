@@ -265,8 +265,16 @@ export function buildFinalCharacter(name: string, steps: StepDeltas): FinalChara
   const rassenVorteile = steps.rasse?.statblock.vorteile ?? []
   const rassenNachteile = steps.rasse?.statblock.nachteile ?? []
 
+  // INT-000023: Die Kindheit kann eine mehrfach wählbare Stärke mehrfach
+  // vergeben. `staerke` bleibt für Altbestand erhalten, `staerken` enthält
+  // alle Auswahlen (und hat Vorrang, wenn vorhanden).
+  const kindheitStaerken = steps.kindheit?.staerken?.length
+    ? steps.kindheit.staerken
+    : steps.kindheit?.staerke
+      ? [steps.kindheit.staerke]
+      : []
   const staerken = [
-    ...(steps.kindheit?.staerke ? [steps.kindheit.staerke] : []),
+    ...kindheitStaerken,
     ...(state.staerken ?? []),
   ]
 
