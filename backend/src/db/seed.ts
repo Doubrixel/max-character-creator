@@ -105,6 +105,10 @@ const DERIVED_VALUE_SEED = [
   { name: 'Schadensschwelle', description: 'Ab diesem Schaden wird der Charakter beeinträchtigt', formel: 'GK - 3 + KON' },
   { name: 'Initiative', description: 'Reihenfolge im Kampf; 1d10 wird gewürfelt', formel: '20 - INT - GE - 1d10' },
   { name: 'GK', description: 'Größenklasse der Rasse', formel: 'GK' },
+  // INT-000019 (SF-000011): GES = GK + GE. Die Formel wird in der Erstellung
+  // (Kachel „Abgeleitete Werte") und in der Bibliothek angezeigt; bestehende
+  // Datenbanken ergänzen den Eintrag beim nächsten Start über syncDerivedValues.
+  { name: 'Geschwindigkeit', description: 'Bewegungsrate eines Charakters im Kampf', formel: 'GK + GE' },
 ];
 
 async function syncDerivedValues() {

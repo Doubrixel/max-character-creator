@@ -1,7 +1,7 @@
 import { parseChoiceKey, GENERIC_SKILL_NAMES } from './herkunft'
 import { attributeModifier } from './attributes'
 import { gewaehrteStaerken } from './cultures'
-import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION } from './character'
+import { CharacterState, FinalCharacter, DerivedValues, FINAL_CHARACTER_VERSION, geschwindigkeit } from './character'
 import {
   StepKey,
   STEP_ORDER,
@@ -173,6 +173,9 @@ const attributeReducer: Reducer = (stats, delta) => {
     GW: 12 + mod('MUT') + mod('KON'),
     SS: gk - 3 + mod('KON'),
     INI: 20 - mod('INT') - mod('GEW'),
+    // INT-000019 (SF-000011): GES = GK + GE — zentral über `geschwindigkeit`
+    // berechnet, damit Erstellung, Chronik und Bibliothek denselben Wert liefern.
+    GES: geschwindigkeit(gk, attr.GEW),
   };
   return {
     ...stats,
@@ -254,7 +257,7 @@ export function recalculateStatsUpTo(
   return stats;
 }
 
-const ZERO_DERIVED: DerivedValues = { LP: 0, FK: 0, SP: 0, VTD: 0, KW: 0, GW: 0, SS: 0, INI: 0 }
+const ZERO_DERIVED: DerivedValues = { LP: 0, FK: 0, SP: 0, VTD: 0, KW: 0, GW: 0, SS: 0, INI: 0, GES: 0 }
 
 export function buildFinalCharacter(name: string, steps: StepDeltas): FinalCharacter {
   const state = recalculateStats(steps)
