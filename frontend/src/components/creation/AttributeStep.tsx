@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { evaluateFormula, attributeModifier } from '@mcc/shared'
+import {
+  evaluateFormula,
+  attributeModifier,
+  previewStatsWithBonuses,
+  PASSIVE_DERIVED_STATS,
+  type PassiveBonus,
+} from '@mcc/shared'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { shuffled } from '../../testmode/random'
@@ -48,6 +54,7 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
   const [slotAssignments, setSlotAssignments] = useState<Partial<Record<AttributeKey, number>>>({})
   const [rollsDetail, setRollsDetail] = useState<(RollDetail | null)[]>(Array(ATTRIBUTES.length).fill(null))
   const [derivedDefs, setDerivedDefs] = useState<{ name: string; description: string; formel: string }[]>([])
+  const [passiveBonuses, setPassiveBonuses] = useState<PassiveBonus>({})
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -69,6 +76,34 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
       })
       .catch(() => reportApiError('Abgeleitete Werte konnten nicht geladen werden'))
   }, [])
+
+  // INT-000022: Passive Boni der bereits gewählten Vorteile/Meisterschaften
+  // laden. Beim Vergeben der Attributwerte ändern sich die Bonusquellen nicht;
+  // der Schlüssel verhindert daher unnötige Requests pro Eingabe.
+  const bonusSourceKey = JSON.stringify({
+    rasse: stepDeltas.rasse?.statblock?.vorteile ?? [],
+    kultur: stepDeltas.kultur?.kulturConfig ?? null,
+    kindheit: stepDeltas.kindheit?.staerke ?? null,
+    ausbildung: stepDeltas.ausbildung?.staerken ?? [],
+    Hobbybedarf: stepDeltas.Hobbybedarf?.staerken ?? [],
+    Zauber: stepDeltas.Zauber?.pflicht ?? [],
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE}/api/characters/preview-bonuses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps: stepDeltas }),
+    })
+      .then((r) => r.json())
+      .then((data: { bonuses?: PassiveBonus }) => {
+        if (!cancelled) setPassiveBonuses(data.bonuses ?? {})
+      })
+      .catch(() => reportApiError('Passive Boni konnten nicht geladen werden'))
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bonusSourceKey])
 
   const poolFilled = pool.every((v) => v !== null)
 
@@ -244,10 +279,14 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
     .filter((i) => assignedTo[i] !== undefined)
     .sort((a, b) => ATTRIBUTES.indexOf(assignedTo[a]) - ATTRIBUTES.indexOf(assignedTo[b]))
 
+  const rawAttributes: Record<string, number> = {}
   const attributeModifiers: Record<string, number> = {}
   for (const a of ATTRIBUTES) {
     const s = slotAssignments[a]
-    if (s !== undefined && pool[s] !== null) attributeModifiers[a] = attributeModifier(pool[s] as number)
+    if (s !== undefined && pool[s] !== null) {
+      rawAttributes[a] = pool[s] as number
+      attributeModifiers[a] = attributeModifier(pool[s] as number)
+    }
   }
   const groessenklasse = stepDeltas.rasse?.groessenklasse ?? 3
   const derivedResults = derivedDefs.map((d) => {
@@ -256,6 +295,20 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
       : { value: null, display: '—' }
     return { ...d, result }
   })
+
+  // INT-000022: Die Vorschau nutzt dieselbe Anrechnungsfunktion wie der
+  // fertige Charakter. Abgeleitete Werte werden aus den Rohattributen
+  // berechnet und erst danach um einen Bonus erhöht (konsistent mit INT-000020).
+  const derivedKeyByName = new Map(PASSIVE_DERIVED_STATS.map((s) => [s.label, s.key]))
+  const previewDerived: Record<string, number> = {}
+  for (const d of derivedResults) {
+    const key = derivedKeyByName.get(d.name)
+    if (key !== undefined && d.result.value !== null) previewDerived[key] = d.result.value
+  }
+  const preview = previewStatsWithBonuses(
+    { attribute: rawAttributes, derived: previewDerived, groessenklasse },
+    [passiveBonuses],
+  )
 
   return (
     <div style={styles.container}>
@@ -313,6 +366,10 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
           {ATTRIBUTES.map((attr) => {
             const slot = slotAssignments[attr]
             const assignedValue = slot !== undefined && pool[slot] !== null ? pool[slot] : null
+            const previewValue = preview.attribute[attr]
+            const displayValue = assignedValue !== null && typeof previewValue === 'number'
+              ? previewValue
+              : assignedValue
             return (
               <div key={attr} style={styles.attributeSlot}>
                 <div style={styles.attributeHeader}>
@@ -339,14 +396,14 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
                 <span
                   style={{
                     ...styles.attributeValue,
-                    ...(assignedValue !== null ? styles.attributeValueAssigned : {}),
+                    ...(displayValue !== null ? styles.attributeValueAssigned : {}),
                   }}
                 >
-                  {assignedValue !== null ? assignedValue : '—'}
+                  {displayValue !== null ? displayValue : '—'}
                 </span>
-                {assignedValue !== null && (
+                {displayValue !== null && (
                   <span style={styles.attributeModifier}>
-                    {formatModifier(attributeModifier(assignedValue))}
+                    {formatModifier(attributeModifier(displayValue))}
                   </span>
                 )}
               </div>
@@ -359,13 +416,22 @@ export default function AttributeStep({ onValid }: AttributeStepProps) {
         <div style={styles.section}>
           <h3 style={styles.sectionTitle}>Abgeleitete Werte</h3>
           <div style={styles.derivedGrid}>
-            {derivedResults.map((d, i) => (
-              <div key={i} style={styles.derivedSlot} title={d.description}>
-                <span style={styles.derivedName}>{d.name}</span>
-                {d.formel && <span style={styles.derivedFormula}>{d.formel}</span>}
-                <span style={styles.derivedValue}>{d.result.display}</span>
-              </div>
-            ))}
+            {derivedResults.map((d, i) => {
+              const key = derivedKeyByName.get(d.name)
+              const previewValue = key === 'GK'
+                ? preview.groessenklasse
+                : key !== undefined ? preview.derived[key] : undefined
+              const display = previewValue !== undefined && d.result.value !== null && previewValue !== d.result.value
+                ? d.result.display.replace(/^-?\d+/, String(previewValue))
+                : d.result.display
+              return (
+                <div key={i} style={styles.derivedSlot} title={d.description}>
+                  <span style={styles.derivedName}>{d.name}</span>
+                  {d.formel && <span style={styles.derivedFormula}>{d.formel}</span>}
+                  <span style={styles.derivedValue}>{display}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

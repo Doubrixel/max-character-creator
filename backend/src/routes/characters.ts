@@ -14,6 +14,7 @@ import {
   applyPassiveBonuses,
   buildBonusCatalog,
   collectPassiveBonuses,
+  collectCreationPassiveBonuses,
 } from '@mcc/shared'
 
 const app = new Hono()
@@ -28,6 +29,11 @@ async function loadBonusCatalog() {
     ...staerken.map((row) => ({ id: row.id, name: row.name, config: row.config })),
     ...meisterschaften.map((row) => ({ id: row.id, name: row.name, config: row.config })),
   ])
+}
+
+/** INT-000022: Bonusmenge der gewählten Schritte — für Erstellung und Vorschau identisch. */
+async function bonusesForSteps(steps: StepDeltas) {
+  return collectCreationPassiveBonuses(await loadBonusCatalog(), steps)
 }
 
 app.get('/api/characters', async (c) => {
@@ -54,19 +60,7 @@ app.post('/api/characters', async (c) => {
     // INT-000020 (SF-000012): Passive Boni der gewählten Meisterschaften,
     // Vorteile und Rassenvorteile einmalig additiv auf den fertigen Charakter
     // anrechnen (Attribute direkt, abgeleitete Werte nach ihrer Berechnung).
-    const catalog = await loadBonusCatalog()
-    const bonuses = collectPassiveBonuses(catalog, {
-      ids: [
-        ...(final.staerken ?? []),
-        ...(final.meisterschaften ?? []).map((m) => m.id),
-      ],
-      names: [
-        // staerken enthält je nach Datensatz Ids oder Namen (Altbestand).
-        ...(final.staerken ?? []),
-        ...final.rassenVorteile,
-        ...(final.meisterschaften ?? []).map((m) => m.name),
-      ],
-    })
+    const bonuses = await bonusesForSteps(steps)
     applyPassiveBonuses(final, [bonuses])
 
     await db.insert(characters).values({
@@ -122,6 +116,18 @@ app.post('/api/characters', async (c) => {
   })
 
   return c.json(result[0], 201)
+})
+
+/**
+ * INT-000022: Vorschau der passiven Boni für den Attribut-Schritt. Es wird
+ * nichts gespeichert; geliefert werden nur die Boni der bereits gewählten
+ * Stärken/Vorteile, Rassenvorteile und Meisterschaften. Die Anrechnung auf die
+ * angezeigten Werte erfolgt im Frontend mit `previewStatsWithBonuses`.
+ */
+app.post('/api/characters/preview-bonuses', async (c) => {
+  const body = await c.req.json()
+  const steps = (body?.steps ?? {}) as StepDeltas
+  return c.json({ bonuses: await bonusesForSteps(steps) })
 })
 
 app.get('/api/characters/:id', async (c) => {
