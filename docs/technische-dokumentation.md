@@ -15,6 +15,7 @@ Inhalt:
 - Passive Boni bereits im Attribut-Schritt sichtbar (INT-000022)
 - Mehrfach wählbare Vorteile und Meisterschaften (INT-000023 / SF-000014)
 - Kostenabzug bei wiederholter Auswahl mehrfach wählbare Stärken im Creation-Punkteschritt (INT-000027 / SF-000014)
+- 1-Punkt-Budget für Stärken in „5. Kindheit" (INT-000028 / SF-000014)
 
 ---
 
@@ -711,12 +712,12 @@ Dateiimport der Mehrfach-Konfiguration.
 | Bibliothek | Im Erstellungs-/Bearbeitungsformular von Stärken/Vorteilen und Meisterschaften aktiviert die Checkbox „mehrfach wählbar" das Textfeld „maximale Auswahl-Obergrenze". |
 | Obergrenze | Nur ganze positive Zahlen (1, 2, 3, …); 0, negative, dezimale und Texteingaben werden abgewiesen. Ohne Checkbox bleibt das Feld verborgen und wirkungslos. |
 | Chronik | „Neu erlernen: Stärke" bietet einen mehrfach wählbaren Eintrag bis zur Obergrenze erneut zum regulären Preis an; danach verschwindet er aus „— Ziel wählen —". |
-| Creation | „5. Kindheit" (Stärken) und „9. Meisterschaften" (Meisterschaften) bieten den Eintrag bis zur Obergrenze erneut an; danach nicht mehr. |
+| Creation | „5. Kindheit" (Stärken, zusätzlich auf das 1-Punkt-Budget begrenzt — INT-000028) und „9. Meisterschaften" (Meisterschaften) bieten den Eintrag bis zur Obergrenze erneut an; danach nicht mehr. |
 | Darstellung | Wiederholte Auswahlen erscheinen als ein Eintrag mit römischem Suffix („Flink" → „Flink II"), nicht als mehrere gleichnamige Einträge. |
 | Passive Boni | Pro Auswahl wird genau ein Bonus addiert („Flink" KON +1 → „Flink II" KON +2), ohne Id-/Namens-Doppelzählung. |
 | Bestand/Regression | Einträge ohne „mehrfach wählbar" verhalten sich wie zuvor (nach einem Kauf nicht erneut wählbar); Altbestand mit nur `staerke` bleibt erhalten. |
 
-Hinweis: In den Creation-Punkteschritten „6. Ausbildung" und „8. Hobbybedarf" begrenzt zusätzlich das Punktbudget die wiederholte Auswahl; siehe Abschnitt „Kostenabzug bei wiederholter Auswahl … (INT-000027 / SF-000014)" unten. „5. Kindheit" hat kein Punktbudget und bleibt unverändert.
+Hinweis: In den Creation-Schritten mit Stärken-Punktbudget begrenzt zusätzlich das Punktbudget die wiederholte Auswahl — in „5. Kindheit" mit 1 Punkt (INT-000028), in „6. Ausbildung" mit 2 und in „8. Hobbybedarf" mit 3 Punkten (INT-000027); siehe die beiden Abschnitte unten.
 
 ### Komponenten
 
@@ -735,7 +736,7 @@ Hinweis: In den Creation-Punkteschritten „6. Ausbildung" und „8. Hobbybedarf
 1. **Bibliothek:** Ist die Checkbox aktiv, speichert `buildConfig`/`handleSubmit` im `config`-JSON `mehrfach_waehlbar: 'true'` und `max_auswahl: <Zeichenkette>`; ohne Checkbox werden beide Schlüssel nicht geschrieben. „Bearbeiten" liest Flag und Wert über `readMehrfachConfig` zurück. Die Liste zeigt „mehrfach wählbar (max N)".
 2. **Speicherprüfung:** POST/PATCH der Tabellen `strengths` und `masteries` weisen eine gesetzte Checkbox ohne gültige positive Obergrenze mit HTTP 400 zurück; bei „mehrfach wählbar" muss die maximale Auswahl-Obergrenze eine positive ganze Zahl sein. Das Frontend meldet vorab „Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3)." und lässt das Formular offen.
 3. **Chronik:** `POST /api/characters/:id/xp/spend` mit `kind: 'learn_strength'` lädt die Bibliothekskonfiguration, zählt vorhandene Auswahlen (Id oder normalisierter Name) und erlaubt den Kauf zum regulären, unveränderten Preis (`kosten`), solange `anzahl < max` gilt. Bei jedem Kauf wird genau ein passiver Bonus auf den gespeicherten Zustand angewendet; der XP-Verlauf protokolliert jede Ausgabe einzeln.
-4. **Creation Stärken:** In „5. Kindheit" bleibt die Stärke auswählbar, solange die Auswahlzahl unter `max` liegt (Anzeige „Auswahl n / N"); danach verschwindet sie aus „Stärke wählen". Beim Abschluss übernimmt `buildFinalCharacter` alle Auswahlen (inkl. Altbestand-Fallback von `staerke`), und die Boni werden einmal pro Auswahl angewendet.
+4. **Creation Stärken:** In „5. Kindheit" bleibt die Stärke auswählbar, solange die Auswahlzahl unter `max` liegt (Anzeige „Auswahl n / N") **und** das Budget den regulären Preis deckt. Seit INT-000028 beträgt dieses Budget 1 Punkt, womit bei Kosten 1 trotz Obergrenze ≥ 2 nur eine Auswahl möglich ist; danach ist die Karte deaktiviert. Beim Abschluss übernimmt `buildFinalCharacter` alle Auswahlen (inkl. Altbestand-Fallback von `staerke`), und die Boni werden einmal pro Auswahl angewendet.
 5. **Creation Meisterschaften:** In „9. Meisterschaften" filtert `filterVerfuegbareMeisterschaften` den Pool je Auswahlfeld. Für mehrfach wählbare Meisterschaften zählt `zaehleMeisterschaftAuswahlen` characterweit über alle Fertigkeiten — die Obergrenze gilt pro Eintrag, nicht pro Fertigkeit. Nach Erreichen der Obergrenze verschwindet die Option aus allen Auswahlfeldern und wird vom `onChange` (`pool.find`) nicht mehr akzeptiert. Alle übrigen Einträge behalten das je-Fertigkeit-Verhalten.
 6. **Darstellung:** `displayNameWithCount` hängt ab der zweiten Auswahl das römische Suffix an (2 → II, 3 → III, …). Der Charakterbogen fasst wiederholte Auswahlen zu genau einem Eintrag zusammen; Vorschau und Bonusanrechnung verwenden dieselbe Zählsemantik.
 
@@ -779,7 +780,7 @@ Hinweis: In den Creation-Punkteschritten „6. Ausbildung" und „8. Hobbybedarf
 
 Ziel-Ticket INT-000027 (SF-000014): In Creation-Schritten mit einem Stärken-Punktbudget kostet auch die zweite und jede weitere Auswahl einer mehrfach wählbaren Stärke den in der Bibliothek konfigurierten regulären Preis. Punktbudget und maximale Auswahl-Obergrenze wirken gemeinsam als Begrenzung. Stand: 28.11.2026. Dokumentiert ist ausschließlich das implementierte und QA-geprüfte Verhalten (PR #23, gemergt 28.11.2026; automatisierte Tests grün seit 28.11.2026 08:27 UTC; manuelle QA MCC-027-01 bis -11 bestanden). Baut auf INT-000023 auf; Konfiguration, römische Zählung, summierte Boni und Chronik-Kauflogik bleiben unverändert. Anwendersicht: [`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg: [`../README.md`](../README.md).
 
-Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung der Preise selbst, eine Kostenabzugswirkung in „5. Kindheit" (dort gibt es kein Punktbudget) und eine nachträgliche Änderung fertiger Charaktere.
+Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung der Preise selbst und eine nachträgliche Änderung fertiger Charaktere. Der Kostenabzug in „5. Kindheit" mit 1 Punkt ist Gegenstand von INT-000028 (nächster Abschnitt); er verwendet dieselben geteilten Helper.
 
 ### Zweck und Geltungsbereich
 
@@ -789,7 +790,7 @@ Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung
 | Kosten | Jede Auswahl — auch die zweite und jede weitere derselben mehrfach wählbaren Stärke — zieht den regulären Kostenwert vom verfügbaren Punktbudget ab. |
 | Begrenzung | Eine weitere Auswahl wird nur angeboten und akzeptiert, wenn die Obergrenze noch nicht erreicht ist **und** das Restbudget für den Preis reicht. |
 | Zähler | „Stärken-Punkte" sinkt nach jeder Auswahl um den Kostenwert; das Entfernen einer Auswahl erstattet ihn. |
-| „5. Kindheit" | Kein Stärken-Punkte-Zähler und keine Kostenabzugswirkung; dort bleibt die Auswahl bis zur Obergrenze möglich („Auswahl n / N"). Regressionssicherung MCC-008/MCC-009 und MCC-027-10. |
+| „5. Kindheit" | Zum Zeitpunkt von INT-000027 ohne Punktbudget; seit INT-000028 zeigt auch dieser Schritt „Stärken Punkte: 1" mit Kostenabzug, sodass bei Kosten 1 nur eine Auswahl möglich ist (MCC-028-01 bis -06). Die geteilten Helper bleiben identisch; der frühere Fall MCC-027-10 (zwei Auswahlen in Schritt 5) ist damit nicht mehr erreichbar. |
 | Chronik / Boni | Chronik-XP-Käufe zum regulären Preis, römische Zählung („Flink II") und summierte passive Boni aus INT-000023 bleiben unverändert (MCC-027-11). |
 
 ### Komponenten
@@ -822,7 +823,7 @@ Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung
 - **Obergrenze erreicht vor Budget:** Obergrenze 2, Kosten 1, 3 Punkte → zwei Auswahlen, 1 Punkt verbleibend; die Stärke wird nicht mehr angeboten, der Restpunkt kann für eine andere Stärke ausgegeben werden (MCC-027-08).
 - **Beide Grenzen erreicht:** Bei „Stärken-Punkte: 0" werden auch andere Stärken nicht angeboten (MCC-027-05).
 - **Entfernen:** Jede Entfernung erstattet den Preis und macht die Option wieder verfügbar, solange Budget und Obergrenze es erlauben (MCC-027-06).
-- **Regression:** Nicht mehrfach wählbare Stärken bleiben abwählbar (MCC-027-09); „5. Kindheit" zeigt weiter „Stärken gewählt: N" ohne Kostenabzug (MCC-027-10); Chronik-Käufe, römische Zählung und summierte Boni bleiben erhalten (MCC-027-11).
+- **Regression:** Nicht mehrfach wählbare Stärken bleiben abwählbar (MCC-027-09); der frühere Fall MCC-027-10 (zwei Auswahlen einer Kosten-1-Stärke in „5. Kindheit") ist durch INT-000028 ersetzt — dort ist nur noch eine Auswahl möglich. Chronik-Käufe, römische Zählung und summierte Boni bleiben erhalten (MCC-027-11).
 
 ### Persistenz
 
@@ -841,3 +842,84 @@ Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung
 - `backend/src/mehrfach/mehrfach-auswahl.test.ts` (in `backend/package.json` registriert): neue INT-000027-Tests — „jede Auswahl … kostet den regulären Preis" (2 Punkte/Kosten 1/Obergrenze 2 ⇒ genau zwei Auswahlen, danach 0; Fallback 1), „Punktbudget und Obergrenze wirken gemeinsam" (Budget blockiert vor Obergrenze, Obergrenze lässt 1 Punkt für eine andere Stärke) sowie „höherer Preis, Entfernen und nicht mehrfach wählbare Stärken bleiben unverändert".
 - Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 28.11.2026 08:27 UTC).
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über die manuellen Testfälle MCC-027-01 bis -11 (Konfiguration und Kosten in Bibliothek, Kostenabzug und Zähler in „6. Ausbildung" und „8. Hobbybedarf", Budget- und Obergrenzen-Grenzen, Entfernen/Erstattung, Nicht-Mehrfach-Regression, „5. Kindheit", Chronik) — am 28.11.2026 auf Commit `9b3c1ed` alle bestanden.
+
+---
+
+## 1-Punkt-Budget für Stärken in „5. Kindheit" (INT-000028 / SF-000014)
+
+Ziel-Ticket INT-000028 (SF-000014): Der Creation-Schritt „5. Kindheit" erhält
+für Stärken ein Punktbudget von genau 1 Punkt. Die Überschrift heißt jetzt
+**„Stärken Punkte: 1"** (statt „Stärken gewählt"), und jede Auswahl — auch einer
+mehrfach wählbaren Stärke — kostet ihren regulären Preis vom Budget. Bei Kosten 1
+ist damit genau eine Auswahl möglich, selbst wenn die Obergrenze ≥ 2 wäre.
+Stand: 28.11.2026. Dokumentiert ist ausschließlich das implementierte und
+QA-geprüfte Verhalten (PR #25, gemergt 28.11.2026; automatisierte Tests grün seit
+28.11.2026 12:15 UTC; manuelle QA MCC-028-01 bis -08 bestanden). Baut auf
+INT-000027 auf und verwendet dessen geteilte Helper; die Punkteschritte
+„6. Ausbildung" und „8. Hobbybedarf" bleiben unverändert. Anwendersicht:
+[`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
+[`../README.md`](../README.md).
+
+Nicht im Umfang: Änderungen an Konfiguration, Preisen, römischer Zählung,
+summierten Boni, Chronik-Kauflogik oder den Punkteschritten 6 und 8; keine
+neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Schritt „5. Kindheit" | Zähler **„Stärken Punkte: N"** mit Startwert 1; der Text „Stärken gewählt" kommt nicht mehr vor. |
+| Kosten | Jede Auswahl zieht den in der Bibliothek konfigurierten Kostenwert vom 1-Punkt-Budget ab (Fallback 1 bei unbekanntem Wert). |
+| Begrenzung | Eine weitere Auswahl wird nur angeboten und akzeptiert, wenn Obergrenze **und** Restbudget den Preis zulassen. |
+| Kosten 1 | Genau eine Auswahl — auch bei mehrfach wählbarer Stärke mit Obergrenze ≥ 2 und auch einer anderen Stärke. Danach „Stärken Punkte: 0" und keine weitere Auswahl. |
+| Entfernen | Eine Auswahl lässt sich über „<Name> entfernen" zurücknehmen; der Punkt wird vollständig erstattet. |
+| Fertigkeitspunkte | Der zweite Zähler „Fertigkeits-Punkte: 20" und die 20-Punkte-Verteilung bleiben unverändert. |
+| Regression | „6. Ausbildung" (2 Punkte) und „8. Hobbybedarf" (3 Punkte), Chronik, römische Zählung („Flink II") und summierte Boni bleiben wie in INT-000023/INT-000027. |
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `frontend/src/components/creation/KindheitStep.tsx` | `STAERKEN_PUNKTE = 1`; Zähler „Stärken Punkte: {staerkenAvailable}"; `eligibleStaerken` (Preis ≤ Budget), `staerkenVerbrauch`/`staerkenAvailable`, `handleStaerke`, `removeOneStaerke`, Button-Deaktivierung und `onValid`. Übernimmt zugänglichen Namen und Entfernen-Muster aus Schritt 6/8. |
+| `shared/src/mehrfachAuswahl.ts` | Unverändert wiederverwendet: `staerkenPunkteVerbrauch`, `zaehleStaerkenAuswahlen`, `maxAuswahlVonEintrag`, `istStaerkeNochWaehlbar` (Obergrenze **und** Budget) sowie `displayNameWithCount`. |
+| `backend/src/mehrfach/mehrfach-auswahl.test.ts` | Neuer automatisierter Test der 1-Punkt-Fälle (siehe „Prüfungen"). |
+
+### Datenfluss
+
+1. **Laden:** `KindheitStep` liest `/api/library/skills` und `/api/library/strengths`; je Stärke werden `kosten` (Fallback 1), `mehrfach` und `max` aus `readMehrfachConfig` übernommen. Wiederhergestellt werden gespeicherte `staerken` (bzw. Altbestand `staerke`).
+2. **Verbrauch:** `staerkenAvailable = 1 − staerkenPunkteVerbrauch(staerken, kostenVon)`; der Zähler zeigt diesen Wert. Nur Stärken mit `kosten ≤ 1` sind überhaupt wählbar.
+3. **Auswahl:** `handleStaerke` akzeptiert eine weitere Auswahl nur bei `istStaerkeNochWaehlbar` (Obergrenze nicht erreicht **und** `verfuegbarePunkte ≥ kosten`); nicht mehrfach wählbare Stärken bleiben per Toggle abwählbar.
+4. **Anzeige/Sperre:** Ist das Budget aufgebraucht (oder die Obergrenze erreicht), ist die Karte deaktiviert und eine weitere Auswahl wird nicht akzeptiert. Mehrfach gewählte Stärken erscheinen als ein Eintrag mit römischem Suffix und „<Name> entfernen".
+5. **Gültigkeit:** `onValid` verlangt `staerkenAvailable ≤ 0` **und** `availablePoints ≤ 0`; „Weiter" ist erst aktiv, wenn beide Budgets auf 0 sind.
+6. **Entfernen:** `removeOneStaerke` entfernt genau eine Auswahl; der Verbrauch wird neu berechnet und der Punkt erstattet.
+
+### Validierung
+
+- `istStaerkeNochWaehlbar` verlangt gleichzeitig `zaehleStaerkenAuswahlen < maxAuswahlVonEintrag` und `verfuegbarePunkte ≥ kosten`. Bei einer Kosten-1-Stärke ist nach der ersten Auswahl `verfuegbarePunkte = 0`, damit ist die Bedingung für jede weitere Auswahl false.
+- Kosten sind der konfigurierte Bibliothekswert; ungültige, nicht finite oder nicht positive Werte fallen auf 1 zurück. Es entsteht kein negativer Verbrauch.
+- Die Bezeichnung „Stärken Punkte:" wird aus dem laufenden UI übernommen (Accessibility Tree), entsprechend dem Muster aus Schritt 6; es wird kein eigenes Etikett erfunden.
+
+### Fehlerverhalten
+
+- **Zweite Auswahl trotz Obergrenze:** Bei Obergrenze 2 und Kosten 1 bleibt die Karte nach der ersten Auswahl deaktiviert („Auswahl 1 / 2", „Stärken Punkte: 0"); „Auswahl 2 / 2" erscheint nicht und ein Klick wird nicht angenommen (MCC-028-03/-04). Wie in Schritt 6/8 bleibt die Karte als deaktivierter Button im DOM, ist aber nicht auswählbar.
+- **Andere Stärke nach Verbrauch:** Auch andere Bibliotheksstärken sind bei „Stärken Punkte: 0" deaktiviert; es bleibt bei genau einer ausgewählten Stärke (MCC-028-05).
+- **Entfernen:** „<Name> entfernen" gibt den Punkt vollständig zurück; die Karte wird erneut mit „Auswahl 0 / 2" angeboten (MCC-028-06).
+- **Regression:** Schritt 6 zeigt weiter zwei, Schritt 8 drei Auswahlen zu je 1 Punkt inkl. „Flink II" (MCC-028-07/-08); Chronik-Käufe und Boni bleiben unverändert. Defekte Bibliotheksdaten werden wie zuvor über `reportApiError('Bibliotheksdaten konnten nicht geladen werden')` gemeldet.
+
+### Persistenz
+
+- Keine neuen Datenbankspalten und keine Migration. Das 1-Punkt-Budget wird nicht gespeichert, sondern bei jedem Render aus der Auswahlliste und den Bibliothekskosten neu berechnet.
+- Das Step-Delta `kindheit` enthält weiterhin `skills`, `staerke` (Altbestand-Fallback) und `staerken` als Liste; `saveDelta` schreibt ausschließlich diese Auswahlliste.
+- Fertig erstellte Charaktere und der XP-Verlauf der Chronik werden nicht verändert; die Zusammenfassung zu „Flink II" bleibt eine Anzeige.
+
+### Sicherheitsgrenzen
+
+- Keine neuen Endpunkte und keine neuen Berechtigungswege; die Bibliotheks- und Charakterrouten bleiben unverändert.
+- Die Begrenzung ist reine Client-/`@mcc/shared`-Logik; sie ändert keine Preise serverseitig und führt keine privilegierten Operationen aus. Ungültige Kostenwerte fallen tolerant auf 1 zurück; es entsteht kein negativer Verbrauch.
+- Keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/mehrfach/mehrfach-auswahl.test.ts` (in `backend/package.json` registriert): neuer INT-000028-Test — 1 Punkt, Kosten 1, Obergrenze 2 ⇒ genau eine Auswahl; nach dieser ist `istStaerkeNochWaehlbar` für dieselbe **und** eine andere Stärke false; Entfernen gibt den Punkt zurück; eine nicht mehrfach wählbare Stärke verbraucht ebenfalls den einen Punkt.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 28.11.2026 12:15 UTC).
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über die manuellen Testfälle MCC-028-01 bis -08 (Anzeige „Stärken Punkte: 1/0" ohne „Stärken gewählt", eine Auswahl bei Kosten 1 trotz Obergrenze 2, Ablehnung der zweiten Auswahl und anderer Stärken, Erstattung beim Entfernen, unveränderte Schritte 6 und 8) — am 28.11.2026 auf Commit `447f7a9a` alle bestanden.

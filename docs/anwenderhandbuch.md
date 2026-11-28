@@ -13,6 +13,7 @@ Inhalt:
 - Passive Boni schon im Schritt „7. Attribute" sehen (INT-000022)
 - Vorteile und Meisterschaften mehrfach wählen (INT-000023 / SF-000014)
 - Kosten und Punktbudget bei mehrfach gewählten Stärken in der Creation (INT-000027 / SF-000014)
+- 1 Punkt für Stärken in „5. Kindheit" (INT-000028 / SF-000014)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -547,9 +548,10 @@ ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **K
 ### Mehrfach bei der Charaktererstellung wählen
 
 1. In Schritt **„5. Kindheit"** wählen Sie die Stärke aus. Der Button zeigt den
-   Stand, z. B. **„Auswahl 1 / 2"** bei Obergrenze 2. Die Stärke bleibt auswählbar,
-   bis die Obergrenze erreicht ist; danach ist sie aus **„Stärke wählen"**
-   verschwunden.
+   Stand, z. B. **„Auswahl 1 / 2"** bei Obergrenze 2. Hier stehen nur **1 Punkt**
+   zur Verfügung (siehe Abschnitt „1 Punkt für Stärken in ‚5. Kindheit'" unten):
+   Bei Kosten 1 ist damit nur eine Auswahl möglich, auch wenn die Obergrenze 2
+   wäre. Danach ist die Karte deaktiviert.
 2. In Schritt **„9. Meisterschaften"** wählen Sie im Feld
    **„Meisterschaft für {Fertigkeit}"** die mehrfach wählbare Meisterschaft. Sie
    bleibt in den Auswahlfeldern, bis die Obergrenze erreicht ist; danach wird sie
@@ -557,7 +559,7 @@ ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **K
    wenn Sie die Meisterschaft für mehrere Fertigkeiten gewählt haben.
 3. Schließen Sie den Wizard wie gewohnt mit **„Charakter fertigstellen"** ab.
 
-Hinweis: In den Punkteschritten **„6. Ausbildung"** und **„8. Hobbybedarf"** kostet jede weitere Auswahl einer mehrfach wählbaren Stärke erneut Punkte; das Punktbudget begrenzt die Auswahl zusätzlich zur Obergrenze. Siehe Abschnitt „Mehrfach wählbar: Kosten und Punktbudget in der Creation" unten.
+Hinweis: In den Punkteschritten **„6. Ausbildung"** und **„8. Hobbybedarf"** kostet jede weitere Auswahl einer mehrfach wählbaren Stärke erneut Punkte; das Punktbudget begrenzt die Auswahl zusätzlich zur Obergrenze. Auch **„5. Kindheit"** hat inzwischen ein Punktbudget (1 Punkt) — siehe die Abschnitte „Mehrfach wählbar: Kosten und Punktbudget in der Creation" und „1 Punkt für Stärken in ‚5. Kindheit'" unten.
 
 ### Darstellung und Boni im Charakterbogen
 
@@ -622,6 +624,8 @@ Hinweis: In den Punkteschritten **„6. Ausbildung"** und **„8. Hobbybedarf"**
 
 Anwenderhandbuch für die Punkteschritte der Charaktererstellung (Stand: 28.11.2026). Wählen Sie eine mehrfach wählbare Stärke in einem Schritt mit Punktbudget erneut, kostet das jedes Mal den regulären Preis. Das verbleibende Punktbudget und die maximale Auswahl-Obergrenze begrenzen die Auswahl gemeinsam. Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
+Hinweis: „5. Kindheit" hat inzwischen ebenfalls ein Punktbudget, aber nur 1 Punkt — siehe Abschnitt „1 Punkt für Stärken in ‚5. Kindheit'" unten. Die Schritte 6 und 8 bleiben wie hier beschrieben (2 bzw. 3 Punkte).
+
 ### Worum es geht
 
 Eine mehrfach wählbare Stärke (z. B. „Flink", Kosten 1, Obergrenze 2) bleibt in der Auswahl, bis die Obergrenze erreicht ist. In den Schritten **„6. Ausbildung"** („Stärken-Punkte: 2") und **„8. Hobbybedarf"** („Stärken-Punkte: 3") wird jeder Auswahl — auch der zweiten und jeder weiteren — der Preis vom Punktbudget abgezogen. Sind die Punkte aufgebraucht, können Sie nichts weiter auswählen, selbst wenn die Obergrenze noch frei wäre. Umgekehrt bleibt ein Punkt übrig, wenn die Obergrenze zuerst erreicht ist; den können Sie für eine andere Stärke ausgeben.
@@ -664,7 +668,85 @@ Eine mehrfach wählbare Stärke (z. B. „Flink", Kosten 1, Obergrenze 2) bleibt
 
 ### Grenzen
 
-- Die Kostenabzugswirkung gibt es nur in Schritten mit einem **„Stärken-Punkte"**-Zähler („6. Ausbildung", „8. Hobbybedarf"). In **„5. Kindheit"** zählt stattdessen „Stärken gewählt" und es werden keine Punkte abgezogen; die Stärke bleibt dort bis zur Obergrenze auswählbar.
+- Die Kostenabzugswirkung gibt es in allen Schritten mit einem Stärken-Punktzähler: **„5. Kindheit"** mit 1 Punkt (Bezeichnung **„Stärken Punkte:"**, INT-000028), **„6. Ausbildung"** mit 2 und **„8. Hobbybedarf"** mit 3 Punkten. In „5. Kindheit" ist wegen des 1-Punkt-Budgets auch bei mehrfach wählbaren Stärken mit Obergrenze ≥ 2 nur eine Auswahl möglich.
 - Der Preis entspricht dem in der Bibliothek konfigurierten Kostenwert; die Obergrenze verändert den Preis nicht.
 - Bereits fertig erstellte Charaktere werden nicht nachträglich geändert; Chronik-Käufe zum regulären Preis bleiben unverändert.
 - Die Änderung betrifft nur die Auswahl in der Creation; Konfiguration, römische Zählung und Bonus-Aggregation bleiben wie beschrieben.
+
+---
+
+## 1 Punkt für Stärken in „5. Kindheit" (INT-000028 / SF-000014)
+
+Anwenderhandbuch für den Creation-Schritt „5. Kindheit" (Stand: 28.11.2026).
+Hier steht für die Stärkenwahl genau **1 Punkt** zur Verfügung. Die Überschrift
+heißt jetzt **„Stärken Punkte: 1"** (nicht mehr „Stärken gewählt"). Jede Auswahl
+kostet ihren regulären Preis; bei einer Stärke mit Kosten 1 können Sie daher nur
+**eine** Stärke wählen — auch wenn sie mehrfach wählbar ist und eine Obergrenze
+von 2 oder mehr hat. Technische Details:
+[`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+In Schritt „5. Kindheit" verteilen Sie wie gewohnt 20 Fertigkeitspunkte. Zusätzlich
+wählen Sie eine Stärke, und dafür haben Sie genau 1 Punkt. Klicken Sie auf eine
+Stärke mit Kosten 1, sinkt der Zähler auf **„Stärken Punkte: 0"**. Danach ist keine
+weitere Stärke auswählbar — weder dieselbe mehrfach wählbare Stärke noch eine
+andere. Der vorherige Text „Stärken gewählt" gibt es in diesem Schritt nicht mehr.
+
+### Voraussetzungen
+
+- Sie führen einen Erstellvorgang bis zum Schritt **„5. Kindheit"**; die Zähler
+  **„Stärken Punkte: 1"** und **„Fertigkeits-Punkte: 20"** sind sichtbar.
+- In **Bibliothek → Stärken** ist mindestens eine Stärke mit einem Kostenwert
+  angelegt. Stärken, die mehr als 1 Punkt kosten, sind in diesem Schritt nicht
+  auswählbar.
+
+### Schritt für Schritt: eine Stärke wählen
+
+1. Lesen Sie den Zähler **„Stärken Punkte: 1"** ab.
+2. Klicken Sie im Bereich **„Stärke wählen"** auf die gewünschte Stärke, z. B.
+   **„Flink"** mit **„1 Punkt"**. Ist sie mehrfach wählbar, zeigt die Karte
+   **„Auswahl 0 / 2"**.
+3. Der Zähler sinkt auf **„Stärken Punkte: 0"**. Die Karte ist nun deaktiviert
+   und ein weiterer Klick wird nicht angenommen — auch bei Obergrenze 2 erscheint
+   kein **„Auswahl 2 / 2"**.
+4. Möchten Sie die Stärke wechseln, klicken Sie beim ausgewählten Eintrag auf
+   **„{Name} entfernen"** (z. B. **„Flink entfernen"**). Der Punkt wird
+   vollständig erstattet (**„Stärken Punkte: 1"**) und die Stärke steht wieder
+   mit **„Auswahl 0 / 2"** zur Auswahl.
+5. Verteilen Sie die 20 Fertigkeitspunkte und klicken Sie auf **„Weiter"**. Der
+   Button ist erst aktiv, wenn beide Zähler auf 0 sind.
+
+### Erwartete Rückmeldungen
+
+- Der Zähler zeigt **„Stärken Punkte: 1"** bzw. nach der Auswahl **„Stärken Punkte: 0"**;
+  „Stärken gewählt" erscheint nicht mehr. „Fertigkeits-Punkte" bleibt unverändert.
+- Nach der Auswahl sind alle Stärkenkarten deaktiviert; es bleibt bei genau einer
+  ausgewählten Stärke. Eine Fehlermeldung erscheint nicht.
+- Bei einer mehrfach wählbaren Stärke steht **„Auswahl 1 / 2"**, nie **„Auswahl 2 / 2"**.
+- Nach dem Entfernen ist der Punkt wieder verfügbar und die Karte erneut auswählbar.
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Eine zweite Auswahl wird nicht angenommen | In Schritt 5 reicht der 1 Punkt nur für eine Stärke. Entfernen Sie die Auswahl mit „{Name} entfernen", um eine andere zu wählen. |
+| „Auswahl 2 / 2" fehlt | Erwartet: Die Obergrenze wäre zwar frei, das 1-Punkt-Budget verhindert die zweite Auswahl. Zwei Auswahlen sind weiterhin in „6. Ausbildung" und „8. Hobbybedarf" möglich. |
+| Die gewünschte Stärke wird nicht angeboten | Ihre Kosten liegen über 1 Punkt. In Schritt 5 sind nur Stärken mit Kosten 1 wählbar. |
+| Der Punkt ist nach dem Entfernen noch 0 | Klicken Sie „{Name} entfernen" so oft, wie Sie Auswahlen zurücknehmen möchten; pro Klick wird genau eine erstattet. |
+
+### Speicherung
+
+- Die Auswahl wird im laufenden Erstellvorgang gespeichert und mit
+  **„Charakter fertigstellen"** in den Charakter übernommen. Es gibt keinen
+  gesonderten Kosten-Eintrag.
+- Bereits fertig erstellte Charaktere werden nicht nachträglich verändert.
+
+### Grenzen
+
+- Schritt 5 hat genau **1 Punkt**; eine zweite Auswahl — auch einer mehrfach
+  wählbaren Stärke — ist hier nicht möglich.
+- Nur Stärken mit Kosten 1 sind in diesem Schritt wählbar; der Preis entspricht
+  dem in der Bibliothek konfigurierten Kostenwert.
+- Die Schritte **„6. Ausbildung"** (2 Punkte) und **„8. Hobbybedarf"** (3 Punkte)
+  sowie Chronik-Käufe, römische Zählung und summierte Boni bleiben unverändert.

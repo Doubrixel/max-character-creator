@@ -14,6 +14,9 @@
   summed passive bonuses) in library, chronicle and creation, and the creation
   point-budget behaviour for repeated selections: each selection costs its
   configured price, with remaining budget and selection limit applying together.
+  It also covers the 1-point strength budget in creation step „5. Kindheit"
+  („Stärken Punkte: 1", at most one strength even if multi-selectable): each
+  selection costs its configured price and removing it refunds the point.
 - [`docs/anwenderhandbuch.md`](docs/anwenderhandbuch.md) – User manual (German):
   using the „Zufällig ausfüllen" test-mode button, choosing culture alternatives
   during character creation, reading the derived value „Geschwindigkeit" (GES),
@@ -23,7 +26,8 @@
   and repeatedly choosing advantages/masteries up to a limit with Roman numbering
   and summed bonuses; it also explains the per-selection point cost and the shared
   budget/limit when choosing a multi-selectable strength again in the creation
-  point steps.
+  point steps, including the 1-point budget in „5. Kindheit" that allows only one
+  strength („Stärken Punkte:").
 - [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
   validation of the library culture editor (talent/strength limits, Entweder/Oder
   alternatives, all message texts).
