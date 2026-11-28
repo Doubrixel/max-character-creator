@@ -11,7 +11,9 @@
   bonus fields labeled with abbreviations only), and the read-only bonus preview
   in the character creation „Attribute" step. It also covers configurable
   multi-selection of advantages/masteries (positive integer limit, Roman numbering,
-  summed passive bonuses) in library, chronicle and creation.
+  summed passive bonuses) in library, chronicle and creation, and the creation
+  point-budget behaviour for repeated selections: each selection costs its
+  configured price, with remaining budget and selection limit applying together.
 - [`docs/anwenderhandbuch.md`](docs/anwenderhandbuch.md) – User manual (German):
   using the „Zufällig ausfüllen" test-mode button, choosing culture alternatives
   during character creation, reading the derived value „Geschwindigkeit" (GES),
@@ -19,7 +21,9 @@
   fields show only the established abbreviations), seeing those bonuses
   already while assigning attributes in step „7. Attribute", and configuring
   and repeatedly choosing advantages/masteries up to a limit with Roman numbering
-  and summed bonuses.
+  and summed bonuses; it also explains the per-selection point cost and the shared
+  budget/limit when choosing a multi-selectable strength again in the creation
+  point steps.
 - [`docs/KULTUREDITOR-REGELN.md`](docs/KULTUREDITOR-REGELN.md) – Technical rules and
   validation of the library culture editor (talent/strength limits, Entweder/Oder
   alternatives, all message texts).
