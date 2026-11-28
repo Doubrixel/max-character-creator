@@ -232,3 +232,35 @@ test('INT-000027: höherer Preis, Entfernen und nicht mehrfach wählbare Stärke
   assert.equal(einfachFall.auswahlen.length, 1);
   assert.equal(einfachFall.verfuegbar, 2);
 });
+
+test('INT-000028: Schritt 5 erlaubt bei 1 Punkt genau eine Stärke – auch bei mehrfach wählbarer Stärke', () => {
+  // Synthetische Fixtures wie in den Testfällen MCC-028-01 bis -06.
+  const flink: StaerkenWahlEintrag = { id: 'flink-1', kosten: 1, mehrfach: true, max: 2 }
+  const zaeh: StaerkenWahlEintrag = { id: 'zaeh-1', kosten: 1, mehrfach: false, max: null }
+  const kostenVon = (id: string) => (id === flink.id ? flink.kosten : zaeh.kosten)
+  const verfuegbarVon = (auswahlen: readonly string[]) =>
+    1 - staerkenPunkteVerbrauch(auswahlen, kostenVon)
+
+  // Start: 1 Punkt; beide Stärken sind wählbar (Flink: Auswahl 0 / 2).
+  assert.equal(verfuegbarVon([]), 1)
+  assert.equal(istStaerkeNochWaehlbar(flink, [], verfuegbarVon([])), true)
+  assert.equal(istStaerkeNochWaehlbar(zaeh, [], verfuegbarVon([])), true)
+
+  // Erste Auswahl von Flink: Budget aufgebraucht. Die Obergrenze 2 wäre zwar
+  // noch frei, das 1-Punkt-Budget verhindert aber eine zweite Auswahl – auch
+  // einer anderen Stärke.
+  const nachFlink = [flink.id]
+  assert.equal(verfuegbarVon(nachFlink), 0)
+  assert.equal(zaehleStaerkenAuswahlen(nachFlink, flink.id), 1)
+  assert.equal(istStaerkeNochWaehlbar(flink, nachFlink, verfuegbarVon(nachFlink)), false)
+  assert.equal(istStaerkeNochWaehlbar(zaeh, nachFlink, verfuegbarVon(nachFlink)), false)
+
+  // Entfernen der Auswahl gibt den Punkt vollständig zurück.
+  assert.equal(verfuegbarVon([]), 1)
+  assert.equal(istStaerkeNochWaehlbar(flink, [], verfuegbarVon([])), true)
+
+  // Eine nicht mehrfach wählbare Stärke verbraucht ebenfalls den einen Punkt.
+  const nachZaeh = [zaeh.id]
+  assert.equal(verfuegbarVon(nachZaeh), 0)
+  assert.equal(istStaerkeNochWaehlbar(zaeh, nachZaeh, verfuegbarVon(nachZaeh)), false)
+});

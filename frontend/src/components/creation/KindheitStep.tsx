@@ -2,9 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { distributePoints, pickRandom } from '../../testmode/random'
-import { readMehrfachConfig } from '@mcc/shared'
+import {
+  readMehrfachConfig,
+  displayNameWithCount,
+  staerkenPunkteVerbrauch,
+  zaehleStaerkenAuswahlen,
+  maxAuswahlVonEintrag,
+  istStaerkeNochWaehlbar,
+  type StaerkenWahlEintrag,
+} from '@mcc/shared'
 
 const INITIAL_POINTS = 20
+// INT-000028: In Schritt „5. Kindheit" steht genau 1 Punkt für Stärken zur
+// Verfügung. Die Budget- und Obergrenzenlogik stammt aus INT-000027 und wird
+// hier über dieselben geteilten Helper angewendet.
+const STAERKEN_PUNKTE = 1
 
 interface SkillItem {
   id: string
@@ -117,20 +129,36 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     })
   }
 
-  const eligibleStaerken = staerkenData.filter((s) => s.kosten === 1)
-  const countOf = (id: string): number => staerken.filter((value) => value === id).length
+  // INT-000028: Nur Stärken, deren regulärer Preis in das 1-Punkt-Budget
+  // passt, können in Schritt 5 überhaupt gewählt werden.
+  const eligibleStaerken = staerkenData.filter((s) => s.kosten <= STAERKEN_PUNKTE)
+  const countOf = (id: string): number => zaehleStaerkenAuswahlen(staerken, id)
   const maxOf = (s: { mehrfach: boolean; max: number | null }): number =>
-    s.mehrfach && s.max !== null ? s.max : 1
-  // INT-000023: Eine mehrfach wählbare Stärke bleibt angeboten, bis ihre
-  // Obergrenze erreicht ist; danach verschwindet sie aus der Auswahl.
-  const selectableStaerken = eligibleStaerken.filter(
-    (s) => s.mehrfach ? countOf(s.id) < maxOf(s) : true,
+    maxAuswahlVonEintrag(s)
+
+  // INT-000027: Jede Auswahl – auch die zweite einer mehrfach wählbaren
+  // Stärke – zieht ihren regulären Preis vom Budget ab.
+  const staerkenVerbrauch = staerkenPunkteVerbrauch(
+    staerken,
+    (id) => staerkenData.find((x) => x.id === id)?.kosten ?? 1,
+  )
+  const staerkenAvailable = STAERKEN_PUNKTE - staerkenVerbrauch
+
+  // INT-000023: Eine mehrfach wählbare Stärke bleibt bis zur Obergrenze im
+  // Angebot. INT-000028: Ob eine weitere Auswahl tatsächlich möglich ist,
+  // entscheidet zusätzlich das 1-Punkt-Budget (siehe `isDisabled` unten) –
+  // identisch zum Vorgehen in den Schritten 6 und 8.
+  const angeboteneStaerken = eligibleStaerken.filter(
+    (s) => !s.mehrfach || countOf(s.id) < maxOf(s),
+  )
+  const selectedMultiStaerken = staerkenData.filter(
+    (s) => s.mehrfach && countOf(s.id) > 0,
   )
 
   useEffect(() => {
-    const valid = staerken.length > 0 && availablePoints <= 0
+    const valid = staerkenAvailable <= 0 && availablePoints <= 0
     onValid(valid)
-  }, [staerken, availablePoints, onValid])
+  }, [staerkenAvailable, availablePoints, onValid])
 
   const incrementSkill = (id: string) => {
     const current = getSkillValue(id)
@@ -158,17 +186,29 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     return 6;
   }
 
-  const handleStaerke = (s: { id: string; mehrfach: boolean; max: number | null }) => {
-    if (s.mehrfach) {
-      if (countOf(s.id) >= maxOf(s)) return
-      const next = [...staerken, s.id]
+  const handleStaerke = (s: StaerkenWahlEintrag) => {
+    // Nicht mehrfach wählbare Stärken bleiben abwählbar (Toggle wie bisher).
+    if (!s.mehrfach && staerken.includes(s.id)) {
+      const next = staerken.filter((value) => value !== s.id)
       setStaerken(next)
       saveDelta(skillDelta, next)
-    } else {
-      const next = [s.id]
-      setStaerken(next)
-      saveDelta(skillDelta, next)
+      return
     }
+    // INT-000028: Obergrenze und 1-Punkt-Budget wirken gemeinsam. Erst wenn
+    // beides stimmt, wird die Auswahl akzeptiert und der Preis abgezogen.
+    if (!istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)) return
+    const next = [...staerken, s.id]
+    setStaerken(next)
+    saveDelta(skillDelta, next)
+  }
+
+  const removeOneStaerke = (id: string) => {
+    const index = staerken.indexOf(id)
+    if (index < 0) return
+    const next = [...staerken]
+    next.splice(index, 1)
+    setStaerken(next)
+    saveDelta(skillDelta, next)
   }
 
   // INT-000018: Testmodus – alle 20 Fertigkeitspunkte zufällig verteilen und
@@ -243,8 +283,8 @@ export default function KulturStep({ onValid }: KulturStepProps) {
       {skillsLoading && <div style={styles.loading}>Lade Skills...</div>}
 
       <div style={styles.counters}>
-        <div style={{ ...styles.counter, ...(staerken.length > 0 ? styles.counterZero : {}) }}>
-          Stärken gewählt: {staerken.length}
+        <div style={{ ...styles.counter, ...(staerkenAvailable === 0 ? styles.counterZero : {}) }}>
+          Stärken Punkte: {staerkenAvailable}
         </div>
         <div style={{ ...styles.counter, ...(availablePoints === 0 ? styles.counterZero : {}) }}>
           Fertigkeits-Punkte: {availablePoints}
@@ -263,24 +303,56 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
-        <div style={styles.staerkenGrid}>
-          {selectableStaerken.map((s) => (
-            <button
-              key={s.id}
-              style={{ ...styles.staerkeCard, ...(countOf(s.id) > 0 ? styles.staerkeCardSelected : {}) }}
-              aria-pressed={countOf(s.id) > 0}
-              onClick={() => handleStaerke(s)}
-            >
-              <div style={styles.staerkeHeader}>
-                <span style={styles.staerkeName}>{s.name}</span>
-                <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
-              </div>
-              {s.mehrfach && (
+        {selectedMultiStaerken.length > 0 && (
+          <div style={styles.selectedStaerken}>
+            {selectedMultiStaerken.map((s) => (
+              <span key={s.id} style={styles.selectedStaerke}>
+                {displayNameWithCount(s.name, countOf(s.id))}
                 <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
-              )}
-              <span style={styles.staerkeDesc}>{s.desc}</span>
-            </button>
-          ))}
+                <button
+                  type="button"
+                  style={styles.removeStaerke}
+                  aria-label={`${s.name} entfernen`}
+                  onClick={() => removeOneStaerke(s.id)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={styles.staerkenGrid}>
+          {angeboteneStaerken.map((s) => {
+            const isSelected = countOf(s.id) > 0
+            // Eine bereits gewählte, nicht mehrfach wählbare Stärke bleibt
+            // zum Abwählen anklickbar. Jede weitere Auswahl wird nur bei
+            // freier Obergrenze UND ausreichendem Budget angeboten.
+            const canToggleOff = !s.mehrfach && isSelected
+            const isDisabled = !canToggleOff
+              && !istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)
+            return (
+              <button
+                key={s.id}
+                style={{
+                  ...styles.staerkeCard,
+                  ...(isSelected ? styles.staerkeCardSelected : {}),
+                  ...(isDisabled ? styles.staerkeCardDisabled : {}),
+                }}
+                aria-pressed={isSelected}
+                onClick={() => handleStaerke(s)}
+                disabled={isDisabled}
+              >
+                <div style={styles.staerkeHeader}>
+                  <span style={styles.staerkeName}>{s.name}</span>
+                  <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
+                </div>
+                {s.mehrfach && (
+                  <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
+                )}
+                <span style={styles.staerkeDesc}>{s.desc}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -406,6 +478,10 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid var(--accent)',
     background: 'var(--bg-tertiary)',
   },
+  staerkeCardDisabled: {
+    opacity: 0.4,
+    cursor: 'not-allowed',
+  },
   staerkeName: {
     fontSize: 15,
     fontWeight: 600,
@@ -431,5 +507,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontWeight: 600,
     color: 'var(--accent)',
+  },
+  selectedStaerken: {
+    display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12,
+  },
+  selectedStaerke: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '4px 8px', fontSize: 13, color: 'var(--text-primary)',
+  },
+  removeStaerke: {
+    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
+    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0,
   },
 }
