@@ -206,3 +206,72 @@ export function maxAuswahlVon(config: unknown): number {
   const { aktiv, max } = readMehrfachConfig(config)
   return aktiv && max !== null ? max : 1
 }
+
+/**
+ * INT-000027 (SF-000014): Verbrauchte Punkte im Creation-Punkteschritt.
+ *
+ * Eine mehrfach wählbare Stärke steht für jede Auswahl erneut in der Liste.
+ * Jeder Eintrag – auch der zweite und jede weitere Auswahl derselben Stärke –
+ * kostet den regulären, in der Bibliothek konfigurierten Kostenwert. Der
+ * Verbrauch ist deshalb die Summe über ALLE Auswahlen und nicht über die
+ * Anzahl unterschiedlicher Einträge.
+ *
+ * Unbekannte bzw. ungültige Kostenwerte fallen auf 1 zurück (Altbestand).
+ */
+export function staerkenPunkteVerbrauch(
+  auswahlen: readonly string[],
+  kostenVon: (id: string) => number,
+): number {
+  return auswahlen.reduce((sum, id) => {
+    const kosten = kostenVon(id)
+    return sum + (Number.isFinite(kosten) && kosten > 0 ? kosten : 1)
+  }, 0)
+}
+
+/** Ein Stärken-Eintrag aus Sicht der Creation-Auswahl. */
+export interface StaerkenWahlEintrag {
+  id: string
+  kosten: number
+  mehrfach: boolean
+  max: number | null
+}
+
+/** Wie oft ein Eintrag in der Auswahlliste bereits gewählt wurde. */
+export function zaehleStaerkenAuswahlen(
+  auswahlen: readonly string[],
+  id: string,
+): number {
+  return auswahlen.filter((value) => value === id).length
+}
+
+/** Zulässige Gesamtanzahl eines Creation-Stärken-Eintrags. */
+export function maxAuswahlVonEintrag(
+  eintrag: { mehrfach: boolean; max: number | null },
+): number {
+  return eintrag.mehrfach && eintrag.max !== null ? eintrag.max : 1
+}
+
+/**
+ * INT-000027: Obergrenze UND Punktbudget wirken gemeinsam als Begrenzung.
+ *
+ * Eine weitere Auswahl wird nur akzeptiert (bzw. als Option angeboten), wenn
+ * die maximale Auswahl-Obergrenze noch nicht erreicht ist UND das verbleibende
+ * Punktbudget für den regulären Preis der Stärke ausreicht. Ist eine der
+ * beiden Bedingungen verletzt, gibt diese Funktion false zurück.
+ */
+export function istStaerkeNochWaehlbar(
+  eintrag: StaerkenWahlEintrag,
+  auswahlen: readonly string[],
+  verfuegbarePunkte: number,
+): boolean {
+  if (
+    zaehleStaerkenAuswahlen(auswahlen, eintrag.id) >=
+    maxAuswahlVonEintrag(eintrag)
+  ) {
+    return false
+  }
+  const kosten = Number.isFinite(eintrag.kosten) && eintrag.kosten > 0
+    ? eintrag.kosten
+    : 1
+  return verfuegbarePunkte >= kosten
+}

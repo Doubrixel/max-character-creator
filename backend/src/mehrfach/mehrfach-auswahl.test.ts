@@ -9,13 +9,18 @@ import {
   displayNameWithCount,
   filterVerfuegbareMeisterschaften,
   istMeisterschaftNochWaehlbar,
+  istStaerkeNochWaehlbar,
   isPositiveIntegerInput,
+  maxAuswahlVonEintrag,
   parsePositiveInteger,
   readMehrfachConfig,
+  staerkenPunkteVerbrauch,
   toRoman,
   validateMehrfachConfig,
   zaehleAuswahlen,
   zaehleMeisterschaftAuswahlen,
+  zaehleStaerkenAuswahlen,
+  type StaerkenWahlEintrag,
 } from '@mcc/shared';
 
 test('INT-000023: die Obergrenze akzeptiert nur ganze positive Zahlen', () => {
@@ -126,4 +131,104 @@ test('INT-000023: Mehrfachauswahl in Bibliothek, Chronik und Erstellung', async 
   } finally {
     await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
+});
+
+/**
+ * Bildet den Creation-Auswahlfluss nach: Solange Obergrenze UND Budget es
+ * erlauben, wird die Stärke erneut in die Auswahlliste aufgenommen.
+ */
+function simuliereCreationAuswahl(
+  budget: number,
+  eintrag: StaerkenWahlEintrag,
+  kostenVon: (id: string) => number,
+): { auswahlen: string[]; verfuegbar: number } {
+  const auswahlen: string[] = [];
+  let guard = 100;
+  while (
+    guard-- > 0 &&
+    istStaerkeNochWaehlbar(
+      eintrag,
+      auswahlen,
+      budget - staerkenPunkteVerbrauch(auswahlen, kostenVon),
+    )
+  ) {
+    auswahlen.push(eintrag.id);
+  }
+  return {
+    auswahlen,
+    verfuegbar: budget - staerkenPunkteVerbrauch(auswahlen, kostenVon),
+  };
+}
+
+test('INT-000027: jede Auswahl einer mehrfach wählbaren Stärke kostet den regulären Preis', () => {
+  // Synthetisches Fixture „Flink": Kosten 1, mehrfach wählbar, Obergrenze 2.
+  const flink: StaerkenWahlEintrag = { id: 'flink-1', kosten: 1, mehrfach: true, max: 2 }
+  const kostenVon = (id: string) => (id === flink.id ? flink.kosten : 1)
+
+  assert.equal(staerkenPunkteVerbrauch([], kostenVon), 0);
+  assert.equal(staerkenPunkteVerbrauch(['flink-1'], kostenVon), 1);
+  assert.equal(
+    staerkenPunkteVerbrauch(['flink-1', 'flink-1'], kostenVon),
+    2,
+    'die zweite Auswahl zieht erneut 1 Punkt vom Budget ab',
+  );
+  assert.equal(staerkenPunkteVerbrauch(['flink-1', 'flink-1', 'flink-1'], kostenVon), 3);
+  // Altbestand mit unbekanntem Kostenwert fällt auf 1 zurück.
+  assert.equal(staerkenPunkteVerbrauch(['unbekannt'], () => Number.NaN), 1);
+
+  // 2 Punkte, Kosten 1, Obergrenze 2 ⇒ genau zwei Auswahlen, danach 0 Punkte.
+  const { auswahlen, verfuegbar } = simuliereCreationAuswahl(2, flink, kostenVon);
+  assert.equal(auswahlen.length, 2);
+  assert.equal(verfuegbar, 0);
+  assert.equal(istStaerkeNochWaehlbar(flink, auswahlen, verfuegbar), false);
+});
+
+test('INT-000027: Punktbudget und Obergrenze wirken gemeinsam als Begrenzung', () => {
+  const kostenVon = () => 1
+
+  // Obergrenze 3, aber nur 2 Punkte: das Budget blockiert vor der Obergrenze.
+  const flinkDrei: StaerkenWahlEintrag = { id: 'flink-1', kosten: 1, mehrfach: true, max: 3 }
+  const budgetFall = simuliereCreationAuswahl(2, flinkDrei, kostenVon);
+  assert.equal(budgetFall.auswahlen.length, 2);
+  assert.equal(zaehleStaerkenAuswahlen(budgetFall.auswahlen, 'flink-1'), 2);
+  assert.equal(budgetFall.verfuegbar, 0);
+  assert.equal(
+    istStaerkeNochWaehlbar(flinkDrei, budgetFall.auswahlen, budgetFall.verfuegbar),
+    false,
+    'keine dritte Auswahl, obwohl die Obergrenze 3 noch frei ist',
+  );
+
+  // Obergrenze 2, aber 3 Punkte: die Obergrenze blockiert vor dem Budget.
+  const flinkZwei: StaerkenWahlEintrag = { ...flinkDrei, max: 2 }
+  const obergrenzenFall = simuliereCreationAuswahl(3, flinkZwei, kostenVon);
+  assert.equal(obergrenzenFall.auswahlen.length, 2);
+  assert.equal(obergrenzenFall.verfuegbar, 1, '1 Punkt bleibt für eine andere Stärke');
+  assert.equal(istStaerkeNochWaehlbar(flinkZwei, obergrenzenFall.auswahlen, obergrenzenFall.verfuegbar), false);
+
+  const einfach: StaerkenWahlEintrag = { id: 'einfach-1', kosten: 1, mehrfach: false, max: null }
+  assert.equal(istStaerkeNochWaehlbar(einfach, obergrenzenFall.auswahlen, obergrenzenFall.verfuegbar), true);
+  assert.equal(istStaerkeNochWaehlbar(einfach, obergrenzenFall.auswahlen, 0), false,
+    'bei aufgebrauchtem Budget wird auch die andere Stärke nicht angeboten');
+});
+
+test('INT-000027: höherer Preis, Entfernen und nicht mehrfach wählbare Stärken bleiben unverändert', () => {
+  const teuer: StaerkenWahlEintrag = { id: 'teuer-1', kosten: 2, mehrfach: true, max: 2 }
+  const kostenVon = (id: string) => (id === teuer.id ? 2 : 1)
+
+  const fall = simuliereCreationAuswahl(2, teuer, kostenVon);
+  assert.equal(fall.auswahlen.length, 1, 'Kosten 2 bei Budget 2 erlauben nur eine Auswahl');
+  assert.equal(fall.verfuegbar, 0);
+
+  // Eine Entfernung gibt den Preis vollständig zurück.
+  assert.equal(staerkenPunkteVerbrauch(['teuer-1'], kostenVon), 2);
+  assert.equal(staerkenPunkteVerbrauch([], kostenVon), 0);
+  assert.equal(istStaerkeNochWaehlbar(teuer, [], 2), true);
+
+  // Nicht mehrfach wählbare Stärken verhalten sich wie bisher: eine Auswahl.
+  const einfach: StaerkenWahlEintrag = { id: 'einfach-1', kosten: 1, mehrfach: false, max: null }
+  assert.equal(maxAuswahlVonEintrag(einfach), 1);
+  assert.equal(maxAuswahlVonEintrag(teuer), 2);
+  const einfachFall = simuliereCreationAuswahl(3, einfach, kostenVon);
+  assert.equal(einfachFall.auswahlen.length, 1);
+  assert.equal(einfachFall.verfuegbar, 2);
 });
