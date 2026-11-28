@@ -13,6 +13,7 @@ Inhalt:
 - Passive Attribut-/Wert-Boni für Meisterschaften und Vorteile (INT-000020 / SF-000012)
 - Bonus-Eingabefelder nur mit Kürzeln beschriften (INT-000021)
 - Passive Boni bereits im Attribut-Schritt sichtbar (INT-000022)
+- Mehrfach wählbare Vorteile und Meisterschaften (INT-000023 / SF-000014)
 
 ---
 
@@ -682,3 +683,89 @@ sie werden bei ihrer Wahl wie gewohnt auf den Endzustand angerechnet.
   über INT22-TC-01 bis -07 (Anzeige von Attribut- und abgeleiteten Boni im
   Attribut-Schritt, Negativfall ohne Bonus, Übereinstimmung mit dem Charakterbogen,
   GEW/GES, Rassenvorteil). Alle Fälle am 27.11.2026 auf dem QA-Commit bestanden.
+
+---
+
+## Mehrfach wählbare Vorteile und Meisterschaften (INT-000023 / SF-000014)
+
+Ziel-Ticket INT-000023 (SF-000014): Vorteile/Stärken und Meisterschaften lassen
+sich in der Bibliothek als mehrfach wählbar markieren und mit einer positiven
+Obergrenze versehen. In Chronik und Charaktererstellung bleiben sie bis zu dieser
+Grenze wiederholt zum regulären Preis erwerbbar; die Anzeige nutzt römische
+Zählung statt doppelter Einträge, passive Boni werden je Auswahl summiert.
+Stand: 28.11.2026. Dokumentiert ist ausschließlich das implementierte und
+QA-geprüfte Verhalten (Rework-PR #21, gemergt 28.11.2026; automatisierte Tests
+grün; manuelle QA MCC-001 bis MCC-010 bestanden). Anwendersicht:
+[`anwenderhandbuch.md`](anwenderhandbuch.md). Kurzeinstieg:
+[`../README.md`](../README.md).
+
+Nicht im Umfang: neue Datenbankspalten oder Migration, Änderung der
+Kosten-/Preislogik, nachträgliche Bearbeitung fertiger Charaktere und der
+Dateiimport der Mehrfach-Konfiguration.
+
+### Zweck und Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Bibliothek | Im Erstellungs-/Bearbeitungsformular von Stärken/Vorteilen und Meisterschaften aktiviert die Checkbox „mehrfach wählbar" das Textfeld „maximale Auswahl-Obergrenze". |
+| Obergrenze | Nur ganze positive Zahlen (1, 2, 3, …); 0, negative, dezimale und Texteingaben werden abgewiesen. Ohne Checkbox bleibt das Feld verborgen und wirkungslos. |
+| Chronik | „Neu erlernen: Stärke" bietet einen mehrfach wählbaren Eintrag bis zur Obergrenze erneut zum regulären Preis an; danach verschwindet er aus „— Ziel wählen —". |
+| Creation | „5. Kindheit" (Stärken) und „9. Meisterschaften" (Meisterschaften) bieten den Eintrag bis zur Obergrenze erneut an; danach nicht mehr. |
+| Darstellung | Wiederholte Auswahlen erscheinen als ein Eintrag mit römischem Suffix („Flink" → „Flink II"), nicht als mehrere gleichnamige Einträge. |
+| Passive Boni | Pro Auswahl wird genau ein Bonus addiert („Flink" KON +1 → „Flink II" KON +2), ohne Id-/Namens-Doppelzählung. |
+| Bestand/Regression | Einträge ohne „mehrfach wählbar" verhalten sich wie zuvor (nach einem Kauf nicht erneut wählbar); Altbestand mit nur `staerke` bleibt erhalten. |
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/mehrfachAuswahl.ts` | Zentrale Logik: `parsePositiveInteger`/`isPositiveIntegerInput` (Obergrenze), `readMehrfachConfig`/`istMehrfachWaehlbar`/`maxAuswahlVon` (Lesen), `validateMehrfachConfig` (Speicherprüfung), `zaehleAuswahlen`/`zaehleMeisterschaftAuswahlen`/`istMeisterschaftNochWaehlbar`/`filterVerfuegbareMeisterschaften` (Zählung und Verfügbarkeit), `toRoman`/`displayNameWithCount` (römische Anzeige). Über `shared/src/index.ts` exportiert. |
+| `frontend/src/components/library/StrengthsView.tsx`, `MasteriesView.tsx` | Checkbox „mehrfach wählbar" und Textfeld „maximale Auswahl-Obergrenze" (Hinweis „Nur ganze positive Zahlen (1, 2, 3, …)."), Vorvalidierung mit `isPositiveIntegerInput`, Anzeige „mehrfach wählbar (max N)", Wiederherstellung beim „Bearbeiten". |
+| `backend/src/routes/library.ts` | `mehrfachSpeicherFehler` ruft `validateMehrfachConfig` für POST und PATCH auf `/api/library/strengths` und `/api/library/masteries` auf; ungültige Konfiguration → HTTP 400. |
+| `backend/src/routes/characters.ts` | `xp/spend` (`learn_strength`) liest `readMehrfachConfig`, zählt mit `zaehleAuswahlen` und sperrt je nach Flag entweder nach einem Kauf oder beim Erreichen von `max`; `collectPassiveBonusesForSelections` addiert den Bonus je neuem Kauf. |
+| `frontend/src/components/chronicle/CharacterSheet.tsx` | Nutzt `readMehrfachConfig`, `zaehleAuswahlen` und `displayNameWithCount`: blendet Einträge nach Erreichen der Obergrenze aus und zeigt die zusammengefasste Bezeichnung. |
+| `frontend/src/components/creation/ZauberStep.tsx` | Schritt „9. Meisterschaften": `poolForSkill`/`availablePool` auf Basis von `filterVerfuegbareMeisterschaften`; characterweite Obergrenze für mehrfach wählbare Meisterschaften, je Fertigkeit höchstens eine Auswahl für alle übrigen. `fillRandomly` prüft gegen den gefüllten Zwischenstand. |
+| `backend/src/mehrfach/mehrfach-auswahl.test.ts`, `mehrfach-auswahl-test-child.ts` | Automatisierte Prüfung (isolierte SQLite-DB im Kindprozess), siehe „Prüfungen". |
+
+### Datenfluss
+
+1. **Bibliothek:** Ist die Checkbox aktiv, speichert `buildConfig`/`handleSubmit` im `config`-JSON `mehrfach_waehlbar: 'true'` und `max_auswahl: <Zeichenkette>`; ohne Checkbox werden beide Schlüssel nicht geschrieben. „Bearbeiten" liest Flag und Wert über `readMehrfachConfig` zurück. Die Liste zeigt „mehrfach wählbar (max N)".
+2. **Speicherprüfung:** POST/PATCH der Tabellen `strengths` und `masteries` weisen eine gesetzte Checkbox ohne gültige positive Obergrenze mit HTTP 400 zurück; bei „mehrfach wählbar" muss die maximale Auswahl-Obergrenze eine positive ganze Zahl sein. Das Frontend meldet vorab „Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3)." und lässt das Formular offen.
+3. **Chronik:** `POST /api/characters/:id/xp/spend` mit `kind: 'learn_strength'` lädt die Bibliothekskonfiguration, zählt vorhandene Auswahlen (Id oder normalisierter Name) und erlaubt den Kauf zum regulären, unveränderten Preis (`kosten`), solange `anzahl < max` gilt. Bei jedem Kauf wird genau ein passiver Bonus auf den gespeicherten Zustand angewendet; der XP-Verlauf protokolliert jede Ausgabe einzeln.
+4. **Creation Stärken:** In „5. Kindheit" bleibt die Stärke auswählbar, solange die Auswahlzahl unter `max` liegt (Anzeige „Auswahl n / N"); danach verschwindet sie aus „Stärke wählen". Beim Abschluss übernimmt `buildFinalCharacter` alle Auswahlen (inkl. Altbestand-Fallback von `staerke`), und die Boni werden einmal pro Auswahl angewendet.
+5. **Creation Meisterschaften:** In „9. Meisterschaften" filtert `filterVerfuegbareMeisterschaften` den Pool je Auswahlfeld. Für mehrfach wählbare Meisterschaften zählt `zaehleMeisterschaftAuswahlen` characterweit über alle Fertigkeiten — die Obergrenze gilt pro Eintrag, nicht pro Fertigkeit. Nach Erreichen der Obergrenze verschwindet die Option aus allen Auswahlfeldern und wird vom `onChange` (`pool.find`) nicht mehr akzeptiert. Alle übrigen Einträge behalten das je-Fertigkeit-Verhalten.
+6. **Darstellung:** `displayNameWithCount` hängt ab der zweiten Auswahl das römische Suffix an (2 → II, 3 → III, …). Der Charakterbogen fasst wiederholte Auswahlen zu genau einem Eintrag zusammen; Vorschau und Bonusanrechnung verwenden dieselbe Zählsemantik.
+
+### Validierung
+
+- **Obergrenze:** `isPositiveIntegerInput` erlaubt nur `^[1-9]\d*$`; `parsePositiveInteger` akzeptiert ausschließlich sichere ganze Zahlen ≥ 1. `0`, negative und dezimale Werte sowie Text werden verworfen (`null`).
+- **Konfiguration:** `readMehrfachConfig` ist tolerant (JSON-String oder Objekt, boolean oder `'true'`; unlesbare Werte → `flag:false`/`max:null`). `aktiv` ist nur wahr, wenn Checkbox **und** gültige positive Obergrenze vorliegen. `validateMehrfachConfig` verlangt bei gesetzter Checkbox eine gültige Obergrenze; ohne Checkbox bleibt der Wert der Obergrenze unerheblich.
+- **Kauf (Chronik):** Nicht mehrfach wählbare Einträge werden nach dem ersten Kauf gesperrt; mehrfach wählbare beim Erreichen von `max` (Antwort „Maximale Auswahl-Obergrenze (N) erreicht"). Pro Kauf wird genau ein Bonus gezählt, Id- und Namensverweise auf denselben Eintrag zählen nicht doppelt.
+- **Meisterschaften (Creation):** Die Obergrenze wird characterweit durchgesetzt; bereits getroffene Auswahlen für andere Fertigkeiten zählen mit. Verweise in Altbeständen mit Namen statt Id werden normalisiert mitgezählt.
+
+### Fehlerverhalten
+
+- **Ungültige Obergrenze:** Das Formular bleibt offen, zeigt den Alert „Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3)." und speichert nichts. Eine umgangene UI wird serverseitig mit HTTP 400 abgewiesen.
+- **Obergrenze erreicht:** Der Eintrag wird nicht mehr in der Auswahl angeboten (Chronik „— Ziel wählen —", Creation „Stärke wählen"/Meisterschafts-Comboboxen). Ein direkter Kaufversuch in der Chronik wird mit der Obergrenzen-Meldung abgelehnt.
+- **Defekte/unlesbare Konfiguration:** Wird tolerant als „nicht mehrfach wählbar" behandelt; es entsteht kein Fehler und kein ungültiger Bonus.
+- **Altbestand:** Einträge mit nur `staerke` (alte Step-Deltas) bleiben erhalten; nicht mehrfach wählbare Einträge verhalten sich unverändert. Namen statt Id werden normalisiert, sodass Bestandsauswahlen korrekt mitgezählt werden.
+- **Mehrfachauswahl-Meisterschaft:** Der zuvor gemeldete Fall, dass „Meisterflink" nach zwei Auswahlen in Schritt 9 weiter angeboten und eine dritte Auswahl akzeptiert wurde, ist behoben (MCC-010).
+
+### Persistenz
+
+- Die Konfiguration liegt im bestehenden `config`-JSON der Tabellen `strengths` und `masteries`; keine neuen Spalten und keine Migration.
+- Wiederholte Auswahlen werden als mehrere Verweise (Id oder Name) in den bestehenden Strukturen gespeichert (`state.staerken`, Step-Delta `kindheit.staerken` mit Altbestand-Fallback auf `staerke`, `steps.Zauber.pflicht` für Meisterschaften). Die Zusammenfassung zu „Flink II" ist eine Anzeige; die Rohauswahlen bleiben erhalten.
+- Der XP-Verlauf in `characterXpLog` enthält pro Kauf einen eigenen Eintrag zum regulären Preis; die passiven Boni werden mit `characters.state` gespeichert.
+- Bereits fertig erstellte Charaktere werden nicht nachträglich verändert; eine neue Konfiguration wirkt erst bei erneutem Kauf/Erlernen.
+
+### Sicherheitsgrenzen
+
+- Keine neuen Endpunkte und keine neuen Berechtigungswege; Bibliotheks- und Charakterrouten bleiben unverändert.
+- Die Speicherprüfung `validateMehrfachConfig` läuft serverseitig für POST und PATCH, auch wenn das Frontend umgangen wird; nur sichere ganze Zahlen und bekannte Konfigurationsschlüssel werden übernommen.
+- Die Filter-/Zähllogik ist rein clientseitig bzw. liegt in `@mcc/shared`; sie ändert keine Preise und führt keine privilegierten Operationen aus. Keine Geheimnisse oder sensiblen Daten betroffen.
+
+### Prüfungen
+
+- `backend/src/mehrfach/mehrfach-auswahl.test.ts` (mit Kindprozess und isolierter SQLite-DB, in `backend/package.json` registriert): prüft Nur-positive-Ganzzahl-Validierung und Config-Lesen, römische Zählung und Auswahlzählung, die characterweite Meisterschafts-Obergrenze (MCC-010) inkl. Altbestand/Namensverweise und Nicht-Mehrfach-Fälle sowie Bibliothek-/Chronik-/Erstellungs-Integration.
+- Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün.
+- Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über die manuellen Testfälle MCC-001 bis MCC-010 (Konfiguration und ungültige Obergrenzen, Kauf bis Obergrenze in Chronik und Creation, römische Zählung, summierte Boni, Meisterschaftsobergrenze in Schritt 9) — am 28.11.2026 alle bestanden.

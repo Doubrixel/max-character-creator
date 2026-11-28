@@ -11,6 +11,7 @@ Inhalt:
 - Passive Boni auf Attribute und abgeleitete Werte (INT-000020 / SF-000012)
 - Bonus-Felder nur mit Kürzeln beschriftet (INT-000021)
 - Passive Boni schon im Schritt „7. Attribute" sehen (INT-000022)
+- Vorteile und Meisterschaften mehrfach wählen (INT-000023 / SF-000014)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -484,3 +485,130 @@ Lebenspunkte.
   abgeleitet und nur ablesbar.
 - Inaktive, leere oder ungültige Bonusangaben wirken nicht; negative ganze
   Zahlen wirken als Malus.
+
+---
+
+## Vorteile und Meisterschaften mehrfach wählen (INT-000023 / SF-000014)
+
+Anwenderhandbuch für Bibliothek, Charaktererstellung und Chronik (Stand: 28.11.2026).
+Ein Vorteil/eine Stärke oder eine Meisterschaft kann als **mehrfach wählbar**
+angelegt werden. Bis zur festgelegten Obergrenze können Sie ihn ganz normal erneut
+wählen und bezahlen; im Charakterbogen erscheint er nur einmal mit römischer Zahl
+(„Flink II"), und passive Boni werden für jede Auswahl addiert.
+Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+Normalerweise kann ein Vorteil oder eine Meisterschaft nur einmal gewählt werden.
+Ist ein Eintrag in der Bibliothek als „mehrfach wählbar" markiert, bleibt er in der
+Auswahl, bis die eingestellte Obergrenze erreicht ist. Jede weitere Auswahl kostet
+genau das Gleiche wie die erste. Statt mehrerer gleichnamiger Zeilen zeigt der
+Charakterbogen einen einzigen Eintrag mit römischer Zählung: „Flink" wird bei der
+zweiten Auswahl zu „Flink II", bei der dritten zu „Flink III". Passive Boni werden
+ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **KON +2**.
+
+### Voraussetzungen
+
+- Sie erreichen in der Seitenleiste **„Bibliothek"** und dort die Unterreiter
+  **„Stärken"** und **„Meisterschaften"**, um die Mehrfachauswahl festzulegen.
+- Für die Chronik: Ein fertiggestellter Charakter mit verfügbaren XP.
+- Für die Erstellung: Ein Erstellvorgang bis zur Stärkenwahl („5. Kindheit")
+  bzw. bis zu „9. Meisterschaften".
+
+### Mehrfachauswahl in der Bibliothek festlegen
+
+1. Öffnen Sie **Bibliothek → Stärken** oder **Bibliothek → Meisterschaften** und
+   klicken Sie auf **„+ Neu"** (oder wählen Sie eine Karte und **„Bearbeiten"**).
+2. Füllen Sie die gewohnten Felder aus (Name, Kosten, Beschreibung/Effekt usw.).
+3. Aktivieren Sie die Checkbox **„mehrfach wählbar"**. Daraufhin erscheint das
+   Textfeld **„maximale Auswahl-Obergrenze"** mit dem Hinweis
+   „Nur ganze positive Zahlen (1, 2, 3, …).".
+4. Tragen Sie die gewünschte Obergrenze ein, z. B. **3**. Es sind nur ganze
+   positive Zahlen erlaubt — keine 0, keine negativen Zahlen, keine Dezimalzahlen
+   und kein Text.
+5. Klicken Sie auf **„Erstellen"** bzw. **„Speichern"**. Die Karte zeigt nun den
+   Zusatz **„mehrfach wählbar (max 3)"**. Öffnen Sie den Eintrag erneut mit
+   **„Bearbeiten"**, stehen Haken und Obergrenze wieder im Formular.
+
+### Mehrfach in der Chronik erwerben
+
+1. Öffnen Sie in der **Chronik** den Charakter und den Bereich **„XP ausgeben"**.
+2. Wählen Sie als Aktion **„Neu erlernen: Stärke"** und als Ziel z. B. **„Flink"**.
+   Die Schaltfläche **„Ausgeben (… XP)"** zeigt den regulären Preis.
+3. Klicken Sie auf **„Ausgeben (… XP)"** und bestätigen Sie mit
+   **„Ja, ausgeben"**.
+4. Solange die Obergrenze nicht erreicht ist, bleibt das Ziel unter
+   **„— Ziel wählen —"** vorhanden und kostet bei jedem Kauf gleich viel. Ist die
+   Obergrenze erreicht, verschwindet es aus der Liste.
+5. Im **„XP-Verlauf"** steht für jeden Kauf ein eigener Eintrag mit demselben
+   XP-Betrag.
+
+### Mehrfach bei der Charaktererstellung wählen
+
+1. In Schritt **„5. Kindheit"** wählen Sie die Stärke aus. Der Button zeigt den
+   Stand, z. B. **„Auswahl 1 / 2"** bei Obergrenze 2. Die Stärke bleibt auswählbar,
+   bis die Obergrenze erreicht ist; danach ist sie aus **„Stärke wählen"**
+   verschwunden.
+2. In Schritt **„9. Meisterschaften"** wählen Sie im Feld
+   **„Meisterschaft für {Fertigkeit}"** die mehrfach wählbare Meisterschaft. Sie
+   bleibt in den Auswahlfeldern, bis die Obergrenze erreicht ist; danach wird sie
+   nicht mehr angeboten. Die Obergrenze gilt dabei für den ganzen Charakter, auch
+   wenn Sie die Meisterschaft für mehrere Fertigkeiten gewählt haben.
+3. Schließen Sie den Wizard wie gewohnt mit **„Charakter fertigstellen"** ab.
+
+### Darstellung und Boni im Charakterbogen
+
+- Unter **„Stärken"** bzw. **„Meisterschaften"** steht genau **ein** Eintrag mit
+  römischem Suffix: nach zwei Auswahlen „Flink II" statt zwei Zeilen „Flink".
+- Passive Boni werden je Auswahl addiert: „Flink" mit **KON +1** ergibt bei zwei
+  Auswahlen **KON +2**. Bei einem Rohwert von 14 zeigt der Charakterbogen also
+  **16**, nicht 15. Dasselbe gilt für abgeleitete Werte.
+- Die Vorschau im Schritt **„7. Attribute"** zeigt bereits die summierten Boni
+  (siehe Abschnitt „Passive Boni schon im Schritt ‚7. Attribute' sehen").
+
+### Erwartete Rückmeldungen
+
+- Die Checkbox blendet das Obergrenzen-Feld ein; die Karte weist auf
+  „mehrfach wählbar (max N)" hin.
+- Bei einer ungültigen Obergrenze erscheint die Meldung
+  „Maximale Auswahl-Obergrenze: bitte eine positive ganze Zahl eingeben (z. B. 3)."
+  und es wird nichts gespeichert.
+- Der Eintrag bleibt bis zur Obergrenze auswählbar und kostet bei jeder Auswahl
+  den regulären Preis; danach ist er aus der Auswahl verschwunden.
+- Der Charakterbogen zeigt einen einzigen Eintrag mit römischer Zählung und die
+  summierten Boni; der XP-Verlauf listet jede Auswahl einzeln.
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Die Obergrenze wird nicht übernommen | Nur ganze positive Zahlen sind erlaubt. Aus „0", „-2", „1,5" oder „abc" wird keine gültige Obergrenze; geben Sie z. B. „3" ein. |
+| Die Checkbox ist gesetzt, das Feld fehlt | Aktivieren Sie „mehrfach wählbar" im Erstellungs-/Bearbeitungsformular; das Feld „maximale Auswahl-Obergrenze" erscheint dann. |
+| Der Eintrag verschwindet zu früh oder bleibt zu lange | Prüfen Sie im Bibliothekseintrag, ob „mehrfach wählbar" aktiv ist und welche Obergrenze eingestellt ist. |
+| Der Preis wirkt ungewöhnlich | Jede Auswahl kostet den regulären Preis wie beim ersten Mal; die Obergrenze verändert den Preis nicht. |
+| Zwei gleichnamige Einträge im Charakterbogen | Mehrfach gewählte Einträge werden zu einem Eintrag mit römischer Zahl zusammengefasst. Prüfen Sie die Obergrenze, wenn mehr Auswahlen als erwartet möglich sind. |
+| Der Bonus fehlt oder ist zu niedrig | Die Checkbox „Passiver Bonus" muss aktiv sein und eine ganze Zahl enthalten; jeder Kauf zählt genau einmal. |
+
+### Speicherung
+
+- Die Mehrfach-Konfiguration wird mit dem Bibliothekseintrag gespeichert und beim
+  erneuten „Bearbeiten" wieder angezeigt.
+- Jede Auswahl wird einzeln gespeichert und im XP-Verlauf einzeln protokolliert;
+  die Zusammenfassung zu „Flink II" ist nur die Anzeige, die Rohauswahlen bleiben
+  erhalten.
+- Passive Boni werden mit dem Charakter gespeichert. Bereits fertig erstellte
+  Charaktere werden durch eine geänderte Konfiguration nicht nachträglich
+  verändert; sie wirkt erst bei der nächsten Wahl bzw. dem nächsten Kauf.
+
+### Grenzen
+
+- Die Obergrenze gilt pro Eintrag. Bei Meisterschaften im Schritt „9. Meisterschaften"
+  wird sie characterweit über alle Fertigkeiten hinweg gezählt.
+- Es sind ausschließlich ganze positive Zahlen erlaubt; 0, negative und dezimale
+  Werte sowie Text werden abgewiesen.
+- Einträge ohne „mehrfach wählbar" behalten das bisherige Verhalten: Nach einem
+  Kauf werden sie nicht erneut angeboten.
+- Der Dateiimport der Bibliothek legt keine Mehrfach-Konfiguration an; stellen Sie
+  sie bei Bedarf über „Bearbeiten" ein.
+- Bestehende, bereits fertig erstellte Charaktere werden nicht nachträglich
+  umgeschrieben.
