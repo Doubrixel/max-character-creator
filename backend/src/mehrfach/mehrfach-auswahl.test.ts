@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import {
+  anzahlStaerkenKarten,
   displayNameWithCount,
   filterVerfuegbareMeisterschaften,
   istMeisterschaftNochWaehlbar,
@@ -263,4 +264,45 @@ test('INT-000028: Schritt 5 erlaubt bei 1 Punkt genau eine Stärke – auch bei 
   const nachZaeh = [zaeh.id]
   assert.equal(verfuegbarVon(nachZaeh), 0)
   assert.equal(istStaerkeNochWaehlbar(zaeh, nachZaeh, verfuegbarVon(nachZaeh)), false)
+});
+
+test('INT-000029: identische, auswählbare Karten je Auswahl plus eine weitere Karte', () => {
+  // Synthetisches Fixture „Flink": Kosten 1, mehrfach wählbar, Obergrenze 2.
+  const flink: StaerkenWahlEintrag = { id: 'flink-1', kosten: 1, mehrfach: true, max: 2 }
+  const zaeh: StaerkenWahlEintrag = { id: 'zaeh-1', kosten: 1, mehrfach: false, max: null }
+
+  // Vor der ersten Auswahl: genau eine Karte; reicht das Budget nicht, bleibt
+  // sie als deaktivierte Karte im Angebot (MCC-028-02).
+  assert.equal(anzahlStaerkenKarten(flink, [], 2), 1)
+  assert.equal(anzahlStaerkenKarten(flink, [], 0), 1)
+
+  // Nach der ersten Auswahl: die gewählte Karte und eine identische,
+  // ebenfalls auswählbare Karte darunter (MCC-029-01).
+  assert.equal(anzahlStaerkenKarten(flink, ['flink-1'], 1), 2)
+
+  // Nach der zweiten Auswahl ist die Obergrenze erreicht: genau zwei Karten,
+  // beide abwählbar, keine dritte (MCC-029-02).
+  assert.equal(anzahlStaerkenKarten(flink, ['flink-1', 'flink-1'], 0), 2)
+
+  // 1-Punkt-Budget in Schritt 5: nach einer Auswahl bleibt es bei einer Karte,
+  // obwohl die Obergrenze 2 noch frei wäre (MCC-029-06).
+  assert.equal(anzahlStaerkenKarten(flink, ['flink-1'], 0), 1)
+
+  // Obergrenze 3, Budget 3: nach zwei Auswahlen erscheint eine dritte Karte,
+  // nach der dritten keine vierte mehr (MCC-029-05).
+  const flinkDrei: StaerkenWahlEintrag = { ...flink, max: 3 }
+  assert.equal(anzahlStaerkenKarten(flinkDrei, [], 3), 1)
+  assert.equal(anzahlStaerkenKarten(flinkDrei, ['flink-1'], 2), 2)
+  assert.equal(anzahlStaerkenKarten(flinkDrei, ['flink-1', 'flink-1'], 1), 3)
+  assert.equal(anzahlStaerkenKarten(flinkDrei, ['flink-1', 'flink-1', 'flink-1'], 0), 3)
+
+  // Obergrenze blockiert vor dem Restbudget: zwei Karten, keine dritte
+  // (MCC-029-10).
+  assert.equal(anzahlStaerkenKarten(flink, ['flink-1', 'flink-1'], 1), 2)
+
+  // Nicht mehrfach wählbare Stärken bleiben unverändert: genau eine Karte,
+  // unabhängig von Auswahl und Budget (MCC-029-08).
+  assert.equal(anzahlStaerkenKarten(zaeh, [], 2), 1)
+  assert.equal(anzahlStaerkenKarten(zaeh, [], 0), 1)
+  assert.equal(anzahlStaerkenKarten(zaeh, ['zaeh-1'], 1), 1)
 });

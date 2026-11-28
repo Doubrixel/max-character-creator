@@ -275,3 +275,29 @@ export function istStaerkeNochWaehlbar(
     : 1
   return verfuegbarePunkte >= kosten
 }
+
+/**
+ * INT-000029: Anzahl der auswählbaren Karten einer Stärke im
+ * Creation-Auswahlbereich.
+ *
+ * Jede Karte ist ein unabhängiger Toggle: Eine Karte je bereits getroffener
+ * Auswahl (zum Abwählen) und – solange Obergrenze UND Budget eine weitere
+ * Auswahl erlauben – eine zusätzliche, ungewählte Karte darunter. Damit folgt
+ * die mehrfach wählbare Stärke demselben Klick-Muster wie alle anderen Stärken;
+ * die gesonderte Darstellung mit „Flink II" und Entfernen-Kreuz entfällt.
+ *
+ * Nicht mehrfach wählbare Stärken haben unverändert genau eine Karte. Ist eine
+ * mehrfach wählbare Stärke noch nicht gewählt, aber das Budget reicht nicht für
+ * eine Auswahl, bleibt eine deaktivierte Karte im Angebot (bisheriges
+ * Verhalten, keine Regression).
+ */
+export function anzahlStaerkenKarten(
+  eintrag: StaerkenWahlEintrag,
+  auswahlen: readonly string[],
+  verfuegbarePunkte: number,
+): number {
+  if (!eintrag.mehrfach) return 1
+  const ausgewaehlt = zaehleStaerkenAuswahlen(auswahlen, eintrag.id)
+  const weitere = istStaerkeNochWaehlbar(eintrag, auswahlen, verfuegbarePunkte)
+  return ausgewaehlt + (weitere ? 1 : ausgewaehlt === 0 ? 1 : 0)
+}
