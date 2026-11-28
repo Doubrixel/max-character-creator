@@ -647,14 +647,14 @@ Eine mehrfach wählbare Stärke (z. B. „Flink", Kosten 1, Obergrenze 2) bleibt
 2. Klicken Sie auf die Karte der mehrfach wählbaren Stärke, z. B. **„Flink"**, **„1 Punkt"**. Die Karte bleibt als gewählte Karte im Abschnitt „2 Stärken wählen" stehen (zugänglich als gedrückt erkennbar), der Zähler sinkt auf **1**, und direkt darunter erscheint eine identische, ebenfalls auswählbare Karte **„Flink"**.
 3. Klicken Sie auf die darunter erschienene zweite Karte **„Flink"**. Der Zähler sinkt auf **0**; jetzt stehen zwei identische Karten **„Flink"**, beide weiterhin anklickbar. Eine dritte Karte erscheint nicht, weil die Obergrenze 2 erreicht ist. Die Bezeichnung **„Flink II"** gibt es nur im fertigen Charakterbogen, nicht im Auswahlbereich.
 4. Hätten Sie mehr Punkte als die Obergrenze zulässt, bliebe der Restpunkt für eine andere Stärke; ist das Budget vor der Obergrenze aufgebraucht, erscheint keine weitere identische Karte und ein Klick auf die zusätzliche Karte wird nicht angenommen.
-5. Möchten Sie eine Auswahl zurücknehmen, klicken Sie die betreffende gewählte Karte **„Flink"** erneut an. Pro Klick wird genau eine Auswahl abgewählt, die zusätzliche Karte verschwindet wieder und genau ein Punkt wird erstattet (Zähler 0 → 1 → 2). Es gibt weder ein Kreuz noch eine Schaltfläche **„Flink entfernen"** noch eine gesonderte Darstellung über dem Auswahlbereich.
+5. Möchten Sie eine Auswahl zurücknehmen, klicken Sie die betreffende gewählte Karte **„Flink"** erneut an. Pro Klick wird genau eine Auswahl abgewählt und genau ein Punkt erstattet (Zähler 0 → 1 → 2). Die Kartenanzahl folgt weiterhin derselben Regel wie bei der Auswahl: Je verbleibender Auswahl steht eine Karte, und solange Obergrenze **und** Restbudget eine weitere Auswahl erlauben, bleibt eine identische, auswählbare Karte darunter. Nach dem Abwählen von zwei auf eine Auswahl stehen daher weiterhin zwei Karten (eine gewählt, eine identisch auswählbar); erst wenn die letzte Auswahl zurückgenommen ist, bleibt eine einzelne Karte. Es gibt weder ein Kreuz noch eine Schaltfläche **„Flink entfernen"** noch eine gesonderte Darstellung über dem Auswahlbereich.
 
 ### Erwartete Rückmeldungen
 
 - Nach **jeder** Auswahl sinkt „Stärken-Punkte" um den Kostenwert; „Fertigkeits-Punkte" und „Ressourcen-Punkte" bleiben unverändert.
 - Im Auswahlbereich steht **je Auswahl eine identische Karte** mit dem einfachen Namen („Flink"), nicht „Flink II". Die römische Zählung und die summierten Boni erscheinen nur im Ergebnis bzw. Charakterbogen.
 - Ist die Obergrenze erreicht **oder** das Budget aufgebraucht, wird keine weitere Karte angeboten; eine Fehlermeldung erscheint nicht.
-- Ein erneuter Klick auf eine gewählte Karte nimmt genau eine Auswahl zurück und erstattet den Punkt; die zusätzliche Karte verschwindet.
+- Ein erneuter Klick auf eine gewählte Karte nimmt genau eine Auswahl zurück und erstattet den Punkt. Die Kartenanzahl richtet sich weiterhin nach Auswahlzahl, Obergrenze und Restbudget: Bei einer verbleibenden Auswahl und ausreichendem Restbudget bleiben zwei identische Karten sichtbar (eine gewählt, eine auswählbar); nach der letzten Abwahl bleibt eine einzelne Karte.
 - „Weiter" ist erst aktiv, wenn alle drei Zähler (Fertigkeiten, Ressourcen, Stärken) auf 0 sind.
 
 ### Fehlerbehebung
