@@ -782,6 +782,8 @@ Ziel-Ticket INT-000027 (SF-000014): In Creation-Schritten mit einem Stärken-Pun
 
 Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung der Preise selbst und eine nachträgliche Änderung fertiger Charaktere. Der Kostenabzug in „5. Kindheit" mit 1 Punkt ist Gegenstand von INT-000028 (nächster Abschnitt); er verwendet dieselben geteilten Helper.
 
+**Stand INT-000029 (28.11.2026):** Die fachliche Kosten-, Budget- und Obergrenzenlogik dieses Abschnitts bleibt unverändert. Die im Folgenden beschriebene UI-Sondermechanik (Eintrag mit römischem Suffix und Entfernen-Schaltfläche über dem Auswahlbereich) wurde im Creation-Auswahlbereich durch das Toggle-Muster identischer, per erneutem Klick abwählbarer Karten ersetzt (siehe Abschnitt „Toggle-Auswahl mehrfach wählbaren Stärken … (INT-000029)" am Ende dieses Dokuments).
+
 ### Zweck und Geltungsbereich
 
 | Bereich | Verhalten |
@@ -807,8 +809,8 @@ Nicht im Umfang: neue Konfigurationsfelder oder Datenbankspalten, eine Änderung
 1. **Laden:** `PointDistributionStep` liest `/api/library/strengths` und übernimmt je Stärke `kosten` (aus `config`, Fallback 1), `mehrfach` und `max` aus `readMehrfachConfig`. `eligibleStaerken` enthält Stärken innerhalb der Kosten-Grenze; mehrfach wählbare mit erreichter Obergrenze fallen heraus.
 2. **Verbrauch:** `staerkenUsed = staerkenPunkteVerbrauch(staerken, kostenVon)` zählt jeden Eintrag der Auswahlliste, also auch Wiederholungen derselben Stärke; `staerkenAvailable = staerkenPoints − staerkenUsed`. Der Zähler „Stärken-Punkte" zeigt `staerkenAvailable`; `onValid` verlangt `staerkenAvailable === 0` (neben Fertigkeits- und Ressourcenpunkten).
 3. **Auswahl:** `handleStaerke` akzeptiert eine weitere Auswahl nur bei `istStaerkeNochWaehlbar` (Obergrenze nicht erreicht **und** `verfuegbarePunkte >= kosten`) und speichert die Id in `steps.<Schritt>.staerken`; nicht mehrfach wählbare Stärken bleiben per Toggle abwählbar.
-4. **Anzeige/Sperre:** Der Stärken-Button ist deaktiviert, sobald `istStaerkeNochWaehlbar` false ist — also bei erreichter Obergrenze **oder** fehlendem Budget. Mehrfach gewählte Stärken erscheinen als ein Eintrag mit römischem Suffix („Flink II") und einer Schaltfläche zum Entfernen einer einzelnen Auswahl.
-5. **Entfernen:** `removeOneStaerke` entfernt genau eine Auswahl; der Verbrauch wird neu berechnet und die Punkte werden erstattet (MCC-027-06).
+4. **Anzeige/Sperre:** Der Stärken-Button ist deaktiviert, sobald `istStaerkeNochWaehlbar` false ist — also bei erreichter Obergrenze **oder** fehlendem Budget. Mehrfach gewählte Stärken erscheinen als ein Eintrag mit römischem Suffix („Flink II") und einer Schaltfläche zum Entfernen einer einzelnen Auswahl. *(Stand INT-000029: im Creation-Auswahlbereich durch identische, per Klick abwählbare Karten ohne Entfernen-Schaltfläche ersetzt; „Flink II" bleibt ausschließlich die Ergebnisdarstellung.)*
+5. **Entfernen:** `removeOneStaerke` entfernt genau eine Auswahl; der Verbrauch wird neu berechnet und die Punkte werden erstattet (MCC-027-06). *(Stand INT-000029: ausgelöst durch erneuten Klick auf die betreffende Karte, nicht mehr durch eine Entfernen-Schaltfläche.)*
 6. **Zufällig ausfüllen:** `fillRandomly` erlaubt Wiederholungen bis zur Obergrenze, wählt mit `pickExactCostSubset` gegen das verbleibende Budget und hängt an bestehende Auswahlen an.
 
 ### Validierung
@@ -872,7 +874,7 @@ neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
 | Kosten | Jede Auswahl zieht den in der Bibliothek konfigurierten Kostenwert vom 1-Punkt-Budget ab (Fallback 1 bei unbekanntem Wert). |
 | Begrenzung | Eine weitere Auswahl wird nur angeboten und akzeptiert, wenn Obergrenze **und** Restbudget den Preis zulassen. |
 | Kosten 1 | Genau eine Auswahl — auch bei mehrfach wählbarer Stärke mit Obergrenze ≥ 2 und auch einer anderen Stärke. Danach „Stärken Punkte: 0" und keine weitere Auswahl. |
-| Entfernen | Eine Auswahl lässt sich über „<Name> entfernen" zurücknehmen; der Punkt wird vollständig erstattet. |
+| Entfernen | Stand INT-000029: Eine Auswahl lässt sich durch erneuten Klick auf die betreffende Karte zurücknehmen; der Punkt wird vollständig erstattet. Die frühere Schaltfläche „<Name> entfernen" gibt es nicht mehr. |
 | Fertigkeitspunkte | Der zweite Zähler „Fertigkeits-Punkte: 20" und die 20-Punkte-Verteilung bleiben unverändert. |
 | Regression | „6. Ausbildung" (2 Punkte) und „8. Hobbybedarf" (3 Punkte), Chronik, römische Zählung („Flink II") und summierte Boni bleiben wie in INT-000023/INT-000027. |
 
@@ -880,7 +882,7 @@ neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
 
 | Komponente | Aufgabe |
 |---|---|
-| `frontend/src/components/creation/KindheitStep.tsx` | `STAERKEN_PUNKTE = 1`; Zähler „Stärken Punkte: {staerkenAvailable}"; `eligibleStaerken` (Preis ≤ Budget), `staerkenVerbrauch`/`staerkenAvailable`, `handleStaerke`, `removeOneStaerke`, Button-Deaktivierung und `onValid`. Übernimmt zugänglichen Namen und Entfernen-Muster aus Schritt 6/8. |
+| `frontend/src/components/creation/KindheitStep.tsx` | `STAERKEN_PUNKTE = 1`; Zähler „Stärken Punkte: {staerkenAvailable}"; `eligibleStaerken` (Preis ≤ Budget), `staerkenVerbrauch`/`staerkenAvailable`, `handleStaerke`, `removeOneStaerke`, Button-Deaktivierung und `onValid`. Stand INT-000029: übernimmt zugänglichen Namen und Toggle-Muster aus Schritt 6/8 (ohne Entfernen-Muster). |
 | `shared/src/mehrfachAuswahl.ts` | Unverändert wiederverwendet: `staerkenPunkteVerbrauch`, `zaehleStaerkenAuswahlen`, `maxAuswahlVonEintrag`, `istStaerkeNochWaehlbar` (Obergrenze **und** Budget) sowie `displayNameWithCount`. |
 | `backend/src/mehrfach/mehrfach-auswahl.test.ts` | Neuer automatisierter Test der 1-Punkt-Fälle (siehe „Prüfungen"). |
 
@@ -889,9 +891,9 @@ neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
 1. **Laden:** `KindheitStep` liest `/api/library/skills` und `/api/library/strengths`; je Stärke werden `kosten` (Fallback 1), `mehrfach` und `max` aus `readMehrfachConfig` übernommen. Wiederhergestellt werden gespeicherte `staerken` (bzw. Altbestand `staerke`).
 2. **Verbrauch:** `staerkenAvailable = 1 − staerkenPunkteVerbrauch(staerken, kostenVon)`; der Zähler zeigt diesen Wert. Nur Stärken mit `kosten ≤ 1` sind überhaupt wählbar.
 3. **Auswahl:** `handleStaerke` akzeptiert eine weitere Auswahl nur bei `istStaerkeNochWaehlbar` (Obergrenze nicht erreicht **und** `verfuegbarePunkte ≥ kosten`); nicht mehrfach wählbare Stärken bleiben per Toggle abwählbar.
-4. **Anzeige/Sperre:** Ist das Budget aufgebraucht (oder die Obergrenze erreicht), ist die Karte deaktiviert und eine weitere Auswahl wird nicht akzeptiert. Mehrfach gewählte Stärken erscheinen als ein Eintrag mit römischem Suffix und „<Name> entfernen".
+4. **Anzeige/Sperre:** Ist das Budget aufgebraucht (oder die Obergrenze erreicht), wird keine weitere Karte angeboten und eine weitere Auswahl wird nicht akzeptiert. Stand INT-000029: Mehrfach gewählte Stärken erscheinen als identische, per Klick abwählbare Karten im Auswahlbereich; die frühere Darstellung als ein Eintrag mit römischem Suffix und „<Name> entfernen" ist entfernt.
 5. **Gültigkeit:** `onValid` verlangt `staerkenAvailable ≤ 0` **und** `availablePoints ≤ 0`; „Weiter" ist erst aktiv, wenn beide Budgets auf 0 sind.
-6. **Entfernen:** `removeOneStaerke` entfernt genau eine Auswahl; der Verbrauch wird neu berechnet und der Punkt erstattet.
+6. **Entfernen:** `removeOneStaerke` entfernt genau eine Auswahl; der Verbrauch wird neu berechnet und der Punkt erstattet. Stand INT-000029: ausgelöst durch erneuten Klick auf die betreffende Karte.
 
 ### Validierung
 
@@ -903,7 +905,7 @@ neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
 
 - **Zweite Auswahl trotz Obergrenze:** Bei Obergrenze 2 und Kosten 1 bleibt die Karte nach der ersten Auswahl deaktiviert („Auswahl 1 / 2", „Stärken Punkte: 0"); „Auswahl 2 / 2" erscheint nicht und ein Klick wird nicht angenommen (MCC-028-03/-04). Wie in Schritt 6/8 bleibt die Karte als deaktivierter Button im DOM, ist aber nicht auswählbar.
 - **Andere Stärke nach Verbrauch:** Auch andere Bibliotheksstärken sind bei „Stärken Punkte: 0" deaktiviert; es bleibt bei genau einer ausgewählten Stärke (MCC-028-05).
-- **Entfernen:** „<Name> entfernen" gibt den Punkt vollständig zurück; die Karte wird erneut mit „Auswahl 0 / 2" angeboten (MCC-028-06).
+- **Abwählen:** Stand INT-000029: Ein erneuter Klick auf die gewählte Karte gibt den Punkt vollständig zurück; die Karte ist erneut ungewählt und mit „Auswahl 0 / 2" auswählbar (MCC-028-06). Eine Schaltfläche „<Name> entfernen" gibt es nicht mehr.
 - **Regression:** Schritt 6 zeigt weiter zwei, Schritt 8 drei Auswahlen zu je 1 Punkt inkl. „Flink II" (MCC-028-07/-08); Chronik-Käufe und Boni bleiben unverändert. Defekte Bibliotheksdaten werden wie zuvor über `reportApiError('Bibliotheksdaten konnten nicht geladen werden')` gemeldet.
 
 ### Persistenz
@@ -923,3 +925,33 @@ neuen Datenbankspalten und keine nachträgliche Änderung fertiger Charaktere.
 - `backend/src/mehrfach/mehrfach-auswahl.test.ts` (in `backend/package.json` registriert): neuer INT-000028-Test — 1 Punkt, Kosten 1, Obergrenze 2 ⇒ genau eine Auswahl; nach dieser ist `istStaerkeNochWaehlbar` für dieselbe **und** eine andere Stärke false; Entfernen gibt den Punkt zurück; eine nicht mehrfach wählbare Stärke verbraucht ebenfalls den einen Punkt.
 - Projektprüfungen laut Profil: `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` — grün (automatisierte Tests seit 28.11.2026 12:15 UTC).
 - Das Frontend besitzt keine Unit-Test-Infrastruktur; die UI-Abnahme erfolgt über die manuellen Testfälle MCC-028-01 bis -08 (Anzeige „Stärken Punkte: 1/0" ohne „Stärken gewählt", eine Auswahl bei Kosten 1 trotz Obergrenze 2, Ablehnung der zweiten Auswahl und anderer Stärken, Erstattung beim Entfernen, unveränderte Schritte 6 und 8) — am 28.11.2026 auf Commit `447f7a9a` alle bestanden.
+
+---
+
+## Toggle-Auswahl mehrfach wählbaren Stärken im Creation-Auswahlbereich (INT-000029 / SF-000014)
+
+Ziel-Ticket INT-000029 (SF-000014): Die Auswahl mehrfach wählbaren Stärken in den Creation-Punkteschritten folgt demselben Toggle-Muster wie bei allen anderen Stärken — einmal anklicken = auswählen, erneut anklicken = genau eine Auswahl abwählen. Die bisherige Sondermechanik (rote Hervorhebung, gesonderter Bereich „über dem Fenster", Kreuz bzw. Schaltfläche „<Name> entfernen") ist entfernt. Die fachliche Kosten-, Budget- und Obergrenzenlogik aus INT-000027/INT-000028 sowie die Ergebnisdarstellung mit römischer Zählung und summierten Boni aus INT-000023 bleiben unverändert. Anwendersicht: [`anwenderhandbuch.md`](anwenderhandbuch.md).
+
+### Geltungsbereich
+
+| Bereich | Verhalten |
+|---|---|
+| Punkteschritte | „5. Kindheit" (`KindheitStep`, 1 Punkt), „6. Ausbildung" und „8. Hobbybedarf" (`PointDistributionStep`, 2 bzw. 3 Punkte). |
+| Toggle | Jede Karte ist eine Schaltfläche mit `aria-pressed`: gewählte Karte anklicken ⇒ eine Auswahl weniger, ungewählte Karte anklicken ⇒ eine Auswahl mehr. |
+| Identische Karten | Je getroffener Auswahl steht eine Karte mit dem einfachen Namen („Flink") im Auswahlbereich; solange Obergrenze **und** Restbudget eine weitere Auswahl erlauben, folgt eine weitere identische Karte darunter. |
+| Begrenzung | Keine Karte über die Obergrenze hinaus und keine Auswahl ohne ausreichendes Restbudget (`istStaerkeNochWaehlbar`). Die Zähler „Stärken Punkte:"/„Stärken-Punkte:" bleiben nach Auswahl und Abwahl korrekt. |
+| Ergebnis | „Flink II" und summierte passive Boni erscheinen weiterhin nur im Charakterbogen; Meisterschaften und Chronik-XP-Käufe bleiben unverändert. |
+
+### Komponenten
+
+| Komponente | Aufgabe |
+|---|---|
+| `shared/src/mehrfachAuswahl.ts` | Neu: `anzahlStaerkenKarten(eintrag, auswahlen, verfuegbarePunkte)` liefert die Anzahl der Karten: eine je Auswahl plus eine weitere, solange `istStaerkeNochWaehlbar` wahr ist; nicht mehrfach wählbare Stärken haben unverändert eine Karte. Über `shared/src/index.ts` exportiert. |
+| `frontend/src/components/creation/PointDistributionStep.tsx` | `eligibleStaerken` filtert nur noch nach Kosten; `handleStaerke(s, isSelected)` wählt ab bzw. fügt hinzu; der Grid rendert je Stärke `anzahlStaerkenKarten` Karten mit `aria-pressed` und deaktiviert nur ungewählte Karten bei fehlendem Budget/Obergrenze. Sonderbereich und Entfernen-Schaltfläche entfernt, pressed-Zustand neutral statt rot. |
+| `frontend/src/components/creation/KindheitStep.tsx` | Entsprechende Umstellung für den 1-Punkt-Schritt; `saveDelta` schreibt weiterhin `skills`, `staerke` und `staerken`. |
+| `backend/src/mehrfach/mehrfach-auswahl.test.ts` | Neuer Test „identische, auswählbare Karten je Auswahl plus eine weitere Karte" (Obergrenze 2 und 3, Budget-Grenze, 1-Punkt-Schritt, nicht mehrfach wählbare Stärke). |
+
+### Prüfungen
+
+- `npm test`, `npm run typecheck --workspace=backend` und `npm run build --workspace=frontend` laut Projektprofil grün.
+- Manuelle UI-Abnahme über MCC-029-01 bis -10: identische Karten, Toggle-Abwahl mit Erstattung und Zähler, keine Entfernen-Schaltfläche, kein „Flink II" und keine rote Hervorhebung im Auswahlbereich, Obergrenze/Budget gemeinsam, Schritt 5 mit 1 Punkt, nicht mehrfach wählbare Regression sowie Chronik-Ergebnis mit „Flink II" und KON 16.

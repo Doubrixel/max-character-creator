@@ -4,7 +4,7 @@ import { useStepFill } from '../../context/TestModeContext'
 import { distributePoints, pickRandom } from '../../testmode/random'
 import {
   readMehrfachConfig,
-  displayNameWithCount,
+  anzahlStaerkenKarten,
   staerkenPunkteVerbrauch,
   zaehleStaerkenAuswahlen,
   maxAuswahlVonEintrag,
@@ -144,16 +144,12 @@ export default function KulturStep({ onValid }: KulturStepProps) {
   )
   const staerkenAvailable = STAERKEN_PUNKTE - staerkenVerbrauch
 
-  // INT-000023: Eine mehrfach wählbare Stärke bleibt bis zur Obergrenze im
-  // Angebot. INT-000028: Ob eine weitere Auswahl tatsächlich möglich ist,
-  // entscheidet zusätzlich das 1-Punkt-Budget (siehe `isDisabled` unten) –
-  // identisch zum Vorgehen in den Schritten 6 und 8.
-  const angeboteneStaerken = eligibleStaerken.filter(
-    (s) => !s.mehrfach || countOf(s.id) < maxOf(s),
-  )
-  const selectedMultiStaerken = staerkenData.filter(
-    (s) => s.mehrfach && countOf(s.id) > 0,
-  )
+  // INT-000029: Mehrfach wählbare Stärken bleiben auch nach Erreichen der
+  // Obergrenze im Abschnitt, damit ihre gewählten Karten abwählbar bleiben.
+  // Die Anzahl der identischen Karten je Stärke bestimmt `anzahlStaerkenKarten`
+  // beim Rendern; Obergrenze UND 1-Punkt-Budget (INT-000028) wirken wie in den
+  // Schritten 6 und 8 gemeinsam.
+  const angeboteneStaerken = eligibleStaerken
 
   useEffect(() => {
     const valid = staerkenAvailable <= 0 && availablePoints <= 0
@@ -186,16 +182,23 @@ export default function KulturStep({ onValid }: KulturStepProps) {
     return 6;
   }
 
-  const handleStaerke = (s: StaerkenWahlEintrag) => {
-    // Nicht mehrfach wählbare Stärken bleiben abwählbar (Toggle wie bisher).
-    if (!s.mehrfach && staerken.includes(s.id)) {
-      const next = staerken.filter((value) => value !== s.id)
-      setStaerken(next)
-      saveDelta(skillDelta, next)
+  // INT-000029: Jede Karte ist ein Toggle. Eine bereits gewählte Karte nimmt
+  // genau eine Auswahl zurück und erstattet den Preis; eine ungewählte Karte
+  // fügt eine Auswahl hinzu, sofern Obergrenze UND 1-Punkt-Budget es erlauben
+  // (INT-000027/INT-000028). Ohne Entfernen-Kreuz und ohne Sonderbereich.
+  const handleStaerke = (s: StaerkenWahlEintrag, isSelected: boolean) => {
+    if (isSelected) {
+      // Nicht mehrfach wählbare Stärken bleiben wie bisher komplett abwählbar;
+      // bei mehrfach wählbaren nimmt ein Klick genau eine Auswahl zurück.
+      if (!s.mehrfach) {
+        const next = staerken.filter((value) => value !== s.id)
+        setStaerken(next)
+        saveDelta(skillDelta, next)
+        return
+      }
+      removeOneStaerke(s.id)
       return
     }
-    // INT-000028: Obergrenze und 1-Punkt-Budget wirken gemeinsam. Erst wenn
-    // beides stimmt, wird die Auswahl akzeptiert und der Preis abgezogen.
     if (!istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)) return
     const next = [...staerken, s.id]
     setStaerken(next)
@@ -303,55 +306,41 @@ export default function KulturStep({ onValid }: KulturStepProps) {
 
       <div style={styles.section}>
         <h3 style={styles.sectionTitle}>Stärke wählen</h3>
-        {selectedMultiStaerken.length > 0 && (
-          <div style={styles.selectedStaerken}>
-            {selectedMultiStaerken.map((s) => (
-              <span key={s.id} style={styles.selectedStaerke}>
-                {displayNameWithCount(s.name, countOf(s.id))}
-                <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
-                <button
-                  type="button"
-                  style={styles.removeStaerke}
-                  aria-label={`${s.name} entfernen`}
-                  onClick={() => removeOneStaerke(s.id)}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
         <div style={styles.staerkenGrid}>
-          {angeboteneStaerken.map((s) => {
-            const isSelected = countOf(s.id) > 0
-            // Eine bereits gewählte, nicht mehrfach wählbare Stärke bleibt
-            // zum Abwählen anklickbar. Jede weitere Auswahl wird nur bei
-            // freier Obergrenze UND ausreichendem Budget angeboten.
-            const canToggleOff = !s.mehrfach && isSelected
-            const isDisabled = !canToggleOff
-              && !istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)
-            return (
-              <button
-                key={s.id}
-                style={{
-                  ...styles.staerkeCard,
-                  ...(isSelected ? styles.staerkeCardSelected : {}),
-                  ...(isDisabled ? styles.staerkeCardDisabled : {}),
-                }}
-                aria-pressed={isSelected}
-                onClick={() => handleStaerke(s)}
-                disabled={isDisabled}
-              >
-                <div style={styles.staerkeHeader}>
-                  <span style={styles.staerkeName}>{s.name}</span>
-                  <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
-                </div>
-                {s.mehrfach && (
-                  <span style={styles.staerkeCount}>Auswahl {countOf(s.id)} / {maxOf(s)}</span>
-                )}
-                <span style={styles.staerkeDesc}>{s.desc}</span>
-              </button>
-            )
+          {angeboteneStaerken.flatMap((s) => {
+            // INT-000029: Eine Karte je getroffener Auswahl (abwählbar) und
+            // eine weitere, identische Karte darunter, solange Obergrenze und
+            // 1-Punkt-Budget eine Auswahl erlauben. Alle Karten tragen denselben
+            // sichtbaren Namen; „Flink II" bleibt die Ergebnisdarstellung.
+            const ausgewaehlt = countOf(s.id)
+            const karten = anzahlStaerkenKarten(s, staerken, staerkenAvailable)
+            const kannHinzufuegen = istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)
+            return Array.from({ length: karten }, (_, index) => {
+              const isSelected = index < ausgewaehlt
+              const isDisabled = !isSelected && !kannHinzufuegen
+              return (
+                <button
+                  key={`${s.id}-${index}`}
+                  style={{
+                    ...styles.staerkeCard,
+                    ...(isSelected ? styles.staerkeCardSelected : {}),
+                    ...(isDisabled ? styles.staerkeCardDisabled : {}),
+                  }}
+                  aria-pressed={isSelected}
+                  onClick={() => handleStaerke(s, isSelected)}
+                  disabled={isDisabled}
+                >
+                  <div style={styles.staerkeHeader}>
+                    <span style={styles.staerkeName}>{s.name}</span>
+                    <span style={styles.staerkeCost}>{s.kosten} Punkt{s.kosten > 1 ? 'e' : ''}</span>
+                  </div>
+                  {s.mehrfach && (
+                    <span style={styles.staerkeCount}>Auswahl {ausgewaehlt} / {maxOf(s)}</span>
+                  )}
+                  <span style={styles.staerkeDesc}>{s.desc}</span>
+                </button>
+              )
+            })
           })}
         </div>
       </div>
@@ -474,8 +463,10 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 4,
   },
+  // INT-000029: pressed-Zustand neutral (nicht rot) – wie bei den anderen
+  // Stärken per `aria-pressed` erfassbar, ohne Sonder-Hervorhebung.
   staerkeCardSelected: {
-    border: '2px solid var(--accent)',
+    border: '2px solid var(--border)',
     background: 'var(--bg-tertiary)',
   },
   staerkeCardDisabled: {
@@ -507,17 +498,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     fontWeight: 600,
     color: 'var(--accent)',
-  },
-  selectedStaerken: {
-    display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12,
-  },
-  selectedStaerke: {
-    display: 'inline-flex', alignItems: 'center', gap: 6,
-    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-    borderRadius: 6, padding: '4px 8px', fontSize: 13, color: 'var(--text-primary)',
-  },
-  removeStaerke: {
-    background: 'transparent', border: 'none', color: 'var(--text-secondary)',
-    cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0,
   },
 }

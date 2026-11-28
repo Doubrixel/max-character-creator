@@ -547,11 +547,17 @@ ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **K
 
 ### Mehrfach bei der Charaktererstellung wählen
 
-1. In Schritt **„5. Kindheit"** wählen Sie die Stärke aus. Der Button zeigt den
-   Stand, z. B. **„Auswahl 1 / 2"** bei Obergrenze 2. Hier stehen nur **1 Punkt**
-   zur Verfügung (siehe Abschnitt „1 Punkt für Stärken in ‚5. Kindheit'" unten):
-   Bei Kosten 1 ist damit nur eine Auswahl möglich, auch wenn die Obergrenze 2
-   wäre. Danach ist die Karte deaktiviert.
+1. In Schritt **„5. Kindheit"** wählen Sie die Stärke per Klick aus; ein erneuter
+   Klick auf die gewählte Karte wählt sie wieder ab (Toggle). Der Button zeigt
+   den Stand, z. B. **„Auswahl 1 / 2"** bei Obergrenze 2. Hier stehen nur
+   **1 Punkt** zur Verfügung (siehe Abschnitt „1 Punkt für Stärken in ‚5.
+   Kindheit'" unten): Bei Kosten 1 ist damit nur eine Auswahl möglich, auch wenn
+   die Obergrenze 2 wäre. Danach erscheint keine zweite Karte.
+   In den Schritten **„6. Ausbildung"** und **„8. Hobbybedarf"** erscheint nach
+   der ersten Auswahl eine identische, ebenfalls anklickbare Karte direkt
+   darunter; jede weitere Auswahl erzeugt eine weitere Karte, bis Obergrenze oder
+   Budget erschöpft sind. Eine gesonderte Hervorhebung, ein Bereich über dem
+   Fenster und ein Kreuz zum Entfernen gibt es dabei nicht.
 2. In Schritt **„9. Meisterschaften"** wählen Sie im Feld
    **„Meisterschaft für {Fertigkeit}"** die mehrfach wählbare Meisterschaft. Sie
    bleibt in den Auswahlfeldern, bis die Obergrenze erreicht ist; danach wird sie
@@ -638,28 +644,28 @@ Eine mehrfach wählbare Stärke (z. B. „Flink", Kosten 1, Obergrenze 2) bleibt
 ### Schritt für Schritt: mehrfach wählen und Punkte beachten
 
 1. Lesen Sie den Zähler **„Stärken-Punkte"** ab, z. B. **2**.
-2. Klicken Sie auf die Karte der mehrfach wählbaren Stärke, z. B. **„Flink"**, **„1 Punkt"**. Die Karte zeigt **„Auswahl 1 / 2"**, der Zähler sinkt auf **1**, und unter der Auswahl steht ein Eintrag **„Flink"**.
-3. Klicken Sie erneut auf **„Flink"**. Der Zähler sinkt auf **0**; der Eintrag heißt jetzt **„Flink II"** und steht nur einmal. Die Karte „Flink" wird im Abschnitt „2 Stärken wählen" nicht mehr angeboten.
-4. Hätten Sie mehr Punkte als die Obergrenze zulässt, bliebe der Restpunkt für eine andere Stärke; ist das Budget vor der Obergrenze aufgebraucht, ist die Karte deaktiviert und ein weiterer Klick wird nicht akzeptiert.
-5. Möchten Sie eine Auswahl zurücknehmen, klicken Sie am Eintrag auf das **×** (zugänglich als **„Flink entfernen"**). Pro Klick wird eine Auswahl entfernt und genau ein Punkt erstattet („Flink II" → „Flink" → keine Auswahl, Zähler 0 → 1 → 2).
+2. Klicken Sie auf die Karte der mehrfach wählbaren Stärke, z. B. **„Flink"**, **„1 Punkt"**. Die Karte bleibt als gewählte Karte im Abschnitt „2 Stärken wählen" stehen (zugänglich als gedrückt erkennbar), der Zähler sinkt auf **1**, und direkt darunter erscheint eine identische, ebenfalls auswählbare Karte **„Flink"**.
+3. Klicken Sie auf die darunter erschienene zweite Karte **„Flink"**. Der Zähler sinkt auf **0**; jetzt stehen zwei identische Karten **„Flink"**, beide weiterhin anklickbar. Eine dritte Karte erscheint nicht, weil die Obergrenze 2 erreicht ist. Die Bezeichnung **„Flink II"** gibt es nur im fertigen Charakterbogen, nicht im Auswahlbereich.
+4. Hätten Sie mehr Punkte als die Obergrenze zulässt, bliebe der Restpunkt für eine andere Stärke; ist das Budget vor der Obergrenze aufgebraucht, erscheint keine weitere identische Karte und ein Klick auf die zusätzliche Karte wird nicht angenommen.
+5. Möchten Sie eine Auswahl zurücknehmen, klicken Sie die betreffende gewählte Karte **„Flink"** erneut an. Pro Klick wird genau eine Auswahl abgewählt, die zusätzliche Karte verschwindet wieder und genau ein Punkt wird erstattet (Zähler 0 → 1 → 2). Es gibt weder ein Kreuz noch eine Schaltfläche **„Flink entfernen"** noch eine gesonderte Darstellung über dem Auswahlbereich.
 
 ### Erwartete Rückmeldungen
 
 - Nach **jeder** Auswahl sinkt „Stärken-Punkte" um den Kostenwert; „Fertigkeits-Punkte" und „Ressourcen-Punkte" bleiben unverändert.
-- Die mehrfach gewählte Stärke erscheint als **ein** Eintrag mit römischer Zahl („Flink II"), nie als zwei Zeilen „Flink".
-- Ist die Obergrenze erreicht **oder** das Budget aufgebraucht, ist die Karte ausgegraut/deaktiviert und wird nicht mehr angeboten; eine Fehlermeldung erscheint nicht.
-- Beim Entfernen erscheint die Karte mit um eins verringertem Stand („Auswahl 1 / 2", dann „Auswahl 0 / 2") wieder, und der Punkt ist zurück.
+- Im Auswahlbereich steht **je Auswahl eine identische Karte** mit dem einfachen Namen („Flink"), nicht „Flink II". Die römische Zählung und die summierten Boni erscheinen nur im Ergebnis bzw. Charakterbogen.
+- Ist die Obergrenze erreicht **oder** das Budget aufgebraucht, wird keine weitere Karte angeboten; eine Fehlermeldung erscheint nicht.
+- Ein erneuter Klick auf eine gewählte Karte nimmt genau eine Auswahl zurück und erstattet den Punkt; die zusätzliche Karte verschwindet.
 - „Weiter" ist erst aktiv, wenn alle drei Zähler (Fertigkeiten, Ressourcen, Stärken) auf 0 sind.
 
 ### Fehlerbehebung
 
 | Situation | Bedeutung / Lösung |
 |---|---|
-| Die Karte ist ausgegraut, obwohl „Auswahl 2 / 3" noch frei ist | Das Punktbudget ist aufgebraucht. Entfernen Sie eine andere Auswahl oder schließen Sie den Schritt mit den verfügbaren Punkten ab. |
-| Die Karte ist ausgegraut, obwohl noch Punkte übrig sind | Die maximale Auswahl-Obergrenze ist erreicht. Geben Sie den Restpunkt für eine andere Stärke aus. |
-| Sie sehen zwei Zeilen „Flink" | Das sollte nicht passieren; wiederholte Auswahlen werden zu „Flink II" zusammengefasst. Prüfen Sie die Obergrenze im Bibliothekseintrag. |
-| Ein Klick wird nicht angenommen | Entweder Budget oder Obergrenze ist erschöpft. Die Schaltfläche ist dann deaktiviert; es gibt keine Fehlermeldung. |
-| Ein Punkt wurde nicht erstattet | Klicken Sie „{Stärke} entfernen" so oft, wie Sie Auswahlen zurücknehmen möchten; pro Klick wird genau eine erstattet. |
+| Die zusätzliche Karte erscheint nicht, obwohl „Auswahl 2 / 3" noch frei ist | Das Punktbudget ist aufgebraucht. Wählen Sie eine andere Auswahl ab oder schließen Sie den Schritt mit den verfügbaren Punkten ab. |
+| Die zusätzliche Karte erscheint nicht, obwohl noch Punkte übrig sind | Die maximale Auswahl-Obergrenze ist erreicht. Geben Sie den Restpunkt für eine andere Stärke aus. |
+| Sie sehen „Flink II" im Auswahlbereich | Das sollte nicht passieren; dort stehen ausschließlich Karten mit dem einfachen Namen. „Flink II" erscheint nur im Charakterbogen. |
+| Ein Klick wird nicht angenommen | Entweder Budget oder Obergrenze ist erschöpft. Die zusätzliche Karte ist dann nicht auswählbar; es gibt keine Fehlermeldung. |
+| Ein Punkt wurde nicht erstattet | Klicken Sie die betreffende gewählte Karte erneut an; pro Klick wird genau eine Auswahl abgewählt und ein Punkt erstattet. |
 
 ### Speicherung
 
@@ -707,13 +713,14 @@ andere. Der vorherige Text „Stärken gewählt" gibt es in diesem Schritt nicht
 2. Klicken Sie im Bereich **„Stärke wählen"** auf die gewünschte Stärke, z. B.
    **„Flink"** mit **„1 Punkt"**. Ist sie mehrfach wählbar, zeigt die Karte
    **„Auswahl 0 / 2"**.
-3. Der Zähler sinkt auf **„Stärken Punkte: 0"**. Die Karte ist nun deaktiviert
-   und ein weiterer Klick wird nicht angenommen — auch bei Obergrenze 2 erscheint
-   kein **„Auswahl 2 / 2"**.
-4. Möchten Sie die Stärke wechseln, klicken Sie beim ausgewählten Eintrag auf
-   **„{Name} entfernen"** (z. B. **„Flink entfernen"**). Der Punkt wird
-   vollständig erstattet (**„Stärken Punkte: 1"**) und die Stärke steht wieder
-   mit **„Auswahl 0 / 2"** zur Auswahl.
+3. Der Zähler sinkt auf **„Stärken Punkte: 0"**. Es bleibt bei genau einer
+   ausgewählten Karte **„Flink"**; wegen des 1-Punkt-Budgets erscheint keine
+   zweite identische Karte — auch bei Obergrenze 2 nicht und kein
+   **„Auswahl 2 / 2"**.
+4. Möchten Sie die Stärke wechseln, klicken Sie die gewählte Karte **„Flink"**
+   erneut an. Der Punkt wird vollständig erstattet (**„Stärken Punkte: 1"**),
+   die Karte ist wieder ungewählt und erneut auswählbar. Es gibt keine
+   Schaltfläche **„{Name} entfernen"** und kein Kreuz.
 5. Verteilen Sie die 20 Fertigkeitspunkte und klicken Sie auf **„Weiter"**. Der
    Button ist erst aktiv, wenn beide Zähler auf 0 sind.
 
@@ -721,19 +728,21 @@ andere. Der vorherige Text „Stärken gewählt" gibt es in diesem Schritt nicht
 
 - Der Zähler zeigt **„Stärken Punkte: 1"** bzw. nach der Auswahl **„Stärken Punkte: 0"**;
   „Stärken gewählt" erscheint nicht mehr. „Fertigkeits-Punkte" bleibt unverändert.
-- Nach der Auswahl sind alle Stärkenkarten deaktiviert; es bleibt bei genau einer
-  ausgewählten Stärke. Eine Fehlermeldung erscheint nicht.
+- Nach der Auswahl bleibt genau eine ausgewählte Karte; eine weitere identische
+  Karte erscheint nicht, weil der 1 Punkt aufgebraucht ist. Eine Fehlermeldung
+  erscheint nicht.
 - Bei einer mehrfach wählbaren Stärke steht **„Auswahl 1 / 2"**, nie **„Auswahl 2 / 2"**.
-- Nach dem Entfernen ist der Punkt wieder verfügbar und die Karte erneut auswählbar.
+- Ein erneuter Klick auf die gewählte Karte wählt sie ab; der Punkt ist wieder
+  verfügbar und die Karte erneut auswählbar.
 
 ### Fehlerbehebung
 
 | Situation | Bedeutung / Lösung |
 |---|---|
-| Eine zweite Auswahl wird nicht angenommen | In Schritt 5 reicht der 1 Punkt nur für eine Stärke. Entfernen Sie die Auswahl mit „{Name} entfernen", um eine andere zu wählen. |
+| Eine zweite Auswahl wird nicht angenommen | In Schritt 5 reicht der 1 Punkt nur für eine Stärke. Klicken Sie die gewählte Karte erneut an, um eine andere zu wählen. |
 | „Auswahl 2 / 2" fehlt | Erwartet: Die Obergrenze wäre zwar frei, das 1-Punkt-Budget verhindert die zweite Auswahl. Zwei Auswahlen sind weiterhin in „6. Ausbildung" und „8. Hobbybedarf" möglich. |
 | Die gewünschte Stärke wird nicht angeboten | Ihre Kosten liegen über 1 Punkt. In Schritt 5 sind nur Stärken mit Kosten 1 wählbar. |
-| Der Punkt ist nach dem Entfernen noch 0 | Klicken Sie „{Name} entfernen" so oft, wie Sie Auswahlen zurücknehmen möchten; pro Klick wird genau eine erstattet. |
+| Der Punkt ist nach dem Abwählen noch 0 | Klicken Sie die betreffende Karte erneut an; pro Klick wird genau eine Auswahl abgewählt und ein Punkt erstattet. |
 
 ### Speicherung
 
