@@ -10,6 +10,7 @@ import {
   masteryMatchesSkill,
   readMehrfachConfig,
   displayNameWithCount,
+  filterVerfuegbareMeisterschaften,
 } from '@mcc/shared'
 import type { PickedItem, PflichtMeisterschaft, PickedSpell } from '@mcc/shared'
 
@@ -229,13 +230,26 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
       items.map((meisterschaft) => ({ skillId, meisterschaft })),
     )
 
-  const maxOf = (m: MasteryInfo): number => m.mehrfach && m.max !== null ? m.max : 1
-  const countOf = (skillId: string, masteryId: string): number =>
-    (pflicht[skillId] ?? []).filter((p) => p.id === masteryId).length
+  /**
+   * INT-000023 (Rework / MCC-010): Die Auswahl-Obergrenze gilt pro Eintrag
+   * characterweit, nicht je Fertigkeit. Eine mehrfach wählbare Meisterschaft,
+   * die bereits für eine andere Fertigkeit gewählt wurde, zählt daher mit und
+   * wird nach Erreichen der Obergrenze in keinem Auswahlfeld mehr angeboten.
+   * Nicht mehrfach wählbare Einträge verhalten sich unverändert (je Fertigkeit
+   * höchstens eine Auswahl).
+   */
+  const poolForSkill = (
+    skill: QualifyingSkill,
+    state: Record<string, PickedItem[]>,
+  ): MasteryInfo[] =>
+    filterVerfuegbareMeisterschaften(
+      skill.pool,
+      Object.values(state).flat(),
+      state[skill.id] ?? [],
+    )
 
-  /** INT-000023: bis zur Obergrenze bleibt die Meisterschaft im Auswahlfeld. */
   const availablePool = (skill: QualifyingSkill): MasteryInfo[] =>
-    skill.pool.filter((m) => countOf(skill.id, m.id) < maxOf(m))
+    poolForSkill(skill, pflicht)
 
   const setPflichtForSkill = (skill: QualifyingSkill, m: PickedItem) => {
     const next = { ...pflicht, [skill.id]: [...(pflicht[skill.id] ?? []), m] }
@@ -312,7 +326,9 @@ export default function ZauberStep({ onValid }: ZauberStepProps) {
   const fillRandomly = () => {
     const nextPflicht: Record<string, PickedItem[]> = {}
     for (const skill of qualifyingSkills) {
-      const mastery = pickRandom(availablePool(skill))
+      // Gegen den bereits gefüllten Zwischenstand prüfen, damit auch im
+      // Testmodus die characterweite Obergrenze eingehalten wird.
+      const mastery = pickRandom(poolForSkill(skill, nextPflicht))
       if (mastery) nextPflicht[skill.id] = [{ id: mastery.id, name: mastery.name }]
     }
 
