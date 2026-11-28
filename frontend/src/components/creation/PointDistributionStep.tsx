@@ -2,7 +2,16 @@ import { useState, useEffect, useRef, ReactNode } from 'react'
 import { useAppContext } from '../../context/AppContext'
 import { useStepFill } from '../../context/TestModeContext'
 import { distributePoints, pickExactCostSubset, pickRandom } from '../../testmode/random'
-import { ALL_RESOURCES, readMehrfachConfig, displayNameWithCount } from '@mcc/shared'
+import {
+  ALL_RESOURCES,
+  readMehrfachConfig,
+  displayNameWithCount,
+  staerkenPunkteVerbrauch,
+  zaehleStaerkenAuswahlen,
+  maxAuswahlVonEintrag,
+  istStaerkeNochWaehlbar,
+  type StaerkenWahlEintrag,
+} from '@mcc/shared'
 
 const DEFAULT_SKILL_MAX = 6
 
@@ -140,17 +149,19 @@ export default function PointDistributionStep({
 
   const skillAvailable = skillPoints - skillUsed
 
-  const countOf = (id: string): number => staerken.filter((value) => value === id).length
+  const countOf = (id: string): number => zaehleStaerkenAuswahlen(staerken, id)
   const maxOf = (s: { mehrfach: boolean; max: number | null }): number =>
-    s.mehrfach && s.max !== null ? s.max : 1
+    maxAuswahlVonEintrag(s)
   // INT-000023: mehrfach wählbare Stärken werden bis zur Obergrenze angeboten.
   const eligibleStaerken = staerkenData.filter(
     (s) => s.kosten <= staerkenMaxKosten && (!s.mehrfach || countOf(s.id) < maxOf(s)),
   )
-  const staerkenUsed = staerken.reduce((sum, id) => {
-    const s = staerkenData.find((x) => x.id === id)
-    return sum + (s?.kosten ?? 1)
-  }, 0)
+  // INT-000027: Jede Auswahl zählt mit ihrem regulären Preis – auch die zweite
+  // und jede weitere Auswahl derselben mehrfach wählbaren Stärke.
+  const staerkenUsed = staerkenPunkteVerbrauch(
+    staerken,
+    (id) => staerkenData.find((x) => x.id === id)?.kosten ?? 1,
+  )
   const staerkenAvailable = staerkenPoints - staerkenUsed
 
   const resourcesSpent = ALL_RESOURCES.reduce((sum, name) => {
@@ -230,15 +241,17 @@ export default function PointDistributionStep({
     persist(next, staerken, resourceLevels)
   }
 
-  const handleStaerke = (s: { id: string; kosten: number; mehrfach: boolean; max: number | null }) => {
+  const handleStaerke = (s: StaerkenWahlEintrag) => {
+    // Nicht mehrfach wählbare Stärken bleiben abwählbar (Toggle wie bisher).
     if (!s.mehrfach && staerken.includes(s.id)) {
       const next = staerken.filter((value) => value !== s.id)
       setStaerken(next)
       persist(skills, next, resourceLevels)
       return
     }
-    if (s.mehrfach && countOf(s.id) >= maxOf(s)) return
-    if (staerkenAvailable < s.kosten) return
+    // INT-000027: Obergrenze und Punktbudget wirken gemeinsam. Erst wenn
+    // beides stimmt, wird die Auswahl akzeptiert und der Preis abgezogen.
+    if (!istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)) return
     const next = [...staerken, s.id]
     setStaerken(next)
     persist(skills, next, resourceLevels)
@@ -274,11 +287,19 @@ export default function PointDistributionStep({
   // vollständig und regelkonform verteilen. Magieschulen werden ausgelassen,
   // damit der späteren Zauber-Schritt keine nicht vorhandenen Zauber erzwingt.
   const fillRandomly = () => {
-    const staerkenIds = pickExactCostSubset(
-      eligibleStaerken.map((s) => ({ id: s.id, kosten: s.kosten })),
-      staerkenPoints,
-    )
-    if (staerkenIds.length === 0 && staerkenPoints > 0) return
+    // INT-000027: Der Zufallsmodus darf eine mehrfach wählbare Stärke bis zu
+    // ihrer Obergrenze mehrfach in die Auswahlliste aufnehmen, damit auch ein
+    // Budget, das nur durch Wiederholungen exakt aufgeht, gefüllt werden kann.
+    const staerkenKandidaten = eligibleStaerken.flatMap((s) => {
+      if (!s.mehrfach && countOf(s.id) > 0) return []
+      const verbleibend = s.mehrfach ? maxOf(s) - countOf(s.id) : 1
+      return Array.from({ length: Math.max(0, verbleibend) }, () => ({
+        id: s.id, kosten: s.kosten,
+      }))
+    })
+    const zusaetzlicheStaerken = pickExactCostSubset(staerkenKandidaten, staerkenAvailable)
+    if (zusaetzlicheStaerken.length === 0 && staerkenAvailable > 0) return
+    const nextStaerken = [...staerken, ...zusaetzlicheStaerken]
 
     const skillIds = [...talents, ...weapons].map((s) => s.id)
     const delta = distributePoints(
@@ -299,9 +320,9 @@ export default function PointDistributionStep({
     }
 
     setSkills(nextSkills)
-    setStaerken(staerkenIds)
+    setStaerken(nextStaerken)
     setResourceLevels(nextResources)
-    persist(nextSkills, staerkenIds, nextResources)
+    persist(nextSkills, nextStaerken, nextResources)
   }
   useStepFill(fillRandomly, !dataLoading && talents.length > 0)
 
@@ -447,7 +468,12 @@ export default function PointDistributionStep({
         <div style={styles.staerkenGrid}>
           {eligibleStaerken.map((s) => {
             const isSelected = countOf(s.id) > 0
-            const isDisabled = !isSelected && staerkenAvailable < s.kosten
+            // INT-000027: Eine bereits gewählte, nicht mehrfach wählbare
+            // Stärke bleibt zum Abwählen anklickbar. Jede weitere Auswahl
+            // wird nur bei freier Obergrenze UND ausreichendem Budget angeboten.
+            const canToggleOff = !s.mehrfach && isSelected
+            const isDisabled = !canToggleOff
+              && !istStaerkeNochWaehlbar(s, staerken, staerkenAvailable)
             return (
               <button
                 key={s.id}
