@@ -7,12 +7,15 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import {
   displayNameWithCount,
+  filterVerfuegbareMeisterschaften,
+  istMeisterschaftNochWaehlbar,
   isPositiveIntegerInput,
   parsePositiveInteger,
   readMehrfachConfig,
   toRoman,
   validateMehrfachConfig,
   zaehleAuswahlen,
+  zaehleMeisterschaftAuswahlen,
 } from '@mcc/shared';
 
 test('INT-000023: die Obergrenze akzeptiert nur ganze positive Zahlen', () => {
@@ -60,6 +63,53 @@ test('INT-000023: römische Zählung und Auswahlzählung', () => {
   assert.equal(zaehleAuswahlen(['id-1', 'id-1', 'id-2'], { id: 'id-1' }), 2);
   assert.equal(zaehleAuswahlen(['Flink', 'id-1', 'FLINK '], { id: 'id-1', namen: ['Flink'] }), 3);
   assert.equal(zaehleAuswahlen([], { id: 'id-1' }), 0);
+});
+
+test('INT-000023 Rework / MCC-010: Meisterschafts-Obergrenze gilt characterweit, nicht je Fertigkeit', () => {
+  // Synthetische Testdaten: „Meisterflink" ist mehrfach wählbar mit Obergrenze 2.
+  const meisterflink = { id: 'mf-1', name: 'Meisterflink', mehrfach: true, max: 2 }
+  const meisterhand = { id: 'mf-2', name: 'Meisterhand', mehrfach: false, max: null }
+  const pool = [meisterflink, meisterhand]
+
+  const akrobatik = { id: 'mf-1', name: 'Meisterflink' }
+  const alchemie = { id: 'mf-1', name: 'Meisterflink' }
+
+  // Erste Wahl für Akrobatik: Meisterflink bleibt im Auswahlfeld verfügbar.
+  assert.deepEqual(
+    filterVerfuegbareMeisterschaften(pool, [akrobatik], [akrobatik]).map((m) => m.id),
+    ['mf-1', 'mf-2'],
+  )
+
+  // Zweite Wahl für Alchemie: Obergrenze 2 erreicht. Im Auswahlfeld einer
+  // dritten Fertigkeit („Anführen") darf Meisterflink nicht mehr angeboten
+  // und auch nicht erneut akzeptiert werden.
+  const alleGewaehlt = [akrobatik, alchemie]
+  assert.equal(istMeisterschaftNochWaehlbar(alleGewaehlt, meisterflink, 2), false);
+  assert.deepEqual(
+    filterVerfuegbareMeisterschaften(pool, alleGewaehlt, []).map((m) => m.id),
+    ['mf-2'],
+  )
+
+  // Zählung über alle Fertigkeiten hinweg; Altbestand mit Namen statt Id
+  // wird normalisiert mitgezählt.
+  assert.equal(
+    zaehleMeisterschaftAuswahlen(
+      [{ id: 'alt-1', name: ' MEISTERFLINK ' }, { id: 'mf-1', name: 'Meisterflink' }],
+      meisterflink,
+    ),
+    2,
+  );
+
+  // Nicht mehrfach wählbare Einträge bleiben unverändert: je Fertigkeit
+  // höchstens eine Auswahl, für andere Fertigkeiten weiterhin verfügbar.
+  assert.deepEqual(
+    filterVerfuegbareMeisterschaften([meisterhand], [meisterhand], [meisterhand]).map((m) => m.id),
+    [],
+  );
+  assert.deepEqual(
+    filterVerfuegbareMeisterschaften([meisterhand], [meisterhand], []).map((m) => m.id),
+    ['mf-2'],
+  );
 });
 
 test('INT-000023: Mehrfachauswahl in Bibliothek, Chronik und Erstellung', async () => {

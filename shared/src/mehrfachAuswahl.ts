@@ -109,6 +109,70 @@ export function zaehleAuswahlen(
   }).length
 }
 
+/**
+ * INT-000023 (Rework / MCC-010): Zählt, wie oft eine Meisterschaft in einer
+ * Auswahlliste vorkommt. Verweise können als Id oder als Name (Altbestand)
+ * vorliegen; Normalisierung wie in `zaehleAuswahlen`.
+ *
+ * Die übergebene Liste ist bewusst characterweit (über alle Fertigkeiten
+ * hinweg), weil die konfigurierte Obergrenze pro Eintrag gilt und nicht pro
+ * Fertigkeit, für die die Meisterschaft gewählt wurde.
+ */
+export function zaehleMeisterschaftAuswahlen(
+  bereitsGewaehlt: readonly { id?: string | null; name?: string | null }[],
+  ziel: { id?: string | null; name?: string | null },
+): number {
+  const zielId = typeof ziel.id === 'string' ? ziel.id.trim() : ''
+  const zielName = normalizeName(typeof ziel.name === 'string' ? ziel.name : '')
+  return bereitsGewaehlt.filter((item) => {
+    if (zielId !== '' && item.id === zielId) return true
+    const itemName = normalizeName(typeof item.name === 'string' ? item.name : '')
+    return zielName !== '' && itemName === zielName
+  }).length
+}
+
+/** Ob eine Meisterschaft bei `max` erlaubten Gesamtauswahlen noch wählbar ist. */
+export function istMeisterschaftNochWaehlbar(
+  bereitsGewaehlt: readonly { id?: string | null; name?: string | null }[],
+  ziel: { id?: string | null; name?: string | null },
+  max: number,
+): boolean {
+  return zaehleMeisterschaftAuswahlen(bereitsGewaehlt, ziel) < max
+}
+
+interface MeisterschaftAuswahlKandidat {
+  id: string
+  name: string
+  mehrfach: boolean
+  max: number | null
+}
+
+/**
+ * INT-000023 (Rework / MCC-010): Filtert die passenden Meisterschaften eines
+ * Schritt-9-Auswahlfelds auf diejenigen, die noch gewählt werden dürfen.
+ *
+ * - Mehrfach wählbare Meisterschaften: die Obergrenze gilt characterweit,
+ *   d. h. Auswahlen für andere Fertigkeiten zählen ebenfalls mit.
+ * - Alle anderen Einträge behalten das bisherige Verhalten (je Fertigkeit
+ *   höchstens eine Auswahl) und bleiben für andere Fertigkeiten verfügbar.
+ */
+export function filterVerfuegbareMeisterschaften<
+  T extends MeisterschaftAuswahlKandidat,
+>(
+  pool: readonly T[],
+  alleGewaehlt: readonly { id?: string | null; name?: string | null }[],
+  jeSkill: readonly { id?: string | null; name?: string | null }[],
+): T[] {
+  return pool.filter((m) => {
+    const max = m.mehrfach && m.max !== null ? m.max : 1
+    return istMeisterschaftNochWaehlbar(
+      m.mehrfach ? alleGewaehlt : jeSkill,
+      { id: m.id, name: m.name },
+      max,
+    )
+  })
+}
+
 const ROMAN_VALUES: readonly [number, string][] = [
   [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
   [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
