@@ -12,6 +12,7 @@ Inhalt:
 - Bonus-Felder nur mit Kürzeln beschriftet (INT-000021)
 - Passive Boni schon im Schritt „7. Attribute" sehen (INT-000022)
 - Vorteile und Meisterschaften mehrfach wählen (INT-000023 / SF-000014)
+- Kosten und Punktbudget bei mehrfach gewählten Stärken in der Creation (INT-000027 / SF-000014)
 
 Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
 
@@ -556,6 +557,8 @@ ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **K
    wenn Sie die Meisterschaft für mehrere Fertigkeiten gewählt haben.
 3. Schließen Sie den Wizard wie gewohnt mit **„Charakter fertigstellen"** ab.
 
+Hinweis: In den Punkteschritten **„6. Ausbildung"** und **„8. Hobbybedarf"** kostet jede weitere Auswahl einer mehrfach wählbaren Stärke erneut Punkte; das Punktbudget begrenzt die Auswahl zusätzlich zur Obergrenze. Siehe Abschnitt „Mehrfach wählbar: Kosten und Punktbudget in der Creation" unten.
+
 ### Darstellung und Boni im Charakterbogen
 
 - Unter **„Stärken"** bzw. **„Meisterschaften"** steht genau **ein** Eintrag mit
@@ -612,3 +615,56 @@ ebenfalls je Auswahl addiert: Gibt „Flink" **KON +1**, ergibt „Flink II" **K
   sie bei Bedarf über „Bearbeiten" ein.
 - Bestehende, bereits fertig erstellte Charaktere werden nicht nachträglich
   umgeschrieben.
+
+---
+
+## Mehrfach wählbar: Kosten und Punktbudget in der Creation (INT-000027 / SF-000014)
+
+Anwenderhandbuch für die Punkteschritte der Charaktererstellung (Stand: 28.11.2026). Wählen Sie eine mehrfach wählbare Stärke in einem Schritt mit Punktbudget erneut, kostet das jedes Mal den regulären Preis. Das verbleibende Punktbudget und die maximale Auswahl-Obergrenze begrenzen die Auswahl gemeinsam. Technische Details: [`technische-dokumentation.md`](technische-dokumentation.md).
+
+### Worum es geht
+
+Eine mehrfach wählbare Stärke (z. B. „Flink", Kosten 1, Obergrenze 2) bleibt in der Auswahl, bis die Obergrenze erreicht ist. In den Schritten **„6. Ausbildung"** („Stärken-Punkte: 2") und **„8. Hobbybedarf"** („Stärken-Punkte: 3") wird jeder Auswahl — auch der zweiten und jeder weiteren — der Preis vom Punktbudget abgezogen. Sind die Punkte aufgebraucht, können Sie nichts weiter auswählen, selbst wenn die Obergrenze noch frei wäre. Umgekehrt bleibt ein Punkt übrig, wenn die Obergrenze zuerst erreicht ist; den können Sie für eine andere Stärke ausgeben.
+
+### Voraussetzungen
+
+- Sie führen einen Erstellvorgang bis **„6. Ausbildung"** oder **„8. Hobbybedarf"**; der Zähler **„Stärken-Punkte"** und der Abschnitt **„N Stärken wählen"** sind sichtbar.
+- In **Bibliothek → Stärken** ist eine Stärke als **„mehrfach wählbar"** mit positiver Obergrenze und einem Kostenwert angelegt (siehe Abschnitt „Vorteile und Meisterschaften mehrfach wählen").
+
+### Schritt für Schritt: mehrfach wählen und Punkte beachten
+
+1. Lesen Sie den Zähler **„Stärken-Punkte"** ab, z. B. **2**.
+2. Klicken Sie auf die Karte der mehrfach wählbaren Stärke, z. B. **„Flink"**, **„1 Punkt"**. Die Karte zeigt **„Auswahl 1 / 2"**, der Zähler sinkt auf **1**, und unter der Auswahl steht ein Eintrag **„Flink"**.
+3. Klicken Sie erneut auf **„Flink"**. Der Zähler sinkt auf **0**; der Eintrag heißt jetzt **„Flink II"** und steht nur einmal. Die Karte „Flink" wird im Abschnitt „2 Stärken wählen" nicht mehr angeboten.
+4. Hätten Sie mehr Punkte als die Obergrenze zulässt, bliebe der Restpunkt für eine andere Stärke; ist das Budget vor der Obergrenze aufgebraucht, ist die Karte deaktiviert und ein weiterer Klick wird nicht akzeptiert.
+5. Möchten Sie eine Auswahl zurücknehmen, klicken Sie am Eintrag auf das **×** (zugänglich als **„Flink entfernen"**). Pro Klick wird eine Auswahl entfernt und genau ein Punkt erstattet („Flink II" → „Flink" → keine Auswahl, Zähler 0 → 1 → 2).
+
+### Erwartete Rückmeldungen
+
+- Nach **jeder** Auswahl sinkt „Stärken-Punkte" um den Kostenwert; „Fertigkeits-Punkte" und „Ressourcen-Punkte" bleiben unverändert.
+- Die mehrfach gewählte Stärke erscheint als **ein** Eintrag mit römischer Zahl („Flink II"), nie als zwei Zeilen „Flink".
+- Ist die Obergrenze erreicht **oder** das Budget aufgebraucht, ist die Karte ausgegraut/deaktiviert und wird nicht mehr angeboten; eine Fehlermeldung erscheint nicht.
+- Beim Entfernen erscheint die Karte mit um eins verringertem Stand („Auswahl 1 / 2", dann „Auswahl 0 / 2") wieder, und der Punkt ist zurück.
+- „Weiter" ist erst aktiv, wenn alle drei Zähler (Fertigkeiten, Ressourcen, Stärken) auf 0 sind.
+
+### Fehlerbehebung
+
+| Situation | Bedeutung / Lösung |
+|---|---|
+| Die Karte ist ausgegraut, obwohl „Auswahl 2 / 3" noch frei ist | Das Punktbudget ist aufgebraucht. Entfernen Sie eine andere Auswahl oder schließen Sie den Schritt mit den verfügbaren Punkten ab. |
+| Die Karte ist ausgegraut, obwohl noch Punkte übrig sind | Die maximale Auswahl-Obergrenze ist erreicht. Geben Sie den Restpunkt für eine andere Stärke aus. |
+| Sie sehen zwei Zeilen „Flink" | Das sollte nicht passieren; wiederholte Auswahlen werden zu „Flink II" zusammengefasst. Prüfen Sie die Obergrenze im Bibliothekseintrag. |
+| Ein Klick wird nicht angenommen | Entweder Budget oder Obergrenze ist erschöpft. Die Schaltfläche ist dann deaktiviert; es gibt keine Fehlermeldung. |
+| Ein Punkt wurde nicht erstattet | Klicken Sie „{Stärke} entfernen" so oft, wie Sie Auswahlen zurücknehmen möchten; pro Klick wird genau eine erstattet. |
+
+### Speicherung
+
+- Die Auswahlen werden im laufenden Erstellvorgang gespeichert und mit **„Charakter fertigstellen"** in den Charakter übernommen. Es gibt keinen gesonderten Kosten-Eintrag.
+- Die Zusammenfassung zu „Flink II" betrifft nur die Anzeige; die einzelnen Auswahlen bleiben erhalten, und passive Boni werden pro Auswahl addiert.
+
+### Grenzen
+
+- Die Kostenabzugswirkung gibt es nur in Schritten mit einem **„Stärken-Punkte"**-Zähler („6. Ausbildung", „8. Hobbybedarf"). In **„5. Kindheit"** zählt stattdessen „Stärken gewählt" und es werden keine Punkte abgezogen; die Stärke bleibt dort bis zur Obergrenze auswählbar.
+- Der Preis entspricht dem in der Bibliothek konfigurierten Kostenwert; die Obergrenze verändert den Preis nicht.
+- Bereits fertig erstellte Charaktere werden nicht nachträglich geändert; Chronik-Käufe zum regulären Preis bleiben unverändert.
+- Die Änderung betrifft nur die Auswahl in der Creation; Konfiguration, römische Zählung und Bonus-Aggregation bleiben wie beschrieben.
